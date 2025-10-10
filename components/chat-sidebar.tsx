@@ -4,16 +4,17 @@ import type { Agent } from "@/types/chat"
 import { cn } from "@/lib/utils"
 import { BarChart3, User, Code, Palette, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 interface ChatSidebarProps {
   agents: Agent[]
   selectedAgents: string[]
   usedAgents: string[]
   onToggleAgent: (agentId: string) => void
-  onOpenSettings: () => void
 }
 
-export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent, onOpenSettings }: ChatSidebarProps) {
+export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent }: ChatSidebarProps) {
+  const router = useRouter()
   const [userEmail, setUserEmail] = useState("Iprocesso")
 
   useEffect(() => {
@@ -47,36 +48,35 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent,
           const isUsed = usedAgents.includes(agent.id)
 
           return (
-         <button
-  key={agent.id}
-  onClick={() => onToggleAgent(agent.id)}
-  className={cn(
-    "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
-    "bg-[#111111] hover:bg-[#2a2a2a] hover:scale-105 hover:shadow-lg cursor-pointer",
-    isUsed && "border-2",
-    isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]"
-  )}
-  style={{
-    borderColor: isUsed ? agent.color : "transparent",
-    borderStyle: "solid",
-    borderWidth: isUsed ? "2px" : "0px",
-    ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
-  }}
-  title={agent.name}
->
-  <Icon
-    className="w-5 h-5 transition-colors duration-300"
-    style={{
-      color: isSelected || isUsed ? agent.color : "var(--agent-icon)",
-    }}
-  />
+            <button
+              key={agent.id}
+              onClick={() => onToggleAgent(agent.id)}
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
+                "bg-[#111111] hover:bg-[#2a2a2a] hover:scale-105 hover:shadow-lg cursor-pointer",
+                isUsed && "border-2",
+                isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]",
+              )}
+              style={{
+                borderColor: isUsed ? agent.color : "transparent",
+                borderStyle: "solid",
+                borderWidth: isUsed ? "2px" : "0px",
+                ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
+              }}
+              title={agent.name}
+            >
+              <Icon
+                className="w-5 h-5 transition-colors duration-300"
+                style={{
+                  color: isSelected || isUsed ? agent.color : "var(--agent-icon)",
+                }}
+              />
 
-  {/* Tooltip */}
-  <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-    {agent.name}
-  </div>
-</button>
-
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                {agent.name}
+              </div>
+            </button>
           )
         })}
       </div>
@@ -86,8 +86,8 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent,
       <div className="w-full h-px bg-[var(--sidebar-border)] mt-2" />
 
       <button
-        onClick={onOpenSettings}
-        className="w-12 h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all"
+        onClick={() => router.push("/settings")}
+        className="w-12 h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
       >
         <Settings className="w-5 h-5 text-[var(--agent-icon)]" />
       </button>

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
-import { SettingsModal } from "@/components/settings-modal"
 import type { Agent, Message } from "@/types/chat"
 
 export default function ChatPage() {
@@ -14,7 +13,6 @@ export default function ChatPage() {
   const [currentChatId, setCurrentChatId] = useState("1")
   const [chats, setChats] = useState([{ id: "1", name: "Conversa 1", contextMessages: undefined }])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({ "1": [] })
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("authenticated")
@@ -76,7 +74,6 @@ export default function ChatPage() {
         selectedAgents={selectedAgents}
         usedAgents={usedAgents}
         onToggleAgent={toggleAgent}
-        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <ChatArea
         agents={agents}
@@ -88,7 +85,6 @@ export default function ChatPage() {
         onMarkAgentAsUsed={markAgentAsUsed}
         onCreateChatWithMessages={createChatWithMessages}
       />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   )
 }
