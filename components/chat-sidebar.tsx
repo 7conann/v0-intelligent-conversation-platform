@@ -123,6 +123,7 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
             {hoveredAgent}
           </div>,
           document.getElementById("tooltip-root")!
+          
         )}
     </div>
   )
