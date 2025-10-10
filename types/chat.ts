@@ -10,10 +10,12 @@ export interface Message {
   content: string
   sender: "user" | "assistant"
   timestamp: Date
+  usedAgentIds?: string[]
 }
 
 export interface Chat {
   id: string
   name: string
   contextMessages?: Message[]
+  usedAgentIds?: string[]
 }

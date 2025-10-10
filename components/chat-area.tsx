@@ -56,6 +56,7 @@ export function ChatArea({
       content: input,
       sender: "user",
       timestamp: new Date(),
+      usedAgentIds: selectedAgents,
     }
 
     setMessages((prev) => ({
@@ -132,6 +133,7 @@ export function ChatArea({
         content: responseContent,
         sender: "assistant",
         timestamp: new Date(),
+        usedAgentIds: selectedAgents,
       }
 
       setMessages((prev) => ({

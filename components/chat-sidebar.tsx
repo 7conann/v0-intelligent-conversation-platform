@@ -1,9 +1,11 @@
 "use client"
 
+import type React from "react"
+
 import type { Agent } from "@/types/chat"
 import { cn } from "@/lib/utils"
 import { BarChart3, User, Code, Palette, Settings } from "lucide-react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 
@@ -75,14 +77,11 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
               className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
                 "bg-[#111111] hover:bg-[#2a2a2a] hover:scale-105 hover:shadow-lg cursor-pointer",
-                isUsed && "border-2",
-                isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]"
+                isSelected && "border-2 border-solid",
+                isUsed && !isSelected && "border-2 border-dashed border-white/40",
               )}
               style={{
-                borderColor: isUsed ? agent.color : "transparent",
-                borderStyle: "solid",
-                borderWidth: isUsed ? "2px" : "0px",
-                ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
+                ...(isSelected && { borderColor: agent.color }),
               }}
             >
               <Icon
@@ -108,7 +107,8 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
       </button>
 
       {/* Tooltip via Portal (sobrepõe tudo) */}
-      {hoveredAgent && coords &&
+      {hoveredAgent &&
+        coords &&
         createPortal(
           <div
             className="fixed px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded shadow-lg whitespace-nowrap transition-opacity opacity-100"
@@ -122,8 +122,7 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
           >
             {hoveredAgent}
           </div>,
-          document.getElementById("tooltip-root")!
-          
+          document.getElementById("tooltip-root")!,
         )}
     </div>
   )
