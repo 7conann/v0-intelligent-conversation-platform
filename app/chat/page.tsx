@@ -8,8 +8,7 @@ import type { Agent, Message, Chat } from "@/types/chat"
 
 export default function ChatPage() {
   const router = useRouter()
-  
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({ "1": [] })
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
   const [currentChatId, setCurrentChatId] = useState("1")
   const [chats, setChats] = useState<Chat[]>([
@@ -31,6 +30,7 @@ export default function ChatPage() {
     const savedMessages = localStorage.getItem("chatMessages")
     const savedUsedAgents = localStorage.getItem("usedAgentsPerChat")
     const savedCurrentChatId = localStorage.getItem("currentChatId")
+    const savedSelectedAgents = localStorage.getItem("selectedAgentsByChat")
 
     if (savedChats) {
       try {
@@ -73,6 +73,14 @@ export default function ChatPage() {
       }
     }
 
+    if (savedSelectedAgents) {
+      try {
+        setSelectedAgentsByChat(JSON.parse(savedSelectedAgents))
+      } catch (e) {
+        console.error("[v0] Error loading selected agents:", e)
+      }
+    }
+
     if (savedCurrentChatId) {
       setCurrentChatId(savedCurrentChatId)
     }
@@ -91,11 +99,11 @@ export default function ChatPage() {
   }, [usedAgentsPerChat])
 
   useEffect(() => {
-    localStorage.setItem("currentChatId", currentChatId)
-  }, [currentChatId])
+    localStorage.setItem("selectedAgentsByChat", JSON.stringify(selectedAgentsByChat))
+  }, [selectedAgentsByChat])
 
   useEffect(() => {
-    setSelectedAgents([])
+    localStorage.setItem("currentChatId", currentChatId)
   }, [currentChatId])
 
   const agents: Agent[] = [
@@ -107,9 +115,26 @@ export default function ChatPage() {
     { id: "6", name: "Vendas", icon: "🎁", color: "#fb923c" },
   ]
 
-  const toggleAgent = useCallback((agentId: string) => {
-    setSelectedAgents((prev) => (prev.includes(agentId) ? prev.filter((id) => id !== agentId) : [...prev, agentId]))
-  }, [])
+  const toggleAgent = useCallback(
+    (agentId: string) => {
+      setSelectedAgentsByChat((prev) => {
+        const currentSelected = prev[currentChatId] || []
+        const isCurrentlySelected = currentSelected.includes(agentId)
+
+        if (!isCurrentlySelected) {
+          markAgentAsUsed(currentChatId, agentId)
+        }
+
+        return {
+          ...prev,
+          [currentChatId]: isCurrentlySelected
+            ? currentSelected.filter((id) => id !== agentId)
+            : [...currentSelected, agentId],
+        }
+      })
+    },
+    [currentChatId],
+  )
 
   const markAgentAsUsed = useCallback((chatId: string, agentId: string) => {
     setUsedAgentsPerChat((prev) => {
@@ -151,7 +176,7 @@ export default function ChatPage() {
       setCurrentChatId(newChatId)
       setChatMessages((prevMessages) => ({ ...prevMessages, [newChatId]: [] }))
       setUsedAgentsPerChat((prevUsed) => ({ ...prevUsed, [newChatId]: [] }))
-      setSelectedAgents([]) // Clear selected agents when creating a new chat
+      setSelectedAgentsByChat((prevSelected) => ({ ...prevSelected, [newChatId]: [] }))
       return [...prev, newChat]
     })
   }, [])
@@ -189,6 +214,7 @@ export default function ChatPage() {
       setChatMessages((prev) => ({ ...prev, [newChatId]: [] }))
       setCurrentChatId(newChatId)
       setUsedAgentsPerChat((prev) => ({ ...prev, [newChatId]: usedAgentIds }))
+      setSelectedAgentsByChat((prev) => ({ ...prev, [newChatId]: [] }))
 
       return [...prev, newChat]
     })
@@ -211,6 +237,11 @@ export default function ChatPage() {
         const newUsed = { ...prev }
         delete newUsed[chatId]
         return newUsed
+      })
+      setSelectedAgentsByChat((prev) => {
+        const newSelected = { ...prev }
+        delete newSelected[chatId]
+        return newSelected
       })
 
       if (currentChatId === chatId) {
@@ -238,10 +269,8 @@ export default function ChatPage() {
 
   const importChat = useCallback(
     (chat: Chat, messages: Message[]) => {
-      // Sort messages by timestamp to ensure correct order
       const sortedMessages = [...messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
-      // Extract used agent IDs from messages
       const usedAgentIds = Array.from(
         new Set(
           sortedMessages
@@ -250,7 +279,6 @@ export default function ChatPage() {
         ),
       )
 
-      // Build agent histories from messages
       const agentHistories: Record<string, Message[]> = {}
       sortedMessages.forEach((message) => {
         if (message.usedAgentIds) {
@@ -263,7 +291,6 @@ export default function ChatPage() {
         }
       })
 
-      // Create new chat with imported data
       const newChatId = String(chats.length + 1)
       const newChat: Chat = {
         ...chat,
@@ -273,18 +300,18 @@ export default function ChatPage() {
         agentHistories,
       }
 
-      // Add chat and messages
       setChats((prev) => [...prev, newChat])
       setChatMessages((prev) => ({ ...prev, [newChatId]: sortedMessages }))
       setUsedAgentsPerChat((prev) => ({ ...prev, [newChatId]: usedAgentIds }))
+      setSelectedAgentsByChat((prev) => ({ ...prev, [newChatId]: [] }))
 
-      // Switch to the new imported chat
       setCurrentChatId(newChatId)
     },
     [chats],
   )
 
   const currentUsedAgents = usedAgentsPerChat[currentChatId] || []
+  const currentSelectedAgents = selectedAgentsByChat[currentChatId] || []
   const currentChat = chats.find((c) => c.id === currentChatId)
 
   const currentAgentHistories: Record<string, Message[]> = {}
@@ -304,14 +331,14 @@ export default function ChatPage() {
     <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
       <ChatSidebar
         agents={agents}
-        selectedAgents={selectedAgents}
+        selectedAgents={currentSelectedAgents}
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
         agentHistories={currentAgentHistories}
       />
       <ChatArea
         agents={agents}
-        selectedAgents={selectedAgents}
+        selectedAgents={currentSelectedAgents}
         currentChatId={currentChatId}
         chats={chats}
         onCreateNewChat={createNewChat}
