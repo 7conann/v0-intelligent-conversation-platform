@@ -61,7 +61,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] p-8">
-<div class="w-full">
+<div className="px-56" class="w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
