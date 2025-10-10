@@ -11,7 +11,6 @@ export default function ChatPage() {
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
   const [currentChatId, setCurrentChatId] = useState("1")
-  
   const [chats, setChats] = useState<Chat[]>([
     { id: "1", name: "Conversa 1", contextMessages: undefined, usedAgentIds: [], agentHistories: {} },
   ])
@@ -147,6 +146,7 @@ export default function ChatPage() {
       setCurrentChatId(newChatId)
       setChatMessages((prevMessages) => ({ ...prevMessages, [newChatId]: [] }))
       setUsedAgentsPerChat((prevUsed) => ({ ...prevUsed, [newChatId]: [] }))
+      setSelectedAgents([]) // Clear selected agents when creating a new chat
       return [...prev, newChat]
     })
   }, [])
@@ -181,9 +181,10 @@ export default function ChatPage() {
         agentHistories: agentHistories,
       }
 
-      setChatMessages((prevMessages) => ({ ...prevMessages, [newChatId]: [] }))
+      setChatMessages((prev) => ({ ...prev, [newChatId]: [] }))
       setCurrentChatId(newChatId)
-      setUsedAgentsPerChat((prevUsed) => ({ ...prevUsed, [newChatId]: usedAgentIds }))
+      setUsedAgentsPerChat((prev) => ({ ...prev, [newChatId]: usedAgentIds }))
+
       return [...prev, newChat]
     })
   }, [])
