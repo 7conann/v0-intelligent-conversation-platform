@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -28,43 +27,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="border border-gray-800 rounded-2xl p-8 bg-gradient-to-b from-gray-900/50 to-gray-950/50 backdrop-blur">
+    <div className="min-h-screen flex">
+      {/* Left Side - Login Form */}
+      <div className="w-1/2 bg-[#0a0a0f] flex items-center justify-center p-12">
+        <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex justify-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center border border-purple-500/30">
-              <div className="w-12 h-12 relative">
-                <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                  <path
-                    d="M12 2L2 7L12 12L22 7L12 2Z"
-                    stroke="url(#gradient1)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M2 17L12 22L22 17"
-                    stroke="url(#gradient1)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M2 12L12 17L22 12"
-                    stroke="url(#gradient1)"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <defs>
-                    <linearGradient id="gradient1" x1="2" y1="2" x2="22" y2="22">
-                      <stop offset="0%" stopColor="#a78bfa" />
-                      <stop offset="100%" stopColor="#60a5fa" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10">
+                <path
+                  d="M12 2L2 7L12 12L22 7L12 2Z"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2 17L12 22L22 17"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2 12L12 17L22 12"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
           </div>
 
@@ -72,26 +64,26 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
             WORKSPACE E+I
           </h1>
-          <p className="text-center text-gray-400 mb-8">Plataforma de Conversas Inteligentes Multiagente</p>
+          <p className="text-center text-gray-400 mb-12 text-sm">Plataforma de Conversas Inteligentes Multiagente</p>
 
           {/* Tabs */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-2 mb-8 bg-gray-900/50 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab("login")}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
                 activeTab === "login"
-                  ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white"
-                  : "bg-gray-800/50 text-gray-400 hover:bg-gray-800"
+                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                  : "text-gray-400 hover:text-gray-300"
               }`}
             >
               Login
             </button>
             <button
               onClick={() => setActiveTab("cadastro")}
-              className={`flex-1 py-3 rounded-lg font-medium transition-all cursor-pointer ${
+              className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
                 activeTab === "cadastro"
-                  ? "bg-gradient-to-r from-purple-600 to-purple-500 text-white"
-                  : "bg-gray-800/50 text-gray-400 hover:bg-gray-800"
+                  ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
+                  : "text-gray-400 hover:text-gray-300"
               }`}
             >
               Cadastro
@@ -99,9 +91,9 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <Label htmlFor="email" className="text-gray-300 mb-2 block">
+              <Label htmlFor="email" className="text-gray-300 mb-2 block text-sm font-medium">
                 Email
               </Label>
               <Input
@@ -110,12 +102,12 @@ export default function LoginPage() {
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500"
+                className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-gray-300 mb-2 block">
+              <Label htmlFor="password" className="text-gray-300 mb-2 block text-sm font-medium">
                 Senha
               </Label>
               <Input
@@ -124,15 +116,19 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500"
+                className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
               />
             </div>
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
+            {error && (
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+                <p className="text-purple-400 text-sm">{error}</p>
+              </div>
+            )}
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white py-6 text-lg font-medium cursor-pointer"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
             >
               Entrar
             </Button>
@@ -141,10 +137,88 @@ export default function LoginPage() {
           <button className="w-full text-center text-purple-400 hover:text-purple-300 mt-6 text-sm cursor-pointer">
             Esqueci minha senha
           </button>
+
+          {/* Login hint */}
+          <div className="mt-8 text-center text-gray-600 text-xs">Use: admin@workspace.com / admin123</div>
+        </div>
+      </div>
+
+      {/* Right Side - Branding */}
+      <div className="w-1/2 bg-gradient-to-br from-purple-900 via-blue-900 to-purple-950 relative overflow-hidden flex items-center justify-center">
+        {/* Animated background grid */}
+        <div className="absolute inset-0 opacity-20">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(139, 92, 246, 0.3) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(139, 92, 246, 0.3) 1px, transparent 1px)
+              `,
+              backgroundSize: "40px 40px",
+            }}
+          />
         </div>
 
-        {/* Login hint */}
-        <div className="mt-4 text-center text-gray-500 text-sm">Use: admin@workspace.com / admin123</div>
+        {/* Glowing orbs */}
+        <div className="absolute top-20 left-20 w-64 h-64 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse delay-1000" />
+
+        {/* Content */}
+        <div className="relative z-10 text-center px-12 max-w-2xl">
+          {/* Large logo */}
+          <div className="flex justify-center mb-8">
+            <div className="w-32 h-32 rounded-3xl bg-white/10 backdrop-blur-xl flex items-center justify-center border border-white/20 shadow-2xl">
+              <svg viewBox="0 0 24 24" fill="none" className="w-20 h-20">
+                <path
+                  d="M12 2L2 7L12 12L22 7L12 2Z"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2 17L12 22L22 17"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2 12L12 17L22 12"
+                  stroke="white"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
+
+          <h2 className="text-5xl font-bold text-white mb-6 leading-tight">
+            Transforme decisões com inteligência artificial
+          </h2>
+          <p className="text-xl text-purple-200 leading-relaxed mb-12">
+            Uma plataforma onde pessoas e IAs trabalham juntas para gerar, reusar e evoluir conhecimento organizacional.
+          </p>
+
+          {/* Feature pills */}
+          <div className="flex flex-wrap gap-3 justify-center">
+            <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
+              12 Agentes Especializados
+            </div>
+            <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
+              Conversas Interconectadas
+            </div>
+            <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
+              Memória Inteligente
+            </div>
+          </div>
+        </div>
+
+        {/* Decorative elements */}
+        <div className="absolute top-10 right-10 w-2 h-2 bg-white rounded-full animate-ping" />
+        <div className="absolute bottom-32 left-16 w-2 h-2 bg-purple-300 rounded-full animate-ping delay-500" />
+        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-blue-300 rounded-full animate-ping delay-1000" />
       </div>
     </div>
   )
