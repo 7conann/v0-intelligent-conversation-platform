@@ -29,7 +29,7 @@
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  --card: oklch(28.908% 0.00003 271.152);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
   --popover-foreground: oklch(0.985 0 0);
@@ -58,7 +58,6 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -66,7 +65,6 @@
 :root.light {
   --app-bg: #f9fafb;
   --sidebar-bg: linear-gradient(to bottom, #ffffff, #f3f4f6);
-  --sidebar-border: #e5e7eb;
   --agent-bg: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
   --agent-hover: linear-gradient(to bottom right, #e5e7eb, #d1d5db);
   --agent-icon: #6b7280;

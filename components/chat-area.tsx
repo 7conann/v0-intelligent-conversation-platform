@@ -185,7 +185,7 @@ export function ChatArea({
             key={chat.id}
             onClick={() => onSwitchChat(chat.id)}
             className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all relative",
+              "!bg-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-all relative cursor-pointer",
               currentChatId === chat.id
                 ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
                 : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
@@ -302,7 +302,7 @@ export function ChatArea({
             >
               <div
                 className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all",
+                  "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all !bg-gray-800",
                   message.sender === "user"
                     ? "bg-[var(--message-user-bg)] text-white"
                     : "bg-[var(--message-assistant-bg)] text-[var(--settings-text)] border border-[var(--chat-border)]",

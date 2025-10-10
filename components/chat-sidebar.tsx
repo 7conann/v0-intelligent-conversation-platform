@@ -47,30 +47,36 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent,
           const isUsed = usedAgents.includes(agent.id)
 
           return (
-            <button
-              key={agent.id}
-              onClick={() => onToggleAgent(agent.id)}
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative group",
-                "bg-[var(--agent-bg)]",
-                isUsed && "border-2",
-                isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]",
-              )}
-              style={{
-                borderColor: isUsed ? agent.color : "transparent",
-                borderStyle: "solid",
-                borderWidth: isUsed ? "2px" : "0px",
-                ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
-              }}
-              title={agent.name}
-            >
-              <Icon className="w-5 h-5" style={{ color: isSelected || isUsed ? agent.color : "var(--agent-icon)" }} />
+         <button
+  key={agent.id}
+  onClick={() => onToggleAgent(agent.id)}
+  className={cn(
+    "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
+    "bg-[#111111] hover:bg-[#2a2a2a] hover:scale-105 hover:shadow-lg cursor-pointer",
+    isUsed && "border-2",
+    isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]"
+  )}
+  style={{
+    borderColor: isUsed ? agent.color : "transparent",
+    borderStyle: "solid",
+    borderWidth: isUsed ? "2px" : "0px",
+    ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
+  }}
+  title={agent.name}
+>
+  <Icon
+    className="w-5 h-5 transition-colors duration-300"
+    style={{
+      color: isSelected || isUsed ? agent.color : "var(--agent-icon)",
+    }}
+  />
 
-              {/* Tooltip */}
-              <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                {agent.name}
-              </div>
-            </button>
+  {/* Tooltip */}
+  <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+    {agent.name}
+  </div>
+</button>
+
           )
         })}
       </div>
