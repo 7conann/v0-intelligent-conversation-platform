@@ -2,16 +2,27 @@
 
 import type { Agent } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { BarChart3, User, Code, Palette } from "lucide-react"
+import { BarChart3, User, Code, Palette, Settings } from "lucide-react"
+import { useEffect, useState } from "react"
 
 interface ChatSidebarProps {
   agents: Agent[]
   selectedAgents: string[]
   usedAgents: string[]
   onToggleAgent: (agentId: string) => void
+  onOpenSettings: () => void
 }
 
-export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent }: ChatSidebarProps) {
+export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent, onOpenSettings }: ChatSidebarProps) {
+  const [userEmail, setUserEmail] = useState("Iprocesso")
+
+  useEffect(() => {
+    const email = localStorage.getItem("userEmail")
+    if (email) {
+      setUserEmail(email)
+    }
+  }, [])
+
   const getAgentIcon = (index: number) => {
     const icons = [BarChart3, User, Code, Palette, BarChart3, User]
     const Icon = icons[index % icons.length]
@@ -19,15 +30,17 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
   }
 
   return (
-    <div className="bg-gradient-to-b from-gray-900 to-gray-950 border-r border-gray-800 flex flex-col items-center w-40 gap-4 py-6">
-      {/* User Profile */}
-      <button className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center mb-4">
-        <User className="w-6 h-6 text-white" />
-      </button>
+    <div className="bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center w-40 gap-4 py-6">
+      <div className="flex flex-col items-center gap-2 mb-2">
+        <button className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+          <User className="w-6 h-6 text-white" />
+        </button>
+        <span className="text-xs text-[var(--text-secondary)] font-medium">{userEmail}</span>
+      </div>
 
-      <div className="w-full h-px bg-gray-800 mb-2" />
+      <div className="w-full h-px bg-[var(--sidebar-border)] mb-2" />
 
-      <div className="grid grid-cols-2 content-start px-3 gap-3">
+      <div className="grid grid-cols-2 content-start px-3 gap-2">
         {agents.map((agent, index) => {
           const Icon = getAgentIcon(index)
           const isSelected = selectedAgents.includes(agent.id)
@@ -39,20 +52,22 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
               onClick={() => onToggleAgent(agent.id)}
               className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center transition-all relative group",
-                "bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800",
-                isSelected && "ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-950",
-                isUsed && "ring-2 ring-offset-2 ring-offset-gray-950",
+                "bg-[var(--agent-bg)]",
+                isUsed && "border-2",
+                isSelected && "ring-2 ring-offset-2 ring-offset-[var(--sidebar-bg)]",
               )}
               style={{
                 borderColor: isUsed ? agent.color : "transparent",
+                borderStyle: "solid",
                 borderWidth: isUsed ? "2px" : "0px",
+                ...(isSelected && { borderColor: agent.color, borderWidth: "2px" }),
               }}
               title={agent.name}
             >
-              <Icon className="w-5 h-5" style={{ color: isSelected ? agent.color : "#9ca3af" }} />
+              <Icon className="w-5 h-5" style={{ color: isSelected || isUsed ? agent.color : "var(--agent-icon)" }} />
 
               {/* Tooltip */}
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+              <div className="absolute left-full ml-2 px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                 {agent.name}
               </div>
             </button>
@@ -62,11 +77,13 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
 
       <div className="flex-1" />
 
-      <div className="w-full h-px bg-gray-800 mt-2" />
+      <div className="w-full h-px bg-[var(--sidebar-border)] mt-2" />
 
-      {/* Settings */}
-      <button className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 flex items-center justify-center transition-all">
-        <Code className="w-5 h-5 text-gray-400" />
+      <button
+        onClick={onOpenSettings}
+        className="w-12 h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all"
+      >
+        <Settings className="w-5 h-5 text-[var(--agent-icon)]" />
       </button>
     </div>
   )

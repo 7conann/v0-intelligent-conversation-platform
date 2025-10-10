@@ -177,9 +177,9 @@ export function ChatArea({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col bg-[var(--chat-bg)]">
       {/* Chat Tabs */}
-      <div className="bg-gradient-to-b from-gray-900 to-gray-950 border-b border-gray-800 px-4 py-2 flex items-center gap-2">
+      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-4 py-2 flex items-center gap-2">
         {chats.map((chat) => (
           <button
             key={chat.id}
@@ -187,8 +187,8 @@ export function ChatArea({
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all relative",
               currentChatId === chat.id
-                ? "bg-gray-800 text-white"
-                : "text-gray-400 hover:text-white hover:bg-gray-800/50",
+                ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
+                : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
             )}
           >
             {chat.name}
@@ -199,7 +199,7 @@ export function ChatArea({
         ))}
         <button
           onClick={onCreateNewChat}
-          className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-all"
+          className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -279,11 +279,11 @@ export function ChatArea({
                 </defs>
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-[var(--settings-text)] mb-2 flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-green-400" />
               {contextMessages && contextMessages.length > 0 ? "Continuar conversa" : "Criar nova conversa"}
             </h2>
-            <p className="text-gray-400 max-w-md">
+            <p className="text-[var(--settings-text-muted)] max-w-md">
               {contextMessages && contextMessages.length > 0
                 ? "Digite sua mensagem para continuar a conversa com o contexto das mensagens anteriores"
                 : "Comece uma nova conversa selecionando agentes na barra lateral e clicando no botão +"}
@@ -304,28 +304,28 @@ export function ChatArea({
                 className={cn(
                   "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all",
                   message.sender === "user"
-                    ? "bg-gradient-to-br from-gray-800 to-gray-900"
-                    : "bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/20",
+                    ? "bg-[var(--message-user-bg)] text-white"
+                    : "bg-[var(--message-assistant-bg)] text-[var(--settings-text)] border border-[var(--chat-border)]",
                   selectedMessages.includes(message.id) && "ring-2 ring-purple-500",
                 )}
                 onClick={() => toggleMessageSelection(message.id)}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-medium text-gray-400">
+                  <span className="text-xs font-medium opacity-70">
                     {message.sender === "user" ? "Você" : "Assistente"}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs opacity-50">
                     {message.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
-                <p className="text-white text-sm leading-relaxed">{message.content}</p>
+                <p className="text-sm leading-relaxed">{message.content}</p>
               </div>
             </div>
           ))
         )}
         {isLoading && (
           <div className="flex gap-3">
-            <div className="max-w-[70%] rounded-2xl px-4 py-3 bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/20">
+            <div className="max-w-[70%] rounded-2xl px-4 py-3 bg-[var(--message-assistant-bg)] border border-[var(--chat-border)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -338,9 +338,9 @@ export function ChatArea({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950 p-4">
+      <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-4">
         {selectedAgents.length === 0 && (
-          <div className="mb-3 text-center text-sm text-primary">
+          <div className="mb-3 text-center text-sm text-purple-400">
             Selecione pelo menos um agente na barra lateral para começar
           </div>
         )}
@@ -355,7 +355,7 @@ export function ChatArea({
               }
             }}
             placeholder="Digite sua mensagem..."
-            className="flex-1 bg-gray-900/50 border-gray-700 text-white placeholder:text-gray-500 focus:border-purple-500 resize-none min-h-[60px] max-h-[200px]"
+            className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[60px] max-h-[200px]"
             disabled={selectedAgents.length === 0}
           />
           <Button

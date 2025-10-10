@@ -4,6 +4,29 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Added light theme variables */
+  --app-bg: #0a0a0f;
+  --sidebar-bg: linear-gradient(to bottom, #111827, #030712);
+  --sidebar-border: #1f2937;
+  --agent-bg: linear-gradient(to bottom right, #1f2937, #111827);
+  --agent-hover: linear-gradient(to bottom right, #374151, #1f2937);
+  --agent-icon: #9ca3af;
+  --tooltip-bg: #1f2937;
+  --tooltip-text: #ffffff;
+  --chat-bg: #0a0a0f;
+  --chat-header-bg: #111827;
+  --chat-border: #1f2937;
+  --message-user-bg: linear-gradient(to bottom right, #7c3aed, #2563eb);
+  --message-assistant-bg: #1f2937;
+  --input-bg: #111827;
+  --settings-bg: #111827;
+  --settings-border: #1f2937;
+  --settings-text: #ffffff;
+  --settings-text-muted: #9ca3af;
+  --settings-button-bg: #1f2937;
+  --settings-button-hover: #374151;
+  --settings-input-bg: #0a0a0f;
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.145 0 0);
@@ -37,6 +60,42 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Added light theme styles */
+:root.light {
+  --app-bg: #f9fafb;
+  --sidebar-bg: linear-gradient(to bottom, #ffffff, #f3f4f6);
+  --sidebar-border: #e5e7eb;
+  --agent-bg: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
+  --agent-hover: linear-gradient(to bottom right, #e5e7eb, #d1d5db);
+  --agent-icon: #6b7280;
+  --tooltip-bg: #1f2937;
+  --tooltip-text: #ffffff;
+  --chat-bg: #ffffff;
+  --chat-header-bg: #f9fafb;
+  --chat-border: #e5e7eb;
+  --message-user-bg: linear-gradient(to bottom right, #7c3aed, #2563eb);
+  --message-assistant-bg: #f3f4f6;
+  --input-bg: #f9fafb;
+  --settings-bg: #ffffff;
+  --settings-border: #e5e7eb;
+  --settings-text: #111827;
+  --settings-text-muted: #6b7280;
+  --settings-button-bg: #f3f4f6;
+  --settings-button-hover: #e5e7eb;
+  --settings-input-bg: #f9fafb;
+
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.985 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(0.985 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.6 0.2 280);
+  --primary-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
 }
 
 .dark {
