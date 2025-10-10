@@ -8,7 +8,6 @@ import type { Agent, Message, Chat } from "@/types/chat"
 
 export default function ChatPage() {
   const router = useRouter()
-  
   const [selectedAgents, setSelectedAgents] = useState<string[]>([])
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
   const [currentChatId, setCurrentChatId] = useState("1")
@@ -92,6 +91,10 @@ export default function ChatPage() {
 
   useEffect(() => {
     localStorage.setItem("currentChatId", currentChatId)
+  }, [currentChatId])
+
+  useEffect(() => {
+    setSelectedAgents([])
   }, [currentChatId])
 
   const agents: Agent[] = [
