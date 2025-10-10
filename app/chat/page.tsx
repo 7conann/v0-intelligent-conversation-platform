@@ -70,7 +70,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[var(--app-bg)]">
+    <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
       <ChatSidebar
         agents={agents}
         selectedAgents={selectedAgents}

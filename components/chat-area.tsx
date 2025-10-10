@@ -199,7 +199,7 @@ export function ChatArea({
         ))}
         <button
           onClick={onCreateNewChat}
-          className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all"
+          className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -217,15 +217,18 @@ export function ChatArea({
           <div className="flex items-center gap-2">
             <Button
               onClick={createNewChatWithSelected}
-              className="bg-green-600 hover:bg-green-500 text-white text-sm flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-500 text-white text-sm flex items-center gap-2 cursor-pointer"
             >
               <MessageSquarePlus className="w-4 h-4" />
               Novo Chat
             </Button>
-            <Button onClick={useSelectedMessages} className="bg-purple-600 hover:bg-purple-500 text-white text-sm">
+            <Button
+              onClick={useSelectedMessages}
+              className="bg-purple-600 hover:bg-purple-500 text-white text-sm cursor-pointer"
+            >
               Usar Mensagens
             </Button>
-            <button onClick={() => setSelectedMessages([])} className="text-gray-400 hover:text-white">
+            <button onClick={() => setSelectedMessages([])} className="text-gray-400 hover:text-white cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -289,7 +292,10 @@ export function ChatArea({
                 : "Comece uma nova conversa selecionando agentes na barra lateral e clicando no botão +"}
             </p>
             {selectedAgents.length > 0 && (
-              <Button onClick={() => setInput("Olá!")} className="mt-6 bg-purple-600 hover:bg-purple-500 text-white">
+              <Button
+                onClick={() => setInput("Olá!")}
+                className="mt-6 bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
+              >
                 Iniciar Conversa
               </Button>
             )}
@@ -361,7 +367,7 @@ export function ChatArea({
           <Button
             onClick={sendMessage}
             disabled={!input.trim() || selectedAgents.length === 0 || isLoading}
-            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[60px] px-6"
+            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[60px] px-6 cursor-pointer disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </Button>

@@ -52,7 +52,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <h2 className="text-xl font-semibold text-[var(--settings-text)]">Configurações</h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-[var(--settings-button-bg)] hover:bg-[var(--settings-button-hover)] flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg bg-[var(--settings-button-bg)] hover:bg-[var(--settings-button-hover)] flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-5 h-5 text-[var(--settings-text)]" />
           </button>
@@ -64,7 +64,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <div className="flex gap-2">
             <button
               onClick={() => handleThemeChange("dark")}
-              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 theme === "dark"
                   ? "bg-purple-600 text-white"
                   : "bg-[var(--settings-button-bg)] text-[var(--settings-text-muted)] hover:bg-[var(--settings-button-hover)]"
@@ -75,7 +75,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </button>
             <button
               onClick={() => handleThemeChange("light")}
-              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all cursor-pointer ${
                 theme === "light"
                   ? "bg-purple-600 text-white"
                   : "bg-[var(--settings-button-bg)] text-[var(--settings-text-muted)] hover:bg-[var(--settings-button-hover)]"
@@ -101,7 +101,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           />
           <button
             onClick={handleSaveEmail}
-            className="mt-2 w-full py-2 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+            className="mt-2 w-full py-2 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer"
           >
             Salvar Email
           </button>
@@ -136,7 +136,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             />
             <button
               onClick={handleSavePassword}
-              className="w-full py-2 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+              className="w-full py-2 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer"
             >
               Alterar Senha
             </button>
