@@ -11,6 +11,7 @@ export default function ChatPage() {
   const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({ "1": [] })
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
   const [currentChatId, setCurrentChatId] = useState("1")
+  
   const [chats, setChats] = useState<Chat[]>([
     { id: "1", name: "Conversa 1", contextMessages: undefined, usedAgentIds: [], agentHistories: {} },
   ])
