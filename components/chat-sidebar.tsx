@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import type { Agent } from "@/types/chat"
+import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
 import { BarChart3, User, Code, Palette, Settings } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -14,9 +14,10 @@ interface ChatSidebarProps {
   selectedAgents: string[]
   usedAgents: string[]
   onToggleAgent: (agentId: string) => void
+  agentHistories: Record<string, Message[]>
 }
 
-export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent }: ChatSidebarProps) {
+export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent, agentHistories }: ChatSidebarProps) {
   const router = useRouter()
   const [userEmail, setUserEmail] = useState("Iprocesso")
 
@@ -31,12 +32,14 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
     }
   }, [])
 
-  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, name: string) => {
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agentId: string, name: string) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    setHoveredAgent(name)
+    const messageCount = agentHistories[agentId]?.length || 0
+    const tooltipText = messageCount > 0 ? `${name} (${messageCount} mensagens)` : name
+    setHoveredAgent(tooltipText)
     setCoords({
       top: rect.top + rect.height / 2,
-      left: rect.right + 8, // aparece à direita
+      left: rect.right + 8,
     })
   }
 
@@ -62,17 +65,18 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
 
       <div className="w-full h-px bg-[var(--sidebar-border)] mb-2" />
 
-      <div className="grid grid-cols-2 content-start px-3 gap-2">
+      <div className="grid grid-cols-2 content-start px-3 gap-2 scrollbar-hide overflow-y-auto max-h-[calc(100vh-300px)]">
         {agents.map((agent, index) => {
           const Icon = getAgentIcon(index)
           const isSelected = selectedAgents.includes(agent.id)
           const isUsed = usedAgents.includes(agent.id)
+          const messageCount = agentHistories[agent.id]?.length || 0
 
           return (
             <button
               key={agent.id}
               onClick={() => onToggleAgent(agent.id)}
-              onMouseEnter={(e) => handleMouseEnter(e, agent.name)}
+              onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
               onMouseLeave={handleMouseLeave}
               className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
@@ -90,6 +94,14 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
                   color: isSelected || isUsed ? agent.color : "var(--agent-icon)",
                 }}
               />
+              {messageCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
+                  style={{ backgroundColor: agent.color }}
+                >
+                  {messageCount > 9 ? "9+" : messageCount}
+                </span>
+              )}
             </button>
           )
         })}
@@ -106,7 +118,6 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent 
         <Settings className="w-5 h-5 text-[var(--agent-icon)]" />
       </button>
 
-      {/* Tooltip via Portal (sobrepõe tudo) */}
       {hoveredAgent &&
         coords &&
         createPortal(

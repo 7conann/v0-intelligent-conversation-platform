@@ -18,4 +18,5 @@ export interface Chat {
   name: string
   contextMessages?: Message[]
   usedAgentIds?: string[]
+  agentHistories?: Record<string, Message[]>
 }
