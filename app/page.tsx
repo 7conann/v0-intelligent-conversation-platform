@@ -83,7 +83,7 @@ export default function LandingPage() {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-900/50 to-purple-800/50 flex items-center justify-center mx-auto mb-6 border border-purple-500/30">
               <Users className="w-8 h-8 text-purple-400" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">12 Agentes Especializados</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">6 Agentes Especializados</h3>
             <p className="text-gray-400 leading-relaxed">
               Estratégia, Dados, RH, Finanças, Marketing e muito mais trabalhando em conjunto
             </p>

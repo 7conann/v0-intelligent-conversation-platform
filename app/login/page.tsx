@@ -204,7 +204,7 @@ export default function LoginPage() {
           {/* Feature pills */}
           <div className="flex flex-wrap gap-3 justify-center">
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
-              12 Agentes Especializados
+              6 Agentes Especializados
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
               Conversas Interconectadas
