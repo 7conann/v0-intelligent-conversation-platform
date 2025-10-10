@@ -340,7 +340,7 @@ export function ChatArea({
       {/* Input Area */}
       <div className="border-t border-gray-800 bg-gradient-to-b from-gray-900 to-gray-950 p-4">
         {selectedAgents.length === 0 && (
-          <div className="mb-3 text-center text-sm text-yellow-500/80">
+          <div className="mb-3 text-center text-sm text-primary">
             Selecione pelo menos um agente na barra lateral para começar
           </div>
         )}
