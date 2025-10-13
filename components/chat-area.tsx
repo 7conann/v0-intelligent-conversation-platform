@@ -21,6 +21,7 @@ import {
   FileText,
   Music,
   Star,
+  Menu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -39,6 +40,8 @@ interface ChatAreaProps {
   onToggleFavorite: (chatId: string) => void
   messages: Record<string, Message[]>
   onAddMessage: (chatId: string, message: Message) => void
+  onOpenMobileSidebar?: () => void
+  className?: string
 }
 
 export function ChatArea({
@@ -56,6 +59,8 @@ export function ChatArea({
   onToggleFavorite,
   messages,
   onAddMessage,
+  onOpenMobileSidebar,
+  className,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
   const [selectedMessages, setSelectedMessages] = useState<string[]>([])
@@ -497,8 +502,16 @@ export function ChatArea({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--chat-bg)] min-w-0">
+    <div className={cn("flex-1 flex flex-col bg-[var(--chat-bg)] min-w-0", className)}>
       <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
+        <button
+          onClick={onOpenMobileSidebar}
+          className="md:hidden w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0 mr-1"
+          title="Abrir menu"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+
         {chats.map((chat) => (
           <div
             key={chat.id}

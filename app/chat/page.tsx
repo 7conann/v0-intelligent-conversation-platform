@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [isLoadingConversations, setIsLoadingConversations] = useState(true)
   const [agents, setAgents] = useState<Agent[]>([])
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   const [chats, setChats] = useState<Chat[]>([])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
@@ -518,14 +519,15 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden flex-col md:flex-row">
+    <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
       <ChatSidebar
         agents={agents}
         selectedAgents={currentSelectedAgents}
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
         agentHistories={currentAgentHistories}
-        className="md:w-1/4"
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={() => setIsMobileSidebarOpen(false)}
       />
       <ChatArea
         agents={agents}
@@ -542,7 +544,8 @@ export default function ChatPage() {
         onToggleFavorite={toggleFavorite}
         messages={chatMessages}
         onAddMessage={addMessage}
-        className="md:w-3/4"
+        onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        className="flex-1 w-full"
       />
     </div>
   )
