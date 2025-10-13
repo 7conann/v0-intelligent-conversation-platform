@@ -52,12 +52,6 @@ export default function ChatPage() {
   ]
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("authenticated")
-    if (!isAuthenticated) {
-      router.push("/")
-      return
-    }
-
     const savedTheme = localStorage.getItem("theme") || "dark"
     document.documentElement.classList.toggle("light", savedTheme === "light")
 
@@ -84,7 +78,7 @@ export default function ChatPage() {
         }))
         setChats(chatsWithDates)
       } catch (e) {
-        console.error("[v0] Error loading chats:", e)
+        console.error("Error loading chats:", e)
       }
     }
 
@@ -100,7 +94,7 @@ export default function ChatPage() {
         })
         setChatMessages(messagesWithDates)
       } catch (e) {
-        console.error("[v0] Error loading messages:", e)
+        console.error("Error loading messages:", e)
       }
     }
 
@@ -108,7 +102,7 @@ export default function ChatPage() {
       try {
         setUsedAgentsPerChat(JSON.parse(savedUsedAgents))
       } catch (e) {
-        console.error("[v0] Error loading used agents:", e)
+        console.error("Error loading used agents:", e)
       }
     }
 
@@ -116,7 +110,7 @@ export default function ChatPage() {
       try {
         setSelectedAgentsByChat(JSON.parse(savedSelectedAgents))
       } catch (e) {
-        console.error("[v0] Error loading selected agents:", e)
+        console.error("Error loading selected agents:", e)
       }
     }
 
@@ -124,7 +118,7 @@ export default function ChatPage() {
       try {
         setFavoriteAgents(JSON.parse(savedFavoriteAgents))
       } catch (e) {
-        console.error("[v0] Error loading favorite agents:", e)
+        console.error("Error loading favorite agents:", e)
       }
     }
 
@@ -137,14 +131,14 @@ export default function ChatPage() {
         }))
         setCustomAgents(customAgentsWithDates)
       } catch (e) {
-        console.error("[v0] Error loading custom agents:", e)
+        console.error("Error loading custom agents:", e)
       }
     }
 
     if (savedCurrentChatId) {
       setCurrentChatId(savedCurrentChatId)
     }
-  }, [router])
+  }, [])
 
   useEffect(() => {
     localStorage.setItem("chats", JSON.stringify(chats))
