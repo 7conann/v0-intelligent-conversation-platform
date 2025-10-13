@@ -4,18 +4,52 @@ import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
-import type { Agent, Message, Chat } from "@/types/chat"
+import { CustomAgentDialog } from "@/components/custom-agent-dialog"
+import type { Agent, Message, Chat, CustomAgent } from "@/types/chat"
 
 export default function ChatPage() {
   const router = useRouter()
   const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({ "1": [] })
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
   const [currentChatId, setCurrentChatId] = useState("1")
-  
+  const [favoriteAgents, setFavoriteAgents] = useState<string[]>([])
+  const [showArchived, setShowArchived] = useState(false)
+  const [customAgents, setCustomAgents] = useState<CustomAgent[]>([])
+  const [showCustomAgentDialog, setShowCustomAgentDialog] = useState(false)
+
   const [chats, setChats] = useState<Chat[]>([
-    { id: "1", name: "Conversa 1", contextMessages: undefined, usedAgentIds: [], agentHistories: {} },
+    {
+      id: "1",
+      name: "Conversa 1",
+      contextMessages: undefined,
+      usedAgentIds: [],
+      agentHistories: {},
+      isFavorite: false,
+      isArchived: false,
+    },
   ])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({ "1": [] })
+
+  const systemAgents: Agent[] = [
+    { id: "1", name: "Estratégia", icon: "🎯", color: "#a78bfa" },
+    { id: "2", name: "Dados", icon: "📊", color: "#60a5fa" },
+    { id: "3", name: "RH", icon: "👥", color: "#34d399" },
+    { id: "4", name: "Finanças", icon: "💰", color: "#fbbf24" },
+    { id: "5", name: "Marketing", icon: "📱", color: "#f472b6" },
+    { id: "6", name: "Vendas", icon: "🎁", color: "#fb923c" },
+  ]
+
+  const agents: Agent[] = [
+    ...systemAgents,
+    ...customAgents.map((ca) => ({
+      id: ca.id,
+      name: ca.name,
+      icon: ca.icon,
+      color: ca.color,
+      isCustom: true,
+      composedAgentIds: ca.composedAgentIds,
+    })),
+  ]
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("authenticated")
@@ -32,6 +66,8 @@ export default function ChatPage() {
     const savedUsedAgents = localStorage.getItem("usedAgentsPerChat")
     const savedCurrentChatId = localStorage.getItem("currentChatId")
     const savedSelectedAgents = localStorage.getItem("selectedAgentsByChat")
+    const savedFavoriteAgents = localStorage.getItem("favoriteAgents")
+    const savedCustomAgents = localStorage.getItem("customAgents")
 
     if (savedChats) {
       try {
@@ -43,6 +79,8 @@ export default function ChatPage() {
             timestamp: new Date(m.timestamp),
           })),
           agentHistories: chat.agentHistories || {},
+          isFavorite: chat.isFavorite || false,
+          isArchived: chat.isArchived || false,
         }))
         setChats(chatsWithDates)
       } catch (e) {
@@ -82,6 +120,27 @@ export default function ChatPage() {
       }
     }
 
+    if (savedFavoriteAgents) {
+      try {
+        setFavoriteAgents(JSON.parse(savedFavoriteAgents))
+      } catch (e) {
+        console.error("[v0] Error loading favorite agents:", e)
+      }
+    }
+
+    if (savedCustomAgents) {
+      try {
+        const parsed = JSON.parse(savedCustomAgents)
+        const customAgentsWithDates = parsed.map((agent: any) => ({
+          ...agent,
+          createdAt: new Date(agent.createdAt),
+        }))
+        setCustomAgents(customAgentsWithDates)
+      } catch (e) {
+        console.error("[v0] Error loading custom agents:", e)
+      }
+    }
+
     if (savedCurrentChatId) {
       setCurrentChatId(savedCurrentChatId)
     }
@@ -107,20 +166,31 @@ export default function ChatPage() {
     localStorage.setItem("currentChatId", currentChatId)
   }, [currentChatId])
 
-  const agents: Agent[] = [
-    { id: "1", name: "Estratégia", icon: "🎯", color: "#a78bfa" },
-    { id: "2", name: "Dados", icon: "📊", color: "#60a5fa" },
-    { id: "3", name: "RH", icon: "👥", color: "#34d399" },
-    { id: "4", name: "Finanças", icon: "💰", color: "#fbbf24" },
-    { id: "5", name: "Marketing", icon: "📱", color: "#f472b6" },
-    { id: "6", name: "Vendas", icon: "🎁", color: "#fb923c" },
-  ]
+  useEffect(() => {
+    localStorage.setItem("favoriteAgents", JSON.stringify(favoriteAgents))
+  }, [favoriteAgents])
+
+  useEffect(() => {
+    localStorage.setItem("customAgents", JSON.stringify(customAgents))
+  }, [customAgents])
 
   const toggleAgent = useCallback(
     (agentId: string) => {
       setSelectedAgentsByChat((prev) => {
         const currentSelected = prev[currentChatId] || []
         const isCurrentlySelected = currentSelected.includes(agentId)
+
+        const agent = systemAgents.find((a) => a.id === agentId)
+        if (agent?.isCustom && agent.composedAgentIds) {
+          if (!isCurrentlySelected) {
+            agent.composedAgentIds.forEach((id) => markAgentAsUsed(currentChatId, id))
+            const newSelected = [...new Set([...currentSelected, agentId, ...agent.composedAgentIds])]
+            return { ...prev, [currentChatId]: newSelected }
+          } else {
+            const filtered = currentSelected.filter((id) => id !== agentId && !agent.composedAgentIds?.includes(id))
+            return { ...prev, [currentChatId]: filtered }
+          }
+        }
 
         if (!isCurrentlySelected) {
           markAgentAsUsed(currentChatId, agentId)
@@ -173,6 +243,8 @@ export default function ChatPage() {
         contextMessages: undefined,
         usedAgentIds: [],
         agentHistories: {},
+        isFavorite: false,
+        isArchived: false,
       }
       setCurrentChatId(newChatId)
       setChatMessages((prevMessages) => ({ ...prevMessages, [newChatId]: [] }))
@@ -210,6 +282,8 @@ export default function ChatPage() {
         contextMessages: messages,
         usedAgentIds: usedAgentIds,
         agentHistories: agentHistories,
+        isFavorite: false,
+        isArchived: false,
       }
 
       setChatMessages((prev) => ({ ...prev, [newChatId]: [] }))
@@ -299,6 +373,8 @@ export default function ChatPage() {
         name: `Conversa ${newChatId} (Importada)`,
         usedAgentIds,
         agentHistories,
+        isFavorite: false,
+        isArchived: false,
       }
 
       setChats((prev) => [...prev, newChat])
@@ -310,6 +386,58 @@ export default function ChatPage() {
     },
     [chats],
   )
+
+  const toggleChatFavorite = useCallback((chatId: string) => {
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id === chatId) {
+          return { ...chat, isFavorite: !chat.isFavorite }
+        }
+        return chat
+      }),
+    )
+  }, [])
+
+  const toggleChatArchive = useCallback((chatId: string) => {
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id === chatId) {
+          return { ...chat, isArchived: !chat.isArchived }
+        }
+        return chat
+      }),
+    )
+  }, [])
+
+  const toggleAgentFavorite = useCallback((agentId: string) => {
+    setFavoriteAgents((prev) => {
+      if (prev.includes(agentId)) {
+        return prev.filter((id) => id !== agentId)
+      }
+      return [...prev, agentId]
+    })
+  }, [])
+
+  const createCustomAgent = useCallback((customAgent: Omit<CustomAgent, "id" | "createdAt">) => {
+    const newAgent: CustomAgent = {
+      ...customAgent,
+      id: `custom-${Date.now()}`,
+      createdAt: new Date(),
+    }
+    setCustomAgents((prev) => [...prev, newAgent])
+  }, [])
+
+  const deleteCustomAgent = useCallback((agentId: string) => {
+    setCustomAgents((prev) => prev.filter((a) => a.id !== agentId))
+    setFavoriteAgents((prev) => prev.filter((id) => id !== agentId))
+    setSelectedAgentsByChat((prev) => {
+      const updated = { ...prev }
+      Object.keys(updated).forEach((chatId) => {
+        updated[chatId] = updated[chatId].filter((id) => id !== agentId)
+      })
+      return updated
+    })
+  }, [])
 
   const currentUsedAgents = usedAgentsPerChat[currentChatId] || []
   const currentSelectedAgents = selectedAgentsByChat[currentChatId] || []
@@ -328,6 +456,8 @@ export default function ChatPage() {
     }
   })
 
+  const visibleChats = showArchived ? chats.filter((c) => c.isArchived) : chats.filter((c) => !c.isArchived)
+
   return (
     <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
       <ChatSidebar
@@ -336,12 +466,16 @@ export default function ChatPage() {
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
         agentHistories={currentAgentHistories}
+        favoriteAgents={favoriteAgents}
+        onToggleAgentFavorite={toggleAgentFavorite}
+        onCreateCustomAgent={() => setShowCustomAgentDialog(true)}
+        onDeleteCustomAgent={deleteCustomAgent}
       />
       <ChatArea
         agents={agents}
         selectedAgents={currentSelectedAgents}
         currentChatId={currentChatId}
-        chats={chats}
+        chats={visibleChats}
         onCreateNewChat={createNewChat}
         onSwitchChat={setCurrentChatId}
         onMarkAgentAsUsed={(agentId) => markAgentAsUsed(currentChatId, agentId)}
@@ -351,6 +485,16 @@ export default function ChatPage() {
         onImportChat={importChat}
         messages={chatMessages}
         onAddMessage={addMessage}
+        onToggleChatFavorite={toggleChatFavorite}
+        onToggleChatArchive={toggleChatArchive}
+        showArchived={showArchived}
+        onToggleShowArchived={() => setShowArchived(!showArchived)}
+      />
+      <CustomAgentDialog
+        isOpen={showCustomAgentDialog}
+        onClose={() => setShowCustomAgentDialog(false)}
+        agents={systemAgents}
+        onCreateCustomAgent={createCustomAgent}
       />
     </div>
   )

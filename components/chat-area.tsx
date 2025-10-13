@@ -3,11 +3,28 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
-import type { Agent, Message, Chat } from "@/types/chat"
+import type { Agent, Message, Chat, Attachment } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical } from "lucide-react"
+import {
+  Send,
+  Plus,
+  X,
+  Sparkles,
+  MessageSquarePlus,
+  Download,
+  Upload,
+  MoreVertical,
+  Paperclip,
+  ImageIcon,
+  Mic,
+  File,
+  Star,
+  Archive,
+  ArchiveRestore,
+  Copy,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ChatAreaProps {
@@ -24,6 +41,10 @@ interface ChatAreaProps {
   onImportChat: (chat: Chat, messages: Message[]) => void
   messages: Record<string, Message[]>
   onAddMessage: (chatId: string, message: Message) => void
+  onToggleChatFavorite: (chatId: string) => void
+  onToggleChatArchive: (chatId: string) => void
+  showArchived: boolean
+  onToggleShowArchived: () => void
 }
 
 export function ChatArea({
@@ -40,6 +61,10 @@ export function ChatArea({
   onImportChat,
   messages,
   onAddMessage,
+  onToggleChatFavorite,
+  onToggleChatArchive,
+  showArchived,
+  onToggleShowArchived,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
   const [selectedMessages, setSelectedMessages] = useState<string[]>([])
@@ -47,8 +72,11 @@ export function ChatArea({
   const [draggedChatId, setDraggedChatId] = useState<string | null>(null)
   const [dialogChatId, setDialogChatId] = useState<string | null>(null)
   const [confirmDeleteChatId, setConfirmDeleteChatId] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isUploading, setIsUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
 
   const currentMessages = messages[currentChatId] || []
@@ -62,6 +90,15 @@ export function ChatArea({
   useEffect(() => {
     scrollToBottom()
   }, [currentMessages])
+
+  const copyMessageToClipboard = (content: string) => {
+    navigator.clipboard.writeText(content)
+    addToast({
+      title: "Copiado",
+      description: "Mensagem copiada para a área de transferência",
+      variant: "success",
+    })
+  }
 
   const exportConversation = () => {
     const csvRows = []
@@ -172,20 +209,80 @@ export function ChatArea({
     }
   }
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    setIsUploading(true)
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${file.name}`)
+        }
+
+        const data = await response.json()
+        return {
+          id: Date.now().toString() + Math.random(),
+          url: data.url,
+          filename: data.filename,
+          size: data.size,
+          type: data.type,
+          uploadedAt: new Date(),
+        } as Attachment
+      })
+
+      const uploadedFiles = await Promise.all(uploadPromises)
+      setAttachments((prev) => [...prev, ...uploadedFiles])
+
+      addToast({
+        title: "Arquivos enviados",
+        description: `${uploadedFiles.length} arquivo(s) anexado(s) com sucesso`,
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error uploading files:", error)
+      addToast({
+        title: "Erro no upload",
+        description: "Não foi possível enviar os arquivos",
+        variant: "error",
+      })
+    } finally {
+      setIsUploading(false)
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = ""
+      }
+    }
+  }
+
+  const removeAttachment = (attachmentId: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== attachmentId))
+  }
+
   const sendMessage = async () => {
-    if (!input.trim() || selectedAgents.length === 0) return
+    if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input,
+      content: input || "(Arquivo anexado)",
       sender: "user",
       timestamp: new Date(),
       usedAgentIds: selectedAgents,
+      attachments: attachments.length > 0 ? [...attachments] : undefined,
     }
 
     onAddMessage(currentChatId, userMessage)
 
     setInput("")
+    setAttachments([])
     setIsLoading(true)
 
     selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
@@ -201,6 +298,8 @@ export function ChatArea({
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
       }
 
+      const attachmentUrls = attachments.map((a) => a.url)
+
       const response = await fetch("https://n8n.grupobeely.com.br/webhook/7a3701eb-f5ad-4d08-8698-6aba69a379ed", {
         method: "POST",
         headers: {
@@ -213,6 +312,7 @@ export function ChatArea({
           timestamp: new Date().toISOString(),
           hasContext: isFirstMessage && contextMessages && contextMessages.length > 0,
           contextMessages: isFirstMessage && contextMessages ? contextMessages : undefined,
+          attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
         }),
       })
 
@@ -388,6 +488,7 @@ export function ChatArea({
               )}
             >
               {chat.name}
+              {chat.isFavorite && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />}
               {chat.contextMessages && chat.contextMessages.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
               )}
@@ -414,6 +515,19 @@ export function ChatArea({
           <Plus className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-1 ml-auto shrink-0">
+          {/* Archive Toggle Button */}
+          <button
+            onClick={onToggleShowArchived}
+            className={cn(
+              "w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer",
+              showArchived
+                ? "bg-purple-600 text-white"
+                : "bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text-muted)] hover:text-[var(--settings-text)]",
+            )}
+            title={showArchived ? "Ver conversas ativas" : "Ver conversas arquivadas"}
+          >
+            <Archive className="w-4 h-4" />
+          </button>
           <button
             onClick={exportConversation}
             className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
@@ -453,6 +567,58 @@ export function ChatArea({
             </div>
 
             <div className="space-y-2">
+              {/* Favorite Button */}
+              <button
+                onClick={() => {
+                  onToggleChatFavorite(dialogChatId)
+                  setDialogChatId(null)
+                  const chat = chats.find((c) => c.id === dialogChatId)
+                  addToast({
+                    title: chat?.isFavorite ? "Removido dos favoritos" : "Adicionado aos favoritos",
+                    description: `"${chat?.name}" foi ${chat?.isFavorite ? "removida dos" : "adicionada aos"} favoritos`,
+                    variant: "success",
+                  })
+                }}
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+              >
+                <Star
+                  className={cn(
+                    "w-5 h-5 text-yellow-400",
+                    chats.find((c) => c.id === dialogChatId)?.isFavorite && "fill-yellow-400",
+                  )}
+                />
+                <span>
+                  {chats.find((c) => c.id === dialogChatId)?.isFavorite
+                    ? "Remover dos favoritos"
+                    : "Favoritar conversa"}
+                </span>
+              </button>
+
+              {/* Archive Button */}
+              <button
+                onClick={() => {
+                  onToggleChatArchive(dialogChatId)
+                  setDialogChatId(null)
+                  const chat = chats.find((c) => c.id === dialogChatId)
+                  addToast({
+                    title: chat?.isArchived ? "Conversa desarquivada" : "Conversa arquivada",
+                    description: `"${chat?.name}" foi ${chat?.isArchived ? "desarquivada" : "arquivada"}`,
+                    variant: "success",
+                  })
+                }}
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+              >
+                {chats.find((c) => c.id === dialogChatId)?.isArchived ? (
+                  <ArchiveRestore className="w-5 h-5 text-blue-400" />
+                ) : (
+                  <Archive className="w-5 h-5 text-blue-400" />
+                )}
+                <span>
+                  {chats.find((c) => c.id === dialogChatId)?.isArchived ? "Desarquivar conversa" : "Arquivar conversa"}
+                </span>
+              </button>
+
+              {/* Export Button */}
               <button
                 onClick={() => exportSpecificChat(dialogChatId)}
                 className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
@@ -461,6 +627,7 @@ export function ChatArea({
                 <span>Exportar conversa</span>
               </button>
 
+              {/* Delete Button */}
               {chats.length > 1 && (
                 <button
                   onClick={() => {
@@ -478,6 +645,7 @@ export function ChatArea({
         </div>
       )}
 
+      {/* Confirm Delete Dialog */}
       {confirmDeleteChatId && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
@@ -513,6 +681,7 @@ export function ChatArea({
         </div>
       )}
 
+      {/* Selected Messages Indicator */}
       {selectedMessages.length > 0 && (
         <div className="bg-purple-900/20 border-b border-purple-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -543,6 +712,7 @@ export function ChatArea({
         </div>
       )}
 
+      {/* Context Messages Indicator */}
       {contextMessages && contextMessages.length > 0 && currentMessages.length === 0 && (
         <div className="bg-green-900/20 border-b border-green-500/30 px-4 py-3">
           <div className="flex items-center gap-2 text-green-300 text-sm">
@@ -616,7 +786,7 @@ export function ChatArea({
             >
               <div
                 className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all !bg-gray-800",
+                  "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all !bg-gray-800 relative",
                   message.sender === "user"
                     ? "bg-[var(--message-user-bg)] text-white"
                     : "bg-[var(--message-assistant-bg)] text-[var(--settings-text)] border border-[var(--chat-border)]",
@@ -624,6 +794,16 @@ export function ChatArea({
                 )}
                 onClick={() => toggleMessageSelection(message.id)}
               >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    copyMessageToClipboard(message.content)
+                  }}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-700 cursor-pointer"
+                  title="Copiar mensagem"
+                >
+                  <Copy className="w-3 h-3" />
+                </button>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-medium opacity-70">
                     {message.sender === "user" ? "Você" : "Assistente"}
@@ -633,6 +813,30 @@ export function ChatArea({
                   </span>
                 </div>
                 <p className="text-sm leading-relaxed">{message.content}</p>
+                {message.attachments && message.attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {message.attachments.map((attachment) => (
+                      <a
+                        key={attachment.id}
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {attachment.type.startsWith("image/") ? (
+                          <ImageIcon className="w-4 h-4 text-purple-400" />
+                        ) : attachment.type.startsWith("audio/") ? (
+                          <Mic className="w-4 h-4 text-purple-400" />
+                        ) : (
+                          <File className="w-4 h-4 text-purple-400" />
+                        )}
+                        <span className="text-xs truncate flex-1">{attachment.filename}</span>
+                        <span className="text-xs opacity-50">{(attachment.size / 1024).toFixed(1)} KB</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -658,7 +862,48 @@ export function ChatArea({
             Selecione pelo menos um agente na barra lateral para começar
           </div>
         )}
+        {attachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {attachments.map((attachment) => (
+              <div
+                key={attachment.id}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 border border-gray-700"
+              >
+                {attachment.type.startsWith("image/") ? (
+                  <ImageIcon className="w-4 h-4 text-purple-400" />
+                ) : attachment.type.startsWith("audio/") ? (
+                  <Mic className="w-4 h-4 text-purple-400" />
+                ) : (
+                  <File className="w-4 h-4 text-purple-400" />
+                )}
+                <span className="text-xs text-gray-300 truncate max-w-[150px]">{attachment.filename}</span>
+                <button
+                  onClick={() => removeAttachment(attachment.id)}
+                  className="text-gray-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3 items-end">
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            accept="image/*,audio/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => attachmentInputRef.current?.click()}
+            disabled={isUploading || selectedAgents.length === 0}
+            className="h-[60px] px-4 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Anexar arquivo"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -674,7 +919,9 @@ export function ChatArea({
           />
           <Button
             onClick={sendMessage}
-            disabled={!input.trim() || selectedAgents.length === 0 || isLoading}
+            disabled={
+              (!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading || isUploading
+            }
             className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[60px] px-6 cursor-pointer disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
