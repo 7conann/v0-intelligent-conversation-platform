@@ -1,28 +1,259 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { createClient } from "@/lib/supabase/client"
+import { useToast } from "@/components/ui/toast"
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"login" | "cadastro">("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(true)
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
   const router = useRouter()
+  const { addToast } = useToast()
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const supabase = createClient()
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (session) {
+          console.log("[v0] User already logged in, redirecting to /chat")
+          addToast({
+            title: "Bem-vindo de volta!",
+            description: "Redirecionando para o painel...",
+            variant: "success",
+          })
+          window.location.href = "/chat"
+        }
+      } catch (error) {
+        console.error("[v0] Error checking session:", error)
+      } finally {
+        setIsCheckingSession(false)
+      }
+    }
+
+    checkSession()
+  }, [addToast])
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0f]">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10">
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path d="M2 17L12 22L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <p className="text-gray-400">Verificando sessão...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+    setIsLoading(true)
 
-    // Fixed login credentials
-    if (email === "admin@workspace.com" && password === "admin123") {
-      localStorage.setItem("authenticated", "true")
-      router.push("/chat")
-    } else {
-      setError("Email ou senha incorretos")
+    console.log("[v0] Environment check:", {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    })
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error("[v0] Missing Supabase environment variables")
+      addToast({
+        title: "Erro de configuração",
+        description: "As variáveis de ambiente do Supabase não estão configuradas. Verifique a seção 'Vars' no painel.",
+        variant: "error",
+      })
+      setIsLoading(false)
+      return
+    }
+
+    addToast({
+      title: "Autenticando...",
+      description: "Verificando suas credenciais",
+      variant: "default",
+    })
+
+    console.log("[v0] Login attempt started for:", email)
+
+    try {
+      const supabase = createClient()
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      console.log("[v0] Login response:", { data, error })
+
+      if (error) {
+        console.error("[v0] Login error:", error)
+        addToast({
+          title: "Erro ao fazer login",
+          description: error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message,
+          variant: "error",
+        })
+        return
+      }
+
+      if (!data.user) {
+        console.error("[v0] No user data returned")
+        addToast({
+          title: "Erro ao fazer login",
+          description: "Não foi possível autenticar. Tente novamente.",
+          variant: "error",
+        })
+        return
+      }
+
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true")
+      } else {
+        localStorage.removeItem("rememberMe")
+      }
+
+      console.log("[v0] Login successful, redirecting to /chat")
+      addToast({
+        title: "Login realizado!",
+        description: "Redirecionando para o painel...",
+        variant: "success",
+      })
+
+      setTimeout(() => {
+        console.log("[v0] Executing redirect to /chat")
+        window.location.href = "/chat"
+      }, 500)
+    } catch (err: any) {
+      console.error("[v0] Unexpected error during login:", err)
+      addToast({
+        title: "Erro inesperado",
+        description: err.message || "Ocorreu um erro ao fazer login. Tente novamente.",
+        variant: "error",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    if (password !== confirmPassword) {
+      addToast({
+        title: "Senhas não coincidem",
+        description: "As senhas digitadas são diferentes",
+        variant: "error",
+      })
+      return
+    }
+
+    if (password.length < 6) {
+      addToast({
+        title: "Senha muito curta",
+        description: "A senha deve ter pelo menos 6 caracteres",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!email.includes("@")) {
+      addToast({
+        title: "Email inválido",
+        description: "Digite um email válido",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error("[v0] Missing Supabase environment variables")
+      addToast({
+        title: "Erro de configuração",
+        description: "As variáveis de ambiente do Supabase não estão configuradas. Verifique a seção 'Vars' no painel.",
+        variant: "error",
+      })
+      return
+    }
+
+    setIsLoading(true)
+
+    addToast({
+      title: "Criando conta...",
+      description: "Aguarde enquanto processamos seu cadastro",
+      variant: "default",
+    })
+
+    console.log("[v0] Registration attempt for:", email)
+
+    try {
+      const supabase = createClient()
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat`,
+        },
+      })
+
+      console.log("[v0] Registration response:", { data, error })
+
+      if (error) {
+        console.error("[v0] Registration error:", error)
+        addToast({
+          title: "Erro ao criar conta",
+          description: error.message === "User already registered" ? "Este email já está cadastrado" : error.message,
+          variant: "error",
+        })
+        return
+      }
+
+      console.log("[v0] Registration successful")
+      addToast({
+        title: "Cadastro realizado com sucesso!",
+        description: "Verifique seu email para confirmar a conta antes de fazer login.",
+        variant: "success",
+      })
+
+      setActiveTab("login")
+      setEmail("")
+      setPassword("")
+      setConfirmPassword("")
+    } catch (err: any) {
+      console.error("[v0] Unexpected error during registration:", err)
+      addToast({
+        title: "Erro inesperado",
+        description: err.message || "Ocorreu um erro ao criar a conta. Tente novamente.",
+        variant: "error",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -69,7 +300,9 @@ export default function LoginPage() {
           {/* Tabs */}
           <div className="flex gap-2 mb-8 bg-gray-900/50 p-1 rounded-lg">
             <button
-              onClick={() => setActiveTab("login")}
+              onClick={() => {
+                setActiveTab("login")
+              }}
               className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
                 activeTab === "login"
                   ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
@@ -79,7 +312,9 @@ export default function LoginPage() {
               Login
             </button>
             <button
-              onClick={() => setActiveTab("cadastro")}
+              onClick={() => {
+                setActiveTab("cadastro")
+              }}
               className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
                 activeTab === "cadastro"
                   ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
@@ -90,56 +325,130 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <Label htmlFor="email" className="text-gray-300 mb-2 block text-sm font-medium">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="password" className="text-gray-300 mb-2 block text-sm font-medium">
-                Senha
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
-                <p className="text-purple-400 text-sm">{error}</p>
+          {activeTab === "login" ? (
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <Label htmlFor="email" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                />
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
-            >
-              Entrar
-            </Button>
-          </form>
+              <div>
+                <Label htmlFor="password" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                  className="border-gray-700 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                />
+                <Label htmlFor="remember" className="text-sm text-gray-300 cursor-pointer select-none">
+                  Manter conectado
+                </Label>
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
+              >
+                {isLoading ? "Entrando..." : "Entrar"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister} className="space-y-5">
+              <div>
+                <Label htmlFor="register-email" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="register-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="register-password" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Senha
+                </Label>
+                <Input
+                  id="register-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="confirm-password" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Confirmar Senha
+                </Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-red-400 text-sm">{error}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
+              >
+                {isLoading ? "Criando conta..." : "Criar Conta"}
+              </Button>
+            </form>
+          )}
 
           <button className="w-full text-center text-purple-400 hover:text-purple-300 mt-6 text-sm cursor-pointer">
             Esqueci minha senha
           </button>
-
-          {/* Login hint */}
-          <div className="mt-8 text-center text-gray-600 text-xs">Use: admin@workspace.com / admin123</div>
         </div>
       </div>
 

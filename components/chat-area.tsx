@@ -7,7 +7,21 @@ import type { Agent, Message, Chat } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical } from "lucide-react"
+import {
+  Send,
+  Plus,
+  X,
+  Sparkles,
+  MessageSquarePlus,
+  Download,
+  Upload,
+  MoreVertical,
+  Paperclip,
+  ImageIcon,
+  FileText,
+  Music,
+  Star,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface ChatAreaProps {
@@ -22,6 +36,7 @@ interface ChatAreaProps {
   onDeleteChat: (chatId: string) => void
   onReorderChat: (draggedChatId: string, targetChatId: string) => void
   onImportChat: (chat: Chat, messages: Message[]) => void
+  onToggleFavorite: (chatId: string) => void
   messages: Record<string, Message[]>
   onAddMessage: (chatId: string, message: Message) => void
 }
@@ -38,6 +53,7 @@ export function ChatArea({
   onDeleteChat,
   onReorderChat,
   onImportChat,
+  onToggleFavorite,
   messages,
   onAddMessage,
 }: ChatAreaProps) {
@@ -47,9 +63,19 @@ export function ChatArea({
   const [draggedChatId, setDraggedChatId] = useState<string | null>(null)
   const [dialogChatId, setDialogChatId] = useState<string | null>(null)
   const [confirmDeleteChatId, setConfirmDeleteChatId] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [isUploading, setIsUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
+
+  interface Attachment {
+    name: string
+    data: string // base64 encoded file data
+    type: string
+    size: number
+  }
 
   const currentMessages = messages[currentChatId] || []
   const currentChat = chats.find((c) => c.id === currentChatId)
@@ -63,13 +89,93 @@ export function ChatArea({
     scrollToBottom()
   }, [currentMessages])
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    if (attachments.length > 0) {
+      addToast({
+        title: "Limite de arquivo",
+        description: "Você só pode anexar 1 arquivo por vez. Remova o arquivo atual primeiro.",
+        variant: "error",
+      })
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = ""
+      }
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      const file = files[0] // Only take the first file
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        const base64Data = e.target?.result as string
+
+        const newAttachment: Attachment = {
+          name: file.name,
+          data: base64Data,
+          type: file.type,
+          size: file.size,
+        }
+
+        setAttachments([newAttachment]) // Replace any existing attachment
+
+        addToast({
+          title: "Arquivo anexado",
+          description: `${file.name} foi anexado com sucesso`,
+          variant: "success",
+        })
+      }
+
+      reader.onerror = () => {
+        console.error("[v0] Error reading file:", file.name)
+        addToast({
+          title: "Erro ao ler arquivo",
+          description: `Não foi possível ler ${file.name}. Tente novamente.`,
+          variant: "error",
+        })
+      }
+
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("[v0] Error processing file:", error)
+      addToast({
+        title: "Erro ao processar arquivo",
+        description: "Não foi possível processar o arquivo. Tente novamente.",
+        variant: "error",
+      })
+    } finally {
+      setIsUploading(false)
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = ""
+      }
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return <ImageIcon className="w-4 h-4" />
+    if (type.startsWith("audio/")) return <Music className="w-4 h-4" />
+    return <FileText className="w-4 h-4" />
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B"
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB"
+  }
+
   const exportConversation = () => {
     const csvRows = []
 
-    // CSV Header
     csvRows.push(["Timestamp", "Sender", "Message", "Agents Used"].join(","))
 
-    // CSV Data
     currentMessages.forEach((message) => {
       const timestamp = message.timestamp.toISOString()
       const sender = message.sender
@@ -108,13 +214,11 @@ export function ChatArea({
         const content = e.target?.result as string
         const lines = content.split("\n")
 
-        // Skip header row
         const dataLines = lines.slice(1).filter((line) => line.trim())
 
         const importedMessages: Message[] = []
 
         dataLines.forEach((line, index) => {
-          // Parse CSV line (handle quoted content)
           const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/
           const parts = line.split(regex)
 
@@ -143,7 +247,6 @@ export function ChatArea({
           }
         })
 
-        // Create new chat with imported messages
         const newChat: Chat = {
           id: `chat-${Date.now()}`,
           name: `Conversa ${chats.length + 1}`,
@@ -173,7 +276,7 @@ export function ChatArea({
   }
 
   const sendMessage = async () => {
-    if (!input.trim() || selectedAgents.length === 0) return
+    if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -186,6 +289,8 @@ export function ChatArea({
     onAddMessage(currentChatId, userMessage)
 
     setInput("")
+    const attachmentsToSend = [...attachments]
+    setAttachments([])
     setIsLoading(true)
 
     selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
@@ -201,22 +306,52 @@ export function ChatArea({
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
       }
 
+      const payload: any = {
+        message: messageToSend,
+        agents: selectedAgents.map((id) => agents.find((a) => a.id === id)?.name),
+        chatId: currentChatId,
+        timestamp: new Date().toISOString(),
+        hasContext: isFirstMessage && contextMessages && contextMessages.length > 0,
+        contextMessages: isFirstMessage && contextMessages ? contextMessages : undefined,
+      }
+
+      // Add file as "data" field if exists
+      if (attachmentsToSend.length > 0) {
+        payload.data = attachmentsToSend[0].data // Send only the base64 data
+      }
+
       const response = await fetch("https://n8n.grupobeely.com.br/webhook/7a3701eb-f5ad-4d08-8698-6aba69a379ed", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: messageToSend,
-          agents: selectedAgents.map((id) => agents.find((a) => a.id === id)?.name),
-          chatId: currentChatId,
-          timestamp: new Date().toISOString(),
-          hasContext: isFirstMessage && contextMessages && contextMessages.length > 0,
-          contextMessages: isFirstMessage && contextMessages ? contextMessages : undefined,
-        }),
+        body: JSON.stringify(payload),
       })
 
-      const data = await response.json()
+      let data: any = null
+      const contentType = response.headers.get("content-type")
+      const responseText = await response.text()
+
+      if (responseText && responseText.trim()) {
+        // Response has content
+        if (contentType?.includes("application/json")) {
+          // Try to parse as JSON
+          try {
+            data = JSON.parse(responseText)
+          } catch (e) {
+            console.error("[v0] Failed to parse JSON response:", e)
+            // If JSON parsing fails, use the text as-is
+            data = { message: responseText }
+          }
+        } else {
+          // Non-JSON response, treat as plain text
+          data = { message: responseText }
+        }
+      } else {
+        // Empty response
+        console.warn("[v0] Webhook returned empty response")
+        data = { message: "Resposta recebida com sucesso." }
+      }
 
       let responseContent = ""
 
@@ -318,10 +453,8 @@ export function ChatArea({
 
     const csvRows = []
 
-    // CSV Header
     csvRows.push(["Timestamp", "Sender", "Message", "Agents Used"].join(","))
 
-    // CSV Data
     chatMessages.forEach((message) => {
       const timestamp = message.timestamp.toISOString()
       const sender = message.sender
@@ -365,7 +498,6 @@ export function ChatArea({
 
   return (
     <div className="flex-1 flex flex-col bg-[var(--chat-bg)]">
-      {/* Chat Tabs */}
       <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-4 py-2 flex items-center gap-2 overflow-x-auto">
         {chats.map((chat) => (
           <div
@@ -387,13 +519,13 @@ export function ChatArea({
                 draggedChatId === chat.id && "opacity-50",
               )}
             >
+              {chat.isFavorite && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />}
               {chat.name}
               {chat.contextMessages && chat.contextMessages.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
               )}
             </button>
 
-            {/* Dialog Trigger Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -432,7 +564,6 @@ export function ChatArea({
         </div>
       </div>
 
-      {/* Clean Dialog for Chat Options */}
       {dialogChatId && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
@@ -453,6 +584,28 @@ export function ChatArea({
             </div>
 
             <div className="space-y-2">
+              <button
+                onClick={() => {
+                  onToggleFavorite(dialogChatId)
+                  setDialogChatId(null)
+                }}
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+              >
+                <Star
+                  className={cn(
+                    "w-5 h-5",
+                    chats.find((c) => c.id === dialogChatId)?.isFavorite
+                      ? "text-yellow-400 fill-yellow-400"
+                      : "text-gray-400",
+                  )}
+                />
+                <span>
+                  {chats.find((c) => c.id === dialogChatId)?.isFavorite
+                    ? "Remover dos favoritos"
+                    : "Adicionar aos favoritos"}
+                </span>
+              </button>
+
               <button
                 onClick={() => exportSpecificChat(dialogChatId)}
                 className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
@@ -555,7 +708,6 @@ export function ChatArea({
         </div>
       )}
 
-      {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {currentMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -651,14 +803,53 @@ export function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-4">
         {selectedAgents.length === 0 && (
           <div className="mb-3 text-center text-sm text-purple-400">
             Selecione pelo menos um agente na barra lateral para começar
           </div>
         )}
+
+        {attachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {attachments.map((attachment, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--chat-border)] text-sm"
+              >
+                {getFileIcon(attachment.type)}
+                <span className="text-[var(--settings-text)] truncate max-w-[200px]">{attachment.name}</span>
+                <span className="text-[var(--settings-text-muted)] text-xs">{formatFileSize(attachment.size)}</span>
+                <button
+                  onClick={() => removeAttachment(index)}
+                  className="text-red-400 hover:text-red-300 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-3 items-end">
+          <input
+            ref={attachmentInputRef}
+            type="file"
+            multiple
+            accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button
+            onClick={() => attachmentInputRef.current?.click()}
+            disabled={isUploading || selectedAgents.length === 0 || attachments.length > 0}
+            variant="outline"
+            className="h-[60px] px-4 border-[var(--chat-border)] hover:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
+            title={attachments.length > 0 ? "Remova o arquivo atual para anexar outro" : "Anexar arquivo"}
+          >
+            <Paperclip className="w-5 h-5" />
+          </Button>
+
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -674,12 +865,19 @@ export function ChatArea({
           />
           <Button
             onClick={sendMessage}
-            disabled={!input.trim() || selectedAgents.length === 0 || isLoading}
+            disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
             className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[60px] px-6 cursor-pointer disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </Button>
         </div>
+
+        {isUploading && (
+          <div className="mt-2 text-sm text-purple-400 flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+            Enviando arquivo...
+          </div>
+        )}
       </div>
     </div>
   )

@@ -19,4 +19,5 @@ export interface Chat {
   contextMessages?: Message[]
   usedAgentIds?: string[]
   agentHistories?: Record<string, Message[]>
+  isFavorite?: boolean
 }

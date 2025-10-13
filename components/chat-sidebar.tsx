@@ -4,10 +4,11 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { BarChart3, User, Code, Palette, Settings } from "lucide-react"
+import { BarChart3, User, Code, Palette, Settings, ChevronLeft, ChevronRight, Briefcase } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 
 interface ChatSidebarProps {
   agents: Agent[]
@@ -19,18 +20,52 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent, agentHistories }: ChatSidebarProps) {
   const router = useRouter()
-  const [userEmail, setUserEmail] = useState("Iprocesso")
+  const [userName, setUserName] = useState("Usuário")
+  const [avatarUrl, setAvatarUrl] = useState("")
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   // Tooltip states
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
   useEffect(() => {
-    const email = localStorage.getItem("userEmail")
-    if (email) {
-      setUserEmail(email)
+    const loadProfile = async () => {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name, avatar_url")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profile) {
+          setUserName(profile.display_name || session.user.email?.split("@")[0] || "Usuário")
+          setAvatarUrl(profile.avatar_url || "")
+        } else {
+          setUserName(session.user.email?.split("@")[0] || "Usuário")
+        }
+      }
+    }
+
+    loadProfile()
+  }, [])
+
+  useEffect(() => {
+    const savedCollapsed = localStorage.getItem("sidebarCollapsed")
+    if (savedCollapsed) {
+      setIsCollapsed(savedCollapsed === "true")
     }
   }, [])
+
+  const toggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem("sidebarCollapsed", String(newState))
+  }
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agentId: string, name: string) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -55,17 +90,44 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent,
   }
 
   return (
-    <div className="bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center w-40 gap-4 py-6">
+    <div
+      className={cn(
+        "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-6 transition-all duration-300 relative",
+        isCollapsed ? "w-16" : "w-40",
+      )}
+    >
+      <button
+        onClick={toggleCollapse}
+        className="absolute -right-3 top-6 w-6 h-6 rounded-full bg-[var(--agent-bg)] border border-[var(--sidebar-border)] flex items-center justify-center hover:bg-[var(--agent-hover)] transition-all z-10"
+        title={isCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+      >
+        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+      </button>
+
       <div className="flex flex-col items-center gap-2 mb-2">
-        <button className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-          <User className="w-6 h-6 text-white" />
+        <button
+          onClick={() => router.push("/profile")}
+          className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+        >
+          {avatarUrl ? (
+            <img src={avatarUrl || "/placeholder.svg"} alt={userName} className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-6 h-6 text-white" />
+          )}
         </button>
-        <span className="text-xs text-[var(--text-secondary)] font-medium">{userEmail}</span>
+        {!isCollapsed && (
+          <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[120px]">{userName}</span>
+        )}
       </div>
 
       <div className="w-full h-px bg-[var(--sidebar-border)] mb-2" />
 
-      <div className="grid grid-cols-2 content-start px-3 gap-2 scrollbar-hide overflow-y-auto max-h-[calc(100vh-300px)]">
+      <div
+        className={cn(
+          "content-start px-3 gap-2 scrollbar-hide overflow-y-auto max-h-[calc(100vh-300px)]",
+          isCollapsed ? "flex flex-col" : "grid grid-cols-2",
+        )}
+      >
         {agents.map((agent, index) => {
           const Icon = getAgentIcon(index)
           const isSelected = selectedAgents.includes(agent.id)
@@ -112,8 +174,17 @@ export function ChatSidebar({ agents, selectedAgents, usedAgents, onToggleAgent,
       <div className="w-full h-px bg-[var(--sidebar-border)] mt-2" />
 
       <button
+        onClick={() => router.push("/workspaces")}
+        className="w-12 h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+        title="Workspaces"
+      >
+        <Briefcase className="w-5 h-5 text-[var(--agent-icon)]" />
+      </button>
+
+      <button
         onClick={() => router.push("/settings")}
         className="w-12 h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+        title="Configurações"
       >
         <Settings className="w-5 h-5 text-[var(--agent-icon)]" />
       </button>

@@ -5,119 +5,202 @@ import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
 import type { Agent, Message, Chat } from "@/types/chat"
+import { useToast } from "@/components/ui/toast"
+import { createClient } from "@/lib/supabase/client"
+import {
+  saveConversation,
+  saveMessage,
+  getConversations,
+  getMessages,
+  toggleConversationFavorite,
+  deleteConversation as deleteConversationDB,
+} from "@/lib/supabase/conversations"
 
 export default function ChatPage() {
   const router = useRouter()
-  const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({ "1": [] })
-  const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({ "1": [] })
-  const [currentChatId, setCurrentChatId] = useState("1")
-  
-  const [chats, setChats] = useState<Chat[]>([
-    { id: "1", name: "Conversa 1", contextMessages: undefined, usedAgentIds: [], agentHistories: {} },
-  ])
-  const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({ "1": [] })
+  const { addToast } = useToast()
+  const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({})
+  const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({})
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true)
+  const [agents, setAgents] = useState<Agent[]>([])
+
+  const [chats, setChats] = useState<Chat[]>([])
+  const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("authenticated")
-    if (!isAuthenticated) {
-      router.push("/")
-      return
-    }
+    const loadUserAndConversations = async () => {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
-    const savedTheme = localStorage.getItem("theme") || "dark"
-    document.documentElement.classList.toggle("light", savedTheme === "light")
+      if (session) {
+        setUserId(session.user.id)
 
-    const savedChats = localStorage.getItem("chats")
-    const savedMessages = localStorage.getItem("chatMessages")
-    const savedUsedAgents = localStorage.getItem("usedAgentsPerChat")
-    const savedCurrentChatId = localStorage.getItem("currentChatId")
-    const savedSelectedAgents = localStorage.getItem("selectedAgentsByChat")
+        try {
+          const { data: agentsData, error: agentsError } = await supabase
+            .from("agents")
+            .select("*")
+            .eq("is_system", true)
+            .order("created_at", { ascending: true })
 
-    if (savedChats) {
-      try {
-        const parsedChats = JSON.parse(savedChats)
-        const chatsWithDates = parsedChats.map((chat: any) => ({
-          ...chat,
-          contextMessages: chat.contextMessages?.map((m: any) => ({
-            ...m,
-            timestamp: new Date(m.timestamp),
-          })),
-          agentHistories: chat.agentHistories || {},
-        }))
-        setChats(chatsWithDates)
-      } catch (e) {
-        console.error("[v0] Error loading chats:", e)
+          if (agentsError) throw agentsError
+
+          if (agentsData) {
+            const loadedAgents: Agent[] = agentsData.map((agent) => ({
+              id: agent.id,
+              name: agent.name,
+              icon: agent.icon,
+              color: agent.color,
+            }))
+            setAgents(loadedAgents)
+          }
+        } catch (error) {
+          console.error("[v0] Error loading agents:", error)
+          addToast({
+            title: "Erro ao carregar agentes",
+            description: "Não foi possível carregar os agentes do banco de dados",
+            variant: "error",
+          })
+        }
+
+        const { data: workspaces } = await supabase
+          .from("workspaces")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .limit(1)
+
+        let workspace = workspaces?.[0]
+
+        if (!workspace) {
+          const { data: newWorkspace } = await supabase
+            .from("workspaces")
+            .insert({
+              user_id: session.user.id,
+              name: "Workspace Padrão",
+            })
+            .select()
+            .single()
+
+          workspace = newWorkspace
+        }
+
+        if (workspace) {
+          setWorkspaceId(workspace.id)
+
+          try {
+            const conversations = await getConversations(session.user.id, workspace.id)
+
+            if (!conversations || conversations.length === 0) {
+              const defaultConversation = await saveConversation(session.user.id, workspace.id, "Conversa 1", [], false)
+
+              const newChat: Chat = {
+                id: defaultConversation.id,
+                name: defaultConversation.title,
+                contextMessages: undefined,
+                usedAgentIds: [],
+                agentHistories: {},
+                isFavorite: false,
+              }
+
+              setChats([newChat])
+              setCurrentChatId(defaultConversation.id)
+              setChatMessages({ [defaultConversation.id]: [] })
+              setUsedAgentsPerChat({ [defaultConversation.id]: [] })
+              setSelectedAgentsByChat({ [defaultConversation.id]: [] })
+            } else {
+              const loadedChats: Chat[] = await Promise.all(
+                conversations.map(async (conv) => {
+                  const messages = await getMessages(conv.id)
+
+                  const agentHistories: Record<string, Message[]> = {}
+                  const usedAgentIds: string[] = []
+
+                  messages.forEach((msg) => {
+                    if (msg.agent_ids && msg.agent_ids.length > 0) {
+                      msg.agent_ids.forEach((agentId: string) => {
+                        if (!agentHistories[agentId]) {
+                          agentHistories[agentId] = []
+                          usedAgentIds.push(agentId)
+                        }
+                        agentHistories[agentId].push({
+                          id: msg.id,
+                          content: msg.content,
+                          sender: msg.role,
+                          timestamp: new Date(msg.created_at),
+                          usedAgentIds: msg.agent_ids,
+                        })
+                      })
+                    }
+                  })
+
+                  return {
+                    id: conv.id,
+                    name: conv.title,
+                    contextMessages: undefined,
+                    usedAgentIds: Array.from(new Set(usedAgentIds)),
+                    agentHistories,
+                    isFavorite: conv.is_favorite,
+                  }
+                }),
+              )
+
+              setChats(loadedChats)
+
+              const loadedMessages: Record<string, Message[]> = {}
+              const loadedUsedAgents: Record<string, string[]> = {}
+              const loadedSelectedAgents: Record<string, string[]> = {}
+
+              await Promise.all(
+                conversations.map(async (conv) => {
+                  const messages = await getMessages(conv.id)
+                  loadedMessages[conv.id] = messages.map((msg) => ({
+                    id: msg.id,
+                    content: msg.content,
+                    sender: msg.role,
+                    timestamp: new Date(msg.created_at),
+                    usedAgentIds: msg.agent_ids || [],
+                  }))
+
+                  const usedAgents =
+                    conv.conversation_agents?.filter((ca: any) => ca.is_used).map((ca: any) => ca.agent_id) || []
+                  loadedUsedAgents[conv.id] = usedAgents
+
+                  const selectedAgents =
+                    conv.conversation_agents?.filter((ca: any) => ca.is_selected).map((ca: any) => ca.agent_id) || []
+                  loadedSelectedAgents[conv.id] = selectedAgents
+                }),
+              )
+
+              setChatMessages(loadedMessages)
+              setUsedAgentsPerChat(loadedUsedAgents)
+              setSelectedAgentsByChat(loadedSelectedAgents)
+              setCurrentChatId(loadedChats[0].id)
+            }
+          } catch (error) {
+            console.error("[v0] Error loading conversations:", error)
+            addToast({
+              title: "Erro ao carregar conversas",
+              description: "Não foi possível carregar suas conversas do banco de dados",
+              variant: "error",
+            })
+          }
+        }
       }
+
+      setIsLoadingConversations(false)
     }
 
-    if (savedMessages) {
-      try {
-        const parsedMessages = JSON.parse(savedMessages)
-        const messagesWithDates: Record<string, Message[]> = {}
-        Object.keys(parsedMessages).forEach((chatId) => {
-          messagesWithDates[chatId] = parsedMessages[chatId].map((m: any) => ({
-            ...m,
-            timestamp: new Date(m.timestamp),
-          }))
-        })
-        setChatMessages(messagesWithDates)
-      } catch (e) {
-        console.error("[v0] Error loading messages:", e)
-      }
-    }
-
-    if (savedUsedAgents) {
-      try {
-        setUsedAgentsPerChat(JSON.parse(savedUsedAgents))
-      } catch (e) {
-        console.error("[v0] Error loading used agents:", e)
-      }
-    }
-
-    if (savedSelectedAgents) {
-      try {
-        setSelectedAgentsByChat(JSON.parse(savedSelectedAgents))
-      } catch (e) {
-        console.error("[v0] Error loading selected agents:", e)
-      }
-    }
-
-    if (savedCurrentChatId) {
-      setCurrentChatId(savedCurrentChatId)
-    }
-  }, [router])
-
-  useEffect(() => {
-    localStorage.setItem("chats", JSON.stringify(chats))
-  }, [chats])
-
-  useEffect(() => {
-    localStorage.setItem("chatMessages", JSON.stringify(chatMessages))
-  }, [chatMessages])
-
-  useEffect(() => {
-    localStorage.setItem("usedAgentsPerChat", JSON.stringify(usedAgentsPerChat))
-  }, [usedAgentsPerChat])
-
-  useEffect(() => {
-    localStorage.setItem("selectedAgentsByChat", JSON.stringify(selectedAgentsByChat))
-  }, [selectedAgentsByChat])
-
-  useEffect(() => {
-    localStorage.setItem("currentChatId", currentChatId)
-  }, [currentChatId])
-
-  const agents: Agent[] = [
-    { id: "1", name: "Estratégia", icon: "🎯", color: "#a78bfa" },
-    { id: "2", name: "Dados", icon: "📊", color: "#60a5fa" },
-    { id: "3", name: "RH", icon: "👥", color: "#34d399" },
-    { id: "4", name: "Finanças", icon: "💰", color: "#fbbf24" },
-    { id: "5", name: "Marketing", icon: "📱", color: "#f472b6" },
-    { id: "6", name: "Vendas", icon: "🎁", color: "#fb923c" },
-  ]
+    loadUserAndConversations()
+  }, [addToast])
 
   const toggleAgent = useCallback(
     (agentId: string) => {
+      if (!currentChatId) return
+
       setSelectedAgentsByChat((prev) => {
         const currentSelected = prev[currentChatId] || []
         const isCurrentlySelected = currentSelected.includes(agentId)
@@ -157,100 +240,194 @@ export default function ChatPage() {
     )
   }, [])
 
-  const addMessage = useCallback((chatId: string, message: Message) => {
-    setChatMessages((prev) => ({
-      ...prev,
-      [chatId]: [...(prev[chatId] || []), message],
-    }))
-  }, [])
+  const addMessage = useCallback(
+    async (chatId: string, message: Message) => {
+      setChatMessages((prev) => ({
+        ...prev,
+        [chatId]: [...(prev[chatId] || []), message],
+      }))
 
-  const createNewChat = useCallback(() => {
-    setChats((prev) => {
-      const newChatId = String(prev.length + 1)
+      if (userId && workspaceId) {
+        try {
+          await saveMessage(userId, chatId, message.content, message.sender, message.usedAgentIds || [], [])
+        } catch (error: any) {
+          console.error("[v0] Error saving message:", error?.message || error)
+          addToast({
+            title: "Erro ao salvar mensagem",
+            description: "A mensagem foi enviada mas não foi salva no banco de dados",
+            variant: "error",
+          })
+        }
+      }
+    },
+    [userId, workspaceId, addToast],
+  )
+
+  const createNewChat = useCallback(async () => {
+    if (!userId || !workspaceId) return
+
+    try {
+      const newConversation = await saveConversation(userId, workspaceId, `Conversa ${chats.length + 1}`, [], false)
+
       const newChat: Chat = {
-        id: newChatId,
-        name: `Conversa ${newChatId}`,
+        id: newConversation.id,
+        name: newConversation.title,
         contextMessages: undefined,
         usedAgentIds: [],
         agentHistories: {},
+        isFavorite: false,
       }
-      setCurrentChatId(newChatId)
-      setChatMessages((prevMessages) => ({ ...prevMessages, [newChatId]: [] }))
-      setUsedAgentsPerChat((prevUsed) => ({ ...prevUsed, [newChatId]: [] }))
-      setSelectedAgentsByChat((prevSelected) => ({ ...prevSelected, [newChatId]: [] }))
-      return [...prev, newChat]
-    })
-  }, [])
 
-  const createChatWithMessages = useCallback((messages: Message[]) => {
-    setChats((prev) => {
-      const newChatId = String(prev.length + 1)
-
-      const usedAgentIds = Array.from(
-        new Set(
-          messages.filter((m) => m.usedAgentIds && m.usedAgentIds.length > 0).flatMap((m) => m.usedAgentIds || []),
-        ),
-      )
-
-      const agentHistories: Record<string, Message[]> = {}
-      messages.forEach((message) => {
-        if (message.usedAgentIds) {
-          message.usedAgentIds.forEach((agentId) => {
-            if (!agentHistories[agentId]) {
-              agentHistories[agentId] = []
-            }
-            agentHistories[agentId].push(message)
-          })
-        }
+      setChats((prev) => [...prev, newChat])
+      setCurrentChatId(newConversation.id)
+      setChatMessages((prevMessages) => ({ ...prevMessages, [newConversation.id]: [] }))
+      setUsedAgentsPerChat((prevUsed) => ({ ...prevUsed, [newConversation.id]: [] }))
+      setSelectedAgentsByChat((prevSelected) => ({ ...prevSelected, [newConversation.id]: [] }))
+    } catch (error) {
+      console.error("[v0] Error creating conversation:", error)
+      addToast({
+        title: "Erro ao criar conversa",
+        description: "Não foi possível criar uma nova conversa",
+        variant: "error",
       })
+    }
+  }, [userId, workspaceId, chats, addToast])
 
-      const newChat: Chat = {
-        id: newChatId,
-        name: `Conversa ${newChatId}`,
-        contextMessages: messages,
-        usedAgentIds: usedAgentIds,
-        agentHistories: agentHistories,
+  const createChatWithMessages = useCallback(
+    async (messages: Message[]) => {
+      if (!userId || !workspaceId) return
+
+      try {
+        const usedAgentIds = Array.from(
+          new Set(
+            messages.filter((m) => m.usedAgentIds && m.usedAgentIds.length > 0).flatMap((m) => m.usedAgentIds || []),
+          ),
+        )
+
+        const newConversation = await saveConversation(
+          userId,
+          workspaceId,
+          `Conversa ${chats.length + 1}`,
+          usedAgentIds,
+          false,
+        )
+
+        const agentHistories: Record<string, Message[]> = {}
+        messages.forEach((message) => {
+          if (message.usedAgentIds) {
+            message.usedAgentIds.forEach((agentId) => {
+              if (!agentHistories[agentId]) {
+                agentHistories[agentId] = []
+              }
+              agentHistories[agentId].push(message)
+            })
+          }
+        })
+
+        const newChat: Chat = {
+          id: newConversation.id,
+          name: newConversation.title,
+          contextMessages: messages,
+          usedAgentIds: usedAgentIds,
+          agentHistories: agentHistories,
+          isFavorite: false,
+        }
+
+        setChats((prev) => [...prev, newChat])
+        setChatMessages((prev) => ({ ...prev, [newConversation.id]: [] }))
+        setCurrentChatId(newConversation.id)
+        setUsedAgentsPerChat((prev) => ({ ...prev, [newConversation.id]: usedAgentIds }))
+        setSelectedAgentsByChat((prev) => ({ ...prev, [newConversation.id]: [] }))
+
+        for (const message of messages) {
+          await saveMessage(userId, newConversation.id, message.content, message.sender, message.usedAgentIds || [], [])
+        }
+      } catch (error) {
+        console.error("[v0] Error creating chat with messages:", error)
+        addToast({
+          title: "Erro ao criar conversa",
+          description: "Não foi possível criar a conversa com as mensagens",
+          variant: "error",
+        })
       }
-
-      setChatMessages((prev) => ({ ...prev, [newChatId]: [] }))
-      setCurrentChatId(newChatId)
-      setUsedAgentsPerChat((prev) => ({ ...prev, [newChatId]: usedAgentIds }))
-      setSelectedAgentsByChat((prev) => ({ ...prev, [newChatId]: [] }))
-
-      return [...prev, newChat]
-    })
-  }, [])
+    },
+    [userId, workspaceId, chats, addToast],
+  )
 
   const deleteChat = useCallback(
-    (chatId: string) => {
+    async (chatId: string) => {
       if (chats.length === 1) {
-        alert("Você não pode deletar a última conversa!")
+        addToast({
+          title: "Ação não permitida",
+          description: "Você não pode deletar a última conversa!",
+          variant: "error",
+        })
         return
       }
 
-      setChats((prev) => prev.filter((c) => c.id !== chatId))
-      setChatMessages((prev) => {
-        const newMessages = { ...prev }
-        delete newMessages[chatId]
-        return newMessages
-      })
-      setUsedAgentsPerChat((prev) => {
-        const newUsed = { ...prev }
-        delete newUsed[chatId]
-        return newUsed
-      })
-      setSelectedAgentsByChat((prev) => {
-        const newSelected = { ...prev }
-        delete newSelected[chatId]
-        return newSelected
-      })
+      try {
+        await deleteConversationDB(chatId)
 
-      if (currentChatId === chatId) {
-        const remainingChats = chats.filter((c) => c.id !== chatId)
-        setCurrentChatId(remainingChats[0].id)
+        setChats((prev) => prev.filter((c) => c.id !== chatId))
+        setChatMessages((prev) => {
+          const newMessages = { ...prev }
+          delete newMessages[chatId]
+          return newMessages
+        })
+        setUsedAgentsPerChat((prev) => {
+          const newUsed = { ...prev }
+          delete newUsed[chatId]
+          return newUsed
+        })
+        setSelectedAgentsByChat((prev) => {
+          const newSelected = { ...prev }
+          delete newSelected[chatId]
+          return newSelected
+        })
+
+        if (currentChatId === chatId) {
+          const remainingChats = chats.filter((c) => c.id !== chatId)
+          setCurrentChatId(remainingChats[0].id)
+        }
+      } catch (error) {
+        console.error("[v0] Error deleting conversation:", error)
+        addToast({
+          title: "Erro ao deletar conversa",
+          description: "Não foi possível deletar a conversa",
+          variant: "error",
+        })
       }
     },
-    [chats, currentChatId],
+    [chats, currentChatId, addToast],
+  )
+
+  const toggleFavorite = useCallback(
+    async (chatId: string) => {
+      const chat = chats.find((c) => c.id === chatId)
+      if (!chat) return
+
+      const newFavoriteStatus = !chat.isFavorite
+
+      try {
+        await toggleConversationFavorite(chatId, newFavoriteStatus)
+
+        setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, isFavorite: newFavoriteStatus } : c)))
+
+        addToast({
+          title: newFavoriteStatus ? "Adicionado aos favoritos" : "Removido dos favoritos",
+          description: `"${chat.name}" foi ${newFavoriteStatus ? "adicionado aos" : "removido dos"} favoritos`,
+          variant: "success",
+        })
+      } catch (error) {
+        console.error("[v0] Error toggling favorite:", error)
+        addToast({
+          title: "Erro",
+          description: "Não foi possível atualizar o status de favorito",
+          variant: "error",
+        })
+      }
+    },
+    [chats, addToast],
   )
 
   const reorderChatByDrop = useCallback(
@@ -299,6 +476,7 @@ export default function ChatPage() {
         name: `Conversa ${newChatId} (Importada)`,
         usedAgentIds,
         agentHistories,
+        isFavorite: false,
       }
 
       setChats((prev) => [...prev, newChat])
@@ -328,6 +506,17 @@ export default function ChatPage() {
     }
   })
 
+  if (isLoadingConversations || !currentChatId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--settings-text)]">Carregando conversas...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
       <ChatSidebar
@@ -349,6 +538,7 @@ export default function ChatPage() {
         onDeleteChat={deleteChat}
         onReorderChat={reorderChatByDrop}
         onImportChat={importChat}
+        onToggleFavorite={toggleFavorite}
         messages={chatMessages}
         onAddMessage={addMessage}
       />

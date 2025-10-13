@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { X, Moon, Sun } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -9,6 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const { addToast } = useToast()
   const [email, setEmail] = useState(localStorage.getItem("userEmail") || "admin@workspace.com")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -19,23 +21,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const handleSaveEmail = () => {
     localStorage.setItem("userEmail", email)
-    alert("Email atualizado com sucesso!")
+    addToast({
+      title: "Sucesso",
+      description: "Email atualizado com sucesso!",
+      variant: "success",
+    })
   }
 
   const handleSavePassword = () => {
     if (newPassword !== confirmPassword) {
-      alert("As senhas não coincidem!")
+      addToast({
+        title: "Erro na senha",
+        description: "As senhas não coincidem!",
+        variant: "error",
+      })
       return
     }
     if (newPassword.length < 6) {
-      alert("A senha deve ter pelo menos 6 caracteres!")
+      addToast({
+        title: "Senha muito curta",
+        description: "A senha deve ter pelo menos 6 caracteres!",
+        variant: "error",
+      })
       return
     }
     localStorage.setItem("userPassword", newPassword)
     setCurrentPassword("")
     setNewPassword("")
     setConfirmPassword("")
-    alert("Senha atualizada com sucesso!")
+    addToast({
+      title: "Sucesso",
+      description: "Senha atualizada com sucesso!",
+      variant: "success",
+    })
   }
 
   const handleThemeChange = (newTheme: string) => {

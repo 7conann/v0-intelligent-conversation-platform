@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Moon, Sun, ArrowLeft, LogOut, Mail, Lock } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { addToast } = useToast()
   const [email, setEmail] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -13,39 +15,53 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState("dark")
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("authenticated")
-    if (!isAuthenticated) {
-      router.push("/")
-      return
-    }
-
     setEmail(localStorage.getItem("userEmail") || "admin@workspace.com")
     setTheme(localStorage.getItem("theme") || "dark")
-  }, [router])
+  }, [])
 
   const handleSaveEmail = () => {
     if (!email || !email.includes("@")) {
-      alert("Por favor, insira um email válido!")
+      addToast({
+        title: "Email inválido",
+        description: "Por favor, insira um email válido!",
+        variant: "error",
+      })
       return
     }
     localStorage.setItem("userEmail", email)
-    alert("Email atualizado com sucesso!")
+    addToast({
+      title: "Sucesso",
+      description: "Email atualizado com sucesso!",
+      variant: "success",
+    })
   }
 
   const handleSavePassword = () => {
     if (newPassword !== confirmPassword) {
-      alert("As senhas não coincidem!")
+      addToast({
+        title: "Erro na senha",
+        description: "As senhas não coincidem!",
+        variant: "error",
+      })
       return
     }
     if (newPassword.length < 6) {
-      alert("A senha deve ter pelo menos 6 caracteres!")
+      addToast({
+        title: "Senha muito curta",
+        description: "A senha deve ter pelo menos 6 caracteres!",
+        variant: "error",
+      })
       return
     }
     localStorage.setItem("userPassword", newPassword)
     setCurrentPassword("")
     setNewPassword("")
     setConfirmPassword("")
-    alert("Senha atualizada com sucesso!")
+    addToast({
+      title: "Sucesso",
+      description: "Senha atualizada com sucesso!",
+      variant: "success",
+    })
   }
 
   const handleThemeChange = (newTheme: string) => {
@@ -61,7 +77,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] p-8">
-<div className="px-56" class="w-full">
+      <div className="px-56 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-12">
           <div className="flex items-center gap-4">
