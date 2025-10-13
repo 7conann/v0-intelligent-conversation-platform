@@ -311,21 +311,48 @@ export function ChatArea({
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
       }
 
-      const payload: any = {
-        message: messageToSend,
-        agents: selectedAgents.map((id) => agents.find((a) => a.id === id)?.name),
-        chatId: currentChatId,
-        timestamp: new Date().toISOString(),
-        hasContext: isFirstMessage && contextMessages && contextMessages.length > 0,
-        contextMessages: isFirstMessage && contextMessages ? contextMessages : undefined,
-      }
+      console.log("[v0] === INÍCIO DO ENVIO DE MENSAGEM ===")
+      console.log("[v0] Mensagem original:", input)
+      console.log("[v0] Mensagem a enviar:", messageToSend)
+      console.log("[v0] Anexos:", attachmentsToSend.length)
+      console.log("[v0] Chat ID (contactIdentifier):", currentChatId)
 
-      // Add file as "data" field if exists
+      let payload: any
+
       if (attachmentsToSend.length > 0) {
-        payload.data = attachmentsToSend[0].data // Send only the base64 data
+        const attachment = attachmentsToSend[0]
+        payload = {
+          content: {
+            image: {
+              url: attachment.data,
+              caption: messageToSend || "Imagem enviada",
+            },
+          },
+          type: "IMAGE",
+          contactIdentifier: currentChatId,
+          contactName: `Chat ${currentChatId}`,
+        }
+        console.log("[v0] Tipo de mensagem: IMAGE")
+        console.log("[v0] Tamanho do base64:", attachment.data.length, "caracteres")
+        console.log("[v0] Caption:", messageToSend || "Imagem enviada")
+      } else {
+        payload = {
+          content: {
+            text: {
+              body: messageToSend,
+            },
+          },
+          type: "TEXT",
+          contactIdentifier: currentChatId,
+          contactName: `Chat ${currentChatId}`,
+        }
+        console.log("[v0] Tipo de mensagem: TEXT")
       }
 
-      const response = await fetch("https://n8n.grupobeely.com.br/webhook/7a3701eb-f5ad-4d08-8698-6aba69a379ed", {
+      console.log("[v0] Payload completo:", JSON.stringify(payload, null, 2))
+      console.log("[v0] Enviando para API Route (proxy)...")
+
+      const response = await fetch("/api/send-message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -333,56 +360,48 @@ export function ChatArea({
         body: JSON.stringify(payload),
       })
 
-      let data: any = null
-      const contentType = response.headers.get("content-type")
-      const responseText = await response.text()
+      console.log("[v0] Resposta recebida!")
+      console.log("[v0] Status:", response.status, response.statusText)
 
-      if (responseText && responseText.trim()) {
-        // Response has content
-        if (contentType?.includes("application/json")) {
-          // Try to parse as JSON
-          try {
-            data = JSON.parse(responseText)
-          } catch (e) {
-            console.error("[v0] Failed to parse JSON response:", e)
-            // If JSON parsing fails, use the text as-is
-            data = { message: responseText }
-          }
-        } else {
-          // Non-JSON response, treat as plain text
-          data = { message: responseText }
-        }
-      } else {
-        // Empty response
-        console.warn("[v0] Webhook returned empty response")
-        data = { message: "Resposta recebida com sucesso." }
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] ❌ ERRO NA API")
+        console.error("[v0] Status:", response.status)
+        console.error("[v0] Erro:", errorData)
+        throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
       }
+
+      const data = await response.json()
+      console.log("[v0] ✅ Resposta parseada com sucesso:", JSON.stringify(data, null, 2))
 
       let responseContent = ""
 
-      if (typeof data === "string") {
-        responseContent = data
-      } else if (data.response && typeof data.response === "string") {
-        responseContent = data.response
-      } else if (data.content && typeof data.content === "string") {
-        responseContent = data.content
-      } else if (data.message) {
-        if (typeof data.message === "string") {
-          responseContent = data.message
-        } else if (data.message.content && typeof data.message.content === "string") {
-          responseContent = data.message.content
-        } else {
-          responseContent = JSON.stringify(data.message)
-        }
-      } else if (data.choices && data.choices[0]?.message?.content) {
-        responseContent = data.choices[0].message.content
-      } else if (data.output && typeof data.output === "string") {
-        responseContent = data.output
-      } else if (data.text && typeof data.text === "string") {
-        responseContent = data.text
+      console.log("[v0] Processando aiMessages...")
+      console.log("[v0] data.success:", data.success)
+      console.log("[v0] data.aiMessages:", data.aiMessages)
+
+      if (data.success && data.aiMessages && data.aiMessages.length > 0) {
+        console.log("[v0] Encontradas", data.aiMessages.length, "mensagens de IA")
+
+        responseContent = data.aiMessages
+          .map((msg: any, index: number) => {
+            console.log(`[v0] aiMessage[${index}]:`, JSON.stringify(msg, null, 2))
+            if (msg.content?.text?.body) {
+              return msg.content.text.body
+            }
+            return ""
+          })
+          .filter((text: string) => text.length > 0)
+          .join("\n\n")
+
+        console.log("[v0] Conteúdo da resposta combinado:", responseContent)
       } else {
-        responseContent = JSON.stringify(data, null, 2)
+        console.log("[v0] ⚠️ Nenhuma aiMessage encontrada, usando resposta padrão")
+        responseContent = "Resposta recebida com sucesso."
       }
+
+      console.log("[v0] === CRIANDO MENSAGEM DO ASSISTENTE ===")
+      console.log("[v0] Conteúdo final:", responseContent)
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -392,9 +411,12 @@ export function ChatArea({
         usedAgentIds: selectedAgents,
       }
 
+      console.log("[v0] Adicionando mensagem do assistente ao chat")
       onAddMessage(currentChatId, assistantMessage)
+      console.log("[v0] ✅ MENSAGEM ENVIADA E RESPOSTA PROCESSADA COM SUCESSO")
     } catch (error) {
-      console.error("[v0] Error sending message:", error)
+      console.error("[v0] ❌ ERRO GERAL NO ENVIO:", error)
+      console.error("[v0] Stack trace:", error instanceof Error ? error.stack : "N/A")
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -405,6 +427,7 @@ export function ChatArea({
 
       onAddMessage(currentChatId, assistantMessage)
     } finally {
+      console.log("[v0] === FIM DO ENVIO DE MENSAGEM ===")
       setIsLoading(false)
     }
   }
@@ -484,7 +507,7 @@ export function ChatArea({
     setDialogChatId(null)
     addToast({
       title: "Conversa exportada",
-      description: `"${chat?.name}" foi exportada em CSV com sucesso`,
+      description: `"${chat?.name}" foi exportada com sucesso`,
       variant: "success",
     })
   }
