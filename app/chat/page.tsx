@@ -518,13 +518,14 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden">
+    <div className="flex h-screen bg-[var(--app-bg)] overflow-hidden flex-col md:flex-row">
       <ChatSidebar
         agents={agents}
         selectedAgents={currentSelectedAgents}
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
         agentHistories={currentAgentHistories}
+        className="md:w-1/4"
       />
       <ChatArea
         agents={agents}
@@ -541,6 +542,7 @@ export default function ChatPage() {
         onToggleFavorite={toggleFavorite}
         messages={chatMessages}
         onAddMessage={addMessage}
+        className="md:w-3/4"
       />
     </div>
   )

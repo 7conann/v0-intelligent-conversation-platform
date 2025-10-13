@@ -214,11 +214,16 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
+      const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost"
+      const redirectUrl = isLocalhost
+        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat`
+        : `${window.location.origin}/chat`
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat`,
+          emailRedirectTo: redirectUrl,
         },
       })
 

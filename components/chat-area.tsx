@@ -497,8 +497,8 @@ export function ChatArea({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--chat-bg)]">
-      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-4 py-2 flex items-center gap-2 overflow-x-auto">
+    <div className="flex-1 flex flex-col bg-[var(--chat-bg)] min-w-0">
+      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
         {chats.map((chat) => (
           <div
             key={chat.id}
@@ -512,14 +512,16 @@ export function ChatArea({
             <button
               onClick={() => onSwitchChat(chat.id)}
               className={cn(
-                "!bg-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-all relative cursor-pointer",
+                "!bg-gray-800 px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
                 currentChatId === chat.id
                   ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
                   : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
                 draggedChatId === chat.id && "opacity-50",
               )}
             >
-              {chat.isFavorite && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />}
+              {chat.isFavorite && (
+                <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
+              )}
               {chat.name}
               {chat.contextMessages && chat.contextMessages.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
@@ -531,35 +533,35 @@ export function ChatArea({
                 e.stopPropagation()
                 setDialogChatId(chat.id)
               }}
-              className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
+              className="w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
               title="Opções"
             >
-              <MoreVertical className="w-4 h-4" />
+              <MoreVertical className="w-3 h-3 md:w-4 md:h-4" />
             </button>
           </div>
         ))}
         <button
           onClick={onCreateNewChat}
-          className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0"
+          className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0"
           title="Nova conversa"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3 h-3 md:w-4 md:h-4" />
         </button>
         <div className="flex items-center gap-1 ml-auto shrink-0">
           <button
             onClick={exportConversation}
-            className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
+            className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
             title="Exportar conversa atual"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3 h-3 md:w-4 md:h-4" />
           </button>
           <input ref={fileInputRef} type="file" accept=".csv" onChange={importConversation} className="hidden" />
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
+            className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
             title="Importar conversa"
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3 h-3 md:w-4 md:h-4" />
           </button>
         </div>
       </div>
@@ -708,11 +710,11 @@ export function ChatArea({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
         {currentMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center mb-6 border border-purple-500/30">
-              <svg viewBox="0 0 24 24" fill="none" className="w-12 h-12">
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center mb-4 md:mb-6 border border-purple-500/30">
+              <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 md:w-12 md:h-12">
                 <path
                   d="M12 2L2 7L12 12L22 7L12 2Z"
                   stroke="url(#gradient2)"
@@ -742,11 +744,11 @@ export function ChatArea({
                 </defs>
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-[var(--settings-text)] mb-2 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-green-400" />
+            <h2 className="text-lg md:text-2xl font-bold text-[var(--settings-text)] mb-2 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
               {contextMessages && contextMessages.length > 0 ? "Continuar conversa" : "Criar nova conversa"}
             </h2>
-            <p className="text-[var(--settings-text-muted)] max-w-md">
+            <p className="text-sm md:text-base text-[var(--settings-text-muted)] max-w-md">
               {contextMessages && contextMessages.length > 0
                 ? "Digite sua mensagem para continuar a conversa com o contexto das mensagens anteriores"
                 : "Comece uma nova conversa selecionando agentes na barra lateral e clicando no botão +"}
@@ -754,7 +756,7 @@ export function ChatArea({
             {selectedAgents.length > 0 && (
               <Button
                 onClick={() => setInput("Olá!")}
-                className="mt-6 bg-purple-600 hover:bg-purple-500 text-white cursor-pointer"
+                className="mt-4 md:mt-6 bg-purple-600 hover:bg-purple-500 text-white cursor-pointer text-sm md:text-base"
               >
                 Iniciar Conversa
               </Button>
@@ -764,11 +766,11 @@ export function ChatArea({
           currentMessages.map((message) => (
             <div
               key={message.id}
-              className={cn("flex gap-3 group", message.sender === "user" ? "justify-end" : "justify-start")}
+              className={cn("flex gap-2 md:gap-3 group", message.sender === "user" ? "justify-end" : "justify-start")}
             >
               <div
                 className={cn(
-                  "max-w-[70%] rounded-2xl px-4 py-3 cursor-pointer transition-all !bg-gray-800",
+                  "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-2 md:px-4 md:py-3 cursor-pointer transition-all !bg-gray-800",
                   message.sender === "user"
                     ? "bg-[var(--message-user-bg)] text-white"
                     : "bg-[var(--message-assistant-bg)] text-[var(--settings-text)] border border-[var(--chat-border)]",
@@ -784,14 +786,14 @@ export function ChatArea({
                     {message.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
-                <p className="text-sm leading-relaxed">{message.content}</p>
+                <p className="text-sm leading-relaxed break-words">{message.content}</p>
               </div>
             </div>
           ))
         )}
         {isLoading && (
-          <div className="flex gap-3">
-            <div className="max-w-[70%] rounded-2xl px-4 py-3 bg-[var(--message-assistant-bg)] border border-[var(--chat-border)]">
+          <div className="flex gap-2 md:gap-3">
+            <div className="max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-2 md:px-4 md:py-3 bg-[var(--message-assistant-bg)] border border-[var(--chat-border)]">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
                 <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:0.2s]" />
@@ -803,35 +805,37 @@ export function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-4">
+      <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-2 md:p-4">
         {selectedAgents.length === 0 && (
-          <div className="mb-3 text-center text-sm text-purple-400">
+          <div className="mb-2 md:mb-3 text-center text-xs md:text-sm text-purple-400">
             Selecione pelo menos um agente na barra lateral para começar
           </div>
         )}
 
         {attachments.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
+          <div className="mb-2 md:mb-3 flex flex-wrap gap-2">
             {attachments.map((attachment, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--chat-border)] text-sm"
+                className="flex items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--chat-border)] text-xs md:text-sm"
               >
                 {getFileIcon(attachment.type)}
-                <span className="text-[var(--settings-text)] truncate max-w-[200px]">{attachment.name}</span>
+                <span className="text-[var(--settings-text)] truncate max-w-[120px] md:max-w-[200px]">
+                  {attachment.name}
+                </span>
                 <span className="text-[var(--settings-text-muted)] text-xs">{formatFileSize(attachment.size)}</span>
                 <button
                   onClick={() => removeAttachment(index)}
                   className="text-red-400 hover:text-red-300 transition-colors"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3 md:w-4 md:h-4" />
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-2 md:gap-3 items-end">
           <input
             ref={attachmentInputRef}
             type="file"
@@ -844,10 +848,10 @@ export function ChatArea({
             onClick={() => attachmentInputRef.current?.click()}
             disabled={isUploading || selectedAgents.length === 0 || attachments.length > 0}
             variant="outline"
-            className="h-[60px] px-4 border-[var(--chat-border)] hover:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
+            className="h-[50px] md:h-[60px] px-3 md:px-4 border-[var(--chat-border)] hover:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
             title={attachments.length > 0 ? "Remova o arquivo atual para anexar outro" : "Anexar arquivo"}
           >
-            <Paperclip className="w-5 h-5" />
+            <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
 
           <Textarea
@@ -860,21 +864,21 @@ export function ChatArea({
               }
             }}
             placeholder="Digite sua mensagem..."
-            className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[60px] max-h-[200px]"
+            className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
             disabled={selectedAgents.length === 0}
           />
           <Button
             onClick={sendMessage}
             disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
-            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[60px] px-6 cursor-pointer disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[50px] md:h-[60px] px-4 md:px-6 cursor-pointer disabled:cursor-not-allowed"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         </div>
 
         {isUploading && (
-          <div className="mt-2 text-sm text-purple-400 flex items-center gap-2">
-            <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+          <div className="mt-2 text-xs md:text-sm text-purple-400 flex items-center gap-2">
+            <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
             Enviando arquivo...
           </div>
         )}
