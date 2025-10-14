@@ -17,9 +17,17 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
+  title: "Intelligent Conversation Platform",
+  description: "AI-powered workspace for intelligent conversations",
   generator: "v0.app",
+  icons: {
+    icon: [
+      {
+        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' fontSize='90'>💼</text></svg>",
+        type: "image/svg+xml",
+      },
+    ],
+  },
 }
 
 export default function RootLayout({
