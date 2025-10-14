@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Key } from "lucide-react"
+import { ArrowLeft, Star, SettingsIcon, Hash } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,6 @@ import { Label } from "@/components/ui/label"
 import type { Agent } from "@/types/chat"
 
 interface WorkspaceAgent extends Agent {
-  api_key?: string
-  password?: string
   is_favorite?: boolean
 }
 
@@ -137,17 +135,32 @@ export default function WorkspacesPage() {
   const handleSaveAgentConfig = async () => {
     if (!selectedAgent) return
 
+    console.log("[v0] 💾 Salvando palavra-chave:", {
+      agentId: selectedAgent.id,
+      agentName: selectedAgent.name,
+      oldTriggerWord: agents.find((a) => a.id === selectedAgent.id)?.trigger_word,
+      newTriggerWord: selectedAgent.trigger_word,
+    })
+
     const supabase = createClient()
 
-    const { error } = await supabase
+    const { data, error, count } = await supabase
       .from("agents")
       .update({
-        api_key: selectedAgent.api_key,
-        password: selectedAgent.password,
+        trigger_word: selectedAgent.trigger_word,
       })
       .eq("id", selectedAgent.id)
+      .select()
+
+    console.log("[v0] 📊 Resultado do UPDATE:", {
+      error: error,
+      data: data,
+      count: count,
+      rowsAffected: data?.length || 0,
+    })
 
     if (error) {
+      console.error("[v0] ❌ Erro ao salvar palavra-chave:", error)
       addToast({
         title: "Erro ao salvar",
         description: error.message,
@@ -156,9 +169,38 @@ export default function WorkspacesPage() {
       return
     }
 
+    if (!data || data.length === 0) {
+      console.error("[v0] ❌ Nenhuma linha foi atualizada. Possível problema de RLS ou ID inválido.")
+      addToast({
+        title: "Erro ao salvar",
+        description: "Nenhuma linha foi atualizada. Verifique as permissões do banco de dados.",
+        variant: "error",
+      })
+      return
+    }
+
+    console.log("[v0] ✅ Palavra-chave salva com sucesso no banco de dados")
+
+    const { data: verifyData, error: verifyError } = await supabase
+      .from("agents")
+      .select("trigger_word")
+      .eq("id", selectedAgent.id)
+      .single()
+
+    if (verifyError) {
+      console.error("[v0] ❌ Erro ao verificar salvamento:", verifyError)
+    } else {
+      console.log("[v0] 🔍 Verificação do banco de dados:", {
+        agentId: selectedAgent.id,
+        triggerWordNoBanco: verifyData.trigger_word,
+        triggerWordEsperada: selectedAgent.trigger_word,
+        match: verifyData.trigger_word === selectedAgent.trigger_word,
+      })
+    }
+
     addToast({
       title: "Configuração salva",
-      description: `Configurações do ${selectedAgent.name} foram atualizadas`,
+      description: `Palavra-chave do ${selectedAgent.name} foi atualizada`,
       variant: "success",
     })
 
@@ -193,7 +235,7 @@ export default function WorkspacesPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold">Workspaces & Agentes</h1>
-              <p className="text-sm text-muted-foreground">Configure APIs e senhas dos agentes</p>
+              <p className="text-sm text-muted-foreground">Configure palavras-chave dos agentes</p>
             </div>
           </div>
         </div>
@@ -231,15 +273,9 @@ export default function WorkspacesPage() {
 
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <Key className="h-4 w-4 text-muted-foreground" />
+                  <Hash className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">
-                    API Key: {agent.api_key ? "Configurada" : "Não configurada"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    Senha: {agent.password ? "Configurada" : "Não configurada"}
+                    Palavra-chave: {agent.trigger_word || "Não configurada"}
                   </span>
                 </div>
               </div>
@@ -273,35 +309,24 @@ export default function WorkspacesPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold">Configurar {selectedAgent.name}</h2>
-                <p className="text-sm text-muted-foreground">Configure API e senha do agente</p>
+                <p className="text-sm text-muted-foreground">Configure a palavra-chave do agente</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="apiKey">API Key</Label>
+                <Label htmlFor="triggerWord">Palavra-chave</Label>
                 <Input
-                  id="apiKey"
-                  type="password"
-                  value={selectedAgent.api_key || ""}
-                  onChange={(e) => setSelectedAgent({ ...selectedAgent, api_key: e.target.value })}
-                  placeholder="sk-..."
+                  id="triggerWord"
+                  type="text"
+                  value={selectedAgent.trigger_word || ""}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, trigger_word: e.target.value })}
+                  placeholder="#vendas"
                   className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
                 />
-                <p className="text-xs text-muted-foreground">Chave de API para integração com serviços externos</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha de Ativação</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={selectedAgent.password || ""}
-                  onChange={(e) => setSelectedAgent({ ...selectedAgent, password: e.target.value })}
-                  placeholder="Senha para ativar o agente"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
-                />
-                <p className="text-xs text-muted-foreground">Senha que será usada para gatilhar este agente na BB</p>
+                <p className="text-xs text-muted-foreground">
+                  Palavra-chave que será usada para ativar este agente (ex: #vendas, #suporte)
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">

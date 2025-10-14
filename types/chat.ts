@@ -3,6 +3,7 @@ export interface Agent {
   name: string
   icon: string
   color: string
+  trigger_word?: string
 }
 
 export interface Message {

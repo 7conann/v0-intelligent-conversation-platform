@@ -94,6 +94,22 @@ export function ChatArea({
     scrollToBottom()
   }, [currentMessages])
 
+  useEffect(() => {
+    if (selectedAgents.length > 0 && !input.trim()) {
+      const triggerWords = selectedAgents
+        .map((agentId) => {
+          const agent = agents.find((a) => a.id === agentId)
+          return agent?.trigger_word
+        })
+        .filter(Boolean)
+        .join(" ")
+
+      if (triggerWords) {
+        setInput(triggerWords + " ")
+      }
+    }
+  }, [selectedAgents, agents])
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (!files || files.length === 0) return
@@ -311,12 +327,6 @@ export function ChatArea({
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
       }
 
-      console.log("[v0] === INÍCIO DO ENVIO DE MENSAGEM ===")
-      console.log("[v0] Mensagem original:", input)
-      console.log("[v0] Mensagem a enviar:", messageToSend)
-      console.log("[v0] Anexos:", attachmentsToSend.length)
-      console.log("[v0] Chat ID (contactIdentifier):", currentChatId)
-
       let payload: any
 
       if (attachmentsToSend.length > 0) {
@@ -332,9 +342,6 @@ export function ChatArea({
           contactIdentifier: currentChatId,
           contactName: `Chat ${currentChatId}`,
         }
-        console.log("[v0] Tipo de mensagem: IMAGE")
-        console.log("[v0] Tamanho do base64:", attachment.data.length, "caracteres")
-        console.log("[v0] Caption:", messageToSend || "Imagem enviada")
       } else {
         payload = {
           content: {
@@ -346,11 +353,7 @@ export function ChatArea({
           contactIdentifier: currentChatId,
           contactName: `Chat ${currentChatId}`,
         }
-        console.log("[v0] Tipo de mensagem: TEXT")
       }
-
-      console.log("[v0] Payload completo:", JSON.stringify(payload, null, 2))
-      console.log("[v0] Enviando para API Route (proxy)...")
 
       const response = await fetch("/api/send-message", {
         method: "POST",
@@ -360,63 +363,47 @@ export function ChatArea({
         body: JSON.stringify(payload),
       })
 
-      console.log("[v0] Resposta recebida!")
-      console.log("[v0] Status:", response.status, response.statusText)
-
       if (!response.ok) {
         const errorData = await response.json()
-        console.error("[v0] ❌ ERRO NA API")
-        console.error("[v0] Status:", response.status)
-        console.error("[v0] Erro:", errorData)
+        console.error("[v0] ❌ ERRO NA API:", errorData)
         throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
       }
 
       const data = await response.json()
-      console.log("[v0] ✅ Resposta parseada com sucesso:", JSON.stringify(data, null, 2))
 
-      let responseContent = ""
-
-      console.log("[v0] Processando aiMessages...")
-      console.log("[v0] data.success:", data.success)
-      console.log("[v0] data.aiMessages:", data.aiMessages)
+      console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
 
       if (data.success && data.aiMessages && data.aiMessages.length > 0) {
-        console.log("[v0] Encontradas", data.aiMessages.length, "mensagens de IA")
+        data.aiMessages.forEach((msg: any, index: number) => {
+          if (msg.content?.text?.body) {
+            const messageContent = msg.content.text.body
 
-        responseContent = data.aiMessages
-          .map((msg: any, index: number) => {
-            console.log(`[v0] aiMessage[${index}]:`, JSON.stringify(msg, null, 2))
-            if (msg.content?.text?.body) {
-              return msg.content.text.body
-            }
-            return ""
-          })
-          .filter((text: string) => text.length > 0)
-          .join("\n\n")
+            setTimeout(() => {
+              const assistantMessage: Message = {
+                id: `${Date.now()}-${index}`,
+                content: messageContent,
+                sender: "assistant",
+                timestamp: new Date(),
+                usedAgentIds: selectedAgents,
+              }
 
-        console.log("[v0] Conteúdo da resposta combinado:", responseContent)
+              onAddMessage(currentChatId, assistantMessage)
+            }, index * 150)
+          }
+        })
       } else {
-        console.log("[v0] ⚠️ Nenhuma aiMessage encontrada, usando resposta padrão")
-        responseContent = "Resposta recebida com sucesso."
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          content: "Resposta recebida com sucesso.",
+          sender: "assistant",
+          timestamp: new Date(),
+          usedAgentIds: selectedAgents,
+        }
+
+        onAddMessage(currentChatId, assistantMessage)
       }
-
-      console.log("[v0] === CRIANDO MENSAGEM DO ASSISTENTE ===")
-      console.log("[v0] Conteúdo final:", responseContent)
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: responseContent,
-        sender: "assistant",
-        timestamp: new Date(),
-        usedAgentIds: selectedAgents,
-      }
-
-      console.log("[v0] Adicionando mensagem do assistente ao chat")
-      onAddMessage(currentChatId, assistantMessage)
-      console.log("[v0] ✅ MENSAGEM ENVIADA E RESPOSTA PROCESSADA COM SUCESSO")
     } catch (error) {
-      console.error("[v0] ❌ ERRO GERAL NO ENVIO:", error)
-      console.error("[v0] Stack trace:", error instanceof Error ? error.stack : "N/A")
+      console.error("[v0] ❌ ERRO:", error)
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -427,7 +414,6 @@ export function ChatArea({
 
       onAddMessage(currentChatId, assistantMessage)
     } finally {
-      console.log("[v0] === FIM DO ENVIO DE MENSAGEM ===")
       setIsLoading(false)
     }
   }

@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { Agent } from "@/types/chat"
 
-
 interface CustomAgent {
   id: string
   name: string
@@ -18,8 +17,8 @@ interface CustomAgent {
   user_id: string
   agent_ids: string[]
   created_at: string
+  trigger_word: string
 }
-
 
 export default function CustomAgentsPage() {
   const router = useRouter()
@@ -30,6 +29,7 @@ export default function CustomAgentsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newAgentName, setNewAgentName] = useState("")
   const [newAgentIcon, setNewAgentIcon] = useState("👔")
+  const [newAgentTriggerWord, setNewAgentTriggerWord] = useState("")
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -85,6 +85,15 @@ export default function CustomAgentsPage() {
       return
     }
 
+    if (!newAgentTriggerWord.trim()) {
+      addToast({
+        title: "Palavra-chave obrigatória",
+        description: "Digite uma palavra-chave para ativar o agente (ex: #vendas)",
+        variant: "error",
+      })
+      return
+    }
+
     if (selectedAgentIds.length === 0) {
       addToast({
         title: "Selecione agentes",
@@ -106,6 +115,7 @@ export default function CustomAgentsPage() {
       .insert({
         name: newAgentName,
         icon: newAgentIcon,
+        trigger_word: newAgentTriggerWord,
         user_id: session.user.id,
         agent_ids: selectedAgentIds,
       })
@@ -131,6 +141,7 @@ export default function CustomAgentsPage() {
     setShowCreateModal(false)
     setNewAgentName("")
     setNewAgentIcon("👔")
+    setNewAgentTriggerWord("")
     setSelectedAgentIds([])
   }
 
@@ -300,6 +311,20 @@ export default function CustomAgentsPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="triggerWord">Palavra-chave</Label>
+                <Input
+                  id="triggerWord"
+                  value={newAgentTriggerWord}
+                  onChange={(e) => setNewAgentTriggerWord(e.target.value)}
+                  placeholder="Ex: #vendas, #suporte, #estrategia..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Esta palavra-chave será adicionada automaticamente ao selecionar o agente no chat
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Selecione os Agentes (mínimo 1)</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {availableAgents.map((agent) => (
@@ -332,6 +357,7 @@ export default function CustomAgentsPage() {
                     setShowCreateModal(false)
                     setNewAgentName("")
                     setNewAgentIcon("👔")
+                    setNewAgentTriggerWord("")
                     setSelectedAgentIds([])
                   }}
                   variant="outline"

@@ -56,7 +56,15 @@ export default function ChatPage() {
               name: agent.name,
               icon: agent.icon,
               color: agent.color,
+              trigger_word: agent.trigger_word,
             }))
+            console.log(
+              "[v0] 📥 Agentes carregados inicialmente:",
+              loadedAgents.map((a) => ({
+                name: a.name,
+                trigger_word: a.trigger_word,
+              })),
+            )
             setAgents(loadedAgents)
           }
         } catch (error) {
@@ -197,6 +205,56 @@ export default function ChatPage() {
 
     loadUserAndConversations()
   }, [addToast])
+
+  useEffect(() => {
+    const reloadAgents = async () => {
+      console.log("[v0] 🔄 Página ficou visível, recarregando agentes do banco...")
+      const supabase = createClient()
+
+      try {
+        const { data: agentsData, error: agentsError } = await supabase
+          .from("agents")
+          .select("*")
+          .eq("is_system", true)
+          .order("created_at", { ascending: true })
+
+        if (agentsError) throw agentsError
+
+        if (agentsData) {
+          const loadedAgents: Agent[] = agentsData.map((agent) => ({
+            id: agent.id,
+            name: agent.name,
+            icon: agent.icon,
+            color: agent.color,
+            trigger_word: agent.trigger_word,
+          }))
+          console.log(
+            "[v0] ✅ Agentes recarregados do banco:",
+            loadedAgents.map((a) => ({
+              name: a.name,
+              trigger_word: a.trigger_word,
+            })),
+          )
+          setAgents(loadedAgents)
+        }
+      } catch (error) {
+        console.error("[v0] ❌ Erro ao recarregar agentes:", error)
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("[v0] 👁️ Página ficou visível, iniciando reload de agentes...")
+        reloadAgents()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [])
 
   const toggleAgent = useCallback(
     (agentId: string) => {
