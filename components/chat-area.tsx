@@ -424,7 +424,6 @@ export function ChatArea({
           content: "Resposta recebida com sucesso.",
           sender: "assistant",
           timestamp: new Date(),
-          usedAgentIds: selectedAgents,
         }
 
         onAddMessage(currentChatId, assistantMessage)
@@ -538,8 +537,8 @@ export function ChatArea({
   }
 
   return (
-    <div className={cn("flex-1 flex flex-col bg-[var(--chat-bg)] min-w-0", className)}>
-      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide">
+    <div className={cn("flex flex-col h-full bg-[var(--chat-bg)] min-w-0", className)}>
+      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide shrink-0">
         <button
           onClick={onOpenMobileSidebar}
           className="md:hidden w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0 mr-1"
@@ -750,16 +749,26 @@ export function ChatArea({
       {contextMessages && contextMessages.length > 0 && currentMessages.length === 0 && (
         <div className="bg-green-900/20 border-b border-green-500/30 px-4 py-3">
           <div className="flex items-center gap-2 text-green-300 text-sm">
-            <Sparkles className="w-4 h-4" />
-            <span>
-              Este chat foi criado com {contextMessages.length} mensagem{contextMessages.length > 1 ? "s" : ""} de
-              contexto. Elas serão incluídas na sua primeira mensagem.
-            </span>
+            <Sparkles className="w-4 h-4 md:w-6 md:h-6 text-green-400" />
+            {contextMessages && contextMessages.length > 0 ? "Continuar conversa" : "Criar nova conversa"}
           </div>
+          <p className="text-sm md:text-base text-[var(--settings-text-muted)] max-w-md">
+            {contextMessages && contextMessages.length > 0
+              ? "Digite sua mensagem para continuar a conversa com o contexto das mensagens anteriores"
+              : "Comece uma nova conversa selecionando agentes na barra lateral e clicando no botão +"}
+          </p>
+          {selectedAgents.length > 0 && (
+            <Button
+              onClick={() => setInput("Olá!")}
+              className="mt-4 md:mt-6 bg-purple-600 hover:bg-purple-500 text-white cursor-pointer text-sm md:text-base"
+            >
+              Iniciar Conversa
+            </Button>
+          )}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 min-h-0">
         {currentMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <div className="w-16 h-16 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-purple-900/50 to-blue-900/50 flex items-center justify-center mb-4 md:mb-6 border border-purple-500/30">
@@ -854,7 +863,7 @@ export function ChatArea({
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-2 md:p-4">
+      <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-2 md:p-4 shrink-0">
         {selectedAgents.length === 0 && (
           <div className="mb-2 md:mb-3 text-center text-xs md:text-sm text-purple-400">
             Selecione pelo menos um agente na barra lateral para começar

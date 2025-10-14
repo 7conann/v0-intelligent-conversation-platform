@@ -314,14 +314,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Login Form */}
-      <div className="w-1/2 bg-[#0a0a0f] flex items-center justify-center p-12">
+      <div className="w-full md:w-1/2 bg-[#0a0a0f] flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10">
+          <div className="flex justify-center mb-6 md:mb-8">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 md:w-10 md:h-10">
                 <path
                   d="M12 2L2 7L12 12L22 7L12 2Z"
                   stroke="white"
@@ -348,10 +348,12 @@ export default function LoginPage() {
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
             WORKSPACE E+I
           </h1>
-          <p className="text-center text-gray-400 mb-12 text-sm">Plataforma de Conversas Inteligentes Multiagente</p>
+          <p className="text-center text-gray-400 mb-8 md:mb-12 text-xs md:text-sm">
+            Plataforma de Conversas Inteligentes Multiagente
+          </p>
 
           {/* Email confirmation banner */}
           {emailNotConfirmed && (
@@ -389,12 +391,12 @@ export default function LoginPage() {
           )}
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-8 bg-gray-900/50 p-1 rounded-lg">
+          <div className="flex gap-2 mb-6 md:mb-8 bg-gray-900/50 p-1 rounded-lg">
             <button
               onClick={() => {
                 setActiveTab("login")
               }}
-              className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
+              className={`flex-1 py-2 md:py-2.5 rounded-md font-medium transition-all cursor-pointer text-xs md:text-sm ${
                 activeTab === "login"
                   ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                   : "text-gray-400 hover:text-gray-300"
@@ -406,7 +408,7 @@ export default function LoginPage() {
               onClick={() => {
                 setActiveTab("cadastro")
               }}
-              className={`flex-1 py-2.5 rounded-md font-medium transition-all cursor-pointer text-sm ${
+              className={`flex-1 py-2 md:py-2.5 rounded-md font-medium transition-all cursor-pointer text-xs md:text-sm ${
                 activeTab === "cadastro"
                   ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
                   : "text-gray-400 hover:text-gray-300"
@@ -417,9 +419,9 @@ export default function LoginPage() {
           </div>
 
           {activeTab === "login" ? (
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleLogin} className="space-y-4 md:space-y-5">
               <div>
-                <Label htmlFor="email" className="text-gray-300 mb-2 block text-sm font-medium">
+                <Label htmlFor="email" className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium">
                   Email
                 </Label>
                 <Input
@@ -428,13 +430,13 @@ export default function LoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="password" className="text-gray-300 mb-2 block text-sm font-medium">
+                <Label htmlFor="password" className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium">
                   Senha
                 </Label>
                 <Input
@@ -443,7 +445,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
@@ -455,29 +457,32 @@ export default function LoginPage() {
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   className="border-gray-700 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
                 />
-                <Label htmlFor="remember" className="text-sm text-gray-300 cursor-pointer select-none">
+                <Label htmlFor="remember" className="text-xs md:text-sm text-gray-300 cursor-pointer select-none">
                   Manter conectado
                 </Label>
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                  <p className="text-red-400 text-sm">{error}</p>
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2.5 md:p-3">
+                  <p className="text-red-400 text-xs md:text-sm">{error}</p>
                 </div>
               )}
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
               >
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="space-y-5">
+            <form onSubmit={handleRegister} className="space-y-4 md:space-y-5">
               <div>
-                <Label htmlFor="register-email" className="text-gray-300 mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="register-email"
+                  className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium"
+                >
                   Email
                 </Label>
                 <Input
@@ -486,13 +491,16 @@ export default function LoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="register-password" className="text-gray-300 mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="register-password"
+                  className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium"
+                >
                   Senha
                 </Label>
                 <Input
@@ -501,13 +509,16 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="confirm-password" className="text-gray-300 mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="confirm-password"
+                  className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium"
+                >
                   Confirmar Senha
                 </Label>
                 <Input
@@ -516,35 +527,35 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                  <p className="text-red-400 text-sm">{error}</p>
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2.5 md:p-3">
+                  <p className="text-red-400 text-xs md:text-sm">{error}</p>
                 </div>
               )}
 
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-purple-500/20"
               >
                 {isLoading ? "Criando conta..." : "Criar Conta"}
               </Button>
             </form>
           )}
 
-          <button className="w-full text-center text-purple-400 hover:text-purple-300 mt-6 text-sm cursor-pointer">
+          <button className="w-full text-center text-purple-400 hover:text-purple-300 mt-4 md:mt-6 text-xs md:text-sm cursor-pointer">
             Esqueci minha senha
           </button>
         </div>
       </div>
 
       {/* Right Side - Branding */}
-      <div className="w-1/2 bg-gradient-to-br from-purple-900 via-blue-900 to-purple-950 relative overflow-hidden flex items-center justify-center">
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-purple-900 via-blue-900 to-purple-950 relative overflow-hidden items-center justify-center">
         {/* Animated background grid */}
         <div className="absolute inset-0 opacity-20">
           <div
