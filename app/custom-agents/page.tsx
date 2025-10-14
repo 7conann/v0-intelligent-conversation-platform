@@ -18,6 +18,7 @@ interface CustomAgent {
   agent_ids: string[]
   created_at: string
   trigger_word: string
+  
 }
 
 export default function CustomAgentsPage() {
