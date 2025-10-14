@@ -95,7 +95,11 @@ export function ChatArea({
   }, [currentMessages])
 
   useEffect(() => {
-    if (selectedAgents.length > 0 && !input.trim()) {
+    setInput("")
+  }, [currentChatId])
+
+  useEffect(() => {
+    if (selectedAgents.length > 0) {
       const triggerWords = selectedAgents
         .map((agentId) => {
           const agent = agents.find((a) => a.id === agentId)
@@ -105,8 +109,31 @@ export function ChatArea({
         .join(" ")
 
       if (triggerWords) {
-        setInput(triggerWords + " ")
+        const currentInput = input.trim()
+
+        // Find where the message content starts (after trigger words and ":")
+        const colonIndex = currentInput.indexOf(":")
+        const messageContent = colonIndex !== -1 ? currentInput.substring(colonIndex + 1).trim() : currentInput
+
+        // Check if messageContent looks like it might contain trigger words
+        const hasOnlyTriggerWords =
+          messageContent === "" ||
+          messageContent
+            .split(" ")
+            .every(
+              (word) => word.startsWith("#") || word.startsWith("@") || agents.some((a) => a.trigger_word === word),
+            )
+
+        if (hasOnlyTriggerWords) {
+          // If input is empty or only has trigger words, replace with new trigger words
+          setInput(triggerWords + ": ")
+        } else {
+          // If there's actual message content, preserve it and update trigger words
+          setInput(triggerWords + ": " + messageContent)
+        }
       }
+    } else {
+      setInput("")
     }
   }, [selectedAgents, agents])
 

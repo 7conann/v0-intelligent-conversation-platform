@@ -19,6 +19,9 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
+  const [pendingEmail, setPendingEmail] = useState("")
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -76,6 +79,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setIsLoading(true)
+    setEmailNotConfirmed(false)
 
     console.log("[v0] Environment check:", {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -113,11 +117,22 @@ export default function LoginPage() {
 
       if (error) {
         console.error("[v0] Login error:", error)
-        addToast({
-          title: "Erro ao fazer login",
-          description: error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message,
-          variant: "error",
-        })
+
+        if (error.message.includes("Email not confirmed") || error.message.includes("email_not_confirmed")) {
+          setEmailNotConfirmed(true)
+          setPendingEmail(email)
+          addToast({
+            title: "Email não confirmado",
+            description: "Verifique sua caixa de entrada e confirme seu email antes de fazer login.",
+            variant: "error",
+          })
+        } else {
+          addToast({
+            title: "Erro ao fazer login",
+            description: error.message === "Invalid login credentials" ? "Email ou senha incorretos" : error.message,
+            variant: "error",
+          })
+        }
         return
       }
 
@@ -262,6 +277,42 @@ export default function LoginPage() {
     }
   }
 
+  const handleResendConfirmation = async () => {
+    if (!pendingEmail) return
+
+    setIsResendingEmail(true)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+      })
+
+      if (error) {
+        addToast({
+          title: "Erro ao reenviar email",
+          description: error.message,
+          variant: "error",
+        })
+      } else {
+        addToast({
+          title: "Email reenviado!",
+          description: "Verifique sua caixa de entrada e spam.",
+          variant: "success",
+        })
+      }
+    } catch (err: any) {
+      addToast({
+        title: "Erro inesperado",
+        description: err.message || "Não foi possível reenviar o email.",
+        variant: "error",
+      })
+    } finally {
+      setIsResendingEmail(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Login Form */}
@@ -301,6 +352,41 @@ export default function LoginPage() {
             WORKSPACE E+I
           </h1>
           <p className="text-center text-gray-400 mb-12 text-sm">Plataforma de Conversas Inteligentes Multiagente</p>
+
+          {/* Email confirmation banner */}
+          {emailNotConfirmed && (
+            <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-amber-400 font-semibold mb-1">Email não confirmado</h3>
+                  <p className="text-amber-200/80 text-sm mb-3">
+                    Você precisa confirmar seu email antes de fazer login. Verifique sua caixa de entrada e clique no
+                    link de confirmação que enviamos para <span className="font-medium">{pendingEmail}</span>.
+                  </p>
+                  <button
+                    onClick={handleResendConfirmation}
+                    disabled={isResendingEmail}
+                    className="text-sm text-amber-400 hover:text-amber-300 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isResendingEmail ? "Reenviando..." : "Reenviar email de confirmação"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-2 mb-8 bg-gray-900/50 p-1 rounded-lg">
