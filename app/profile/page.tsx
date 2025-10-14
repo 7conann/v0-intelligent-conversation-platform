@@ -102,7 +102,14 @@ export default function ProfilePage() {
 
   const handleLogout = async () => {
     const supabase = createClient()
+
     await supabase.auth.signOut()
+
+    // Limpar sessionStorage (credenciais do Supabase)
+    sessionStorage.clear()
+
+    // Limpar localStorage (remember me, tema, etc)
+    localStorage.clear()
 
     addToast({
       title: "Logout realizado",

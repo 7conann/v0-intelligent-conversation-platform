@@ -70,8 +70,13 @@ export default function SettingsPage() {
     document.documentElement.classList.toggle("light", newTheme === "light")
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("authenticated")
+  const handleLogout = async () => {
+    // Limpar sessionStorage (credenciais do Supabase)
+    sessionStorage.clear()
+
+    // Limpar localStorage (authenticated, remember me, tema, etc)
+    localStorage.clear()
+
     router.push("/login")
   }
 
