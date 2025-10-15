@@ -6,7 +6,7 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
 
   // Protected routes
-  const protectedRoutes = ["/chat", "/settings", "/profile", "/workspaces", "/custom-agents"]
+  const protectedRoutes = ["/chat", "/profile", "/workspaces", "/custom-agents"]
   const isProtectedRoute = protectedRoutes.some((route) => request.nextUrl.pathname.startsWith(route))
 
   if (isProtectedRoute) {

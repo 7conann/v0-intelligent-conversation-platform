@@ -26,6 +26,7 @@
   --settings-button-bg: #1f2937;
   --settings-button-hover: #374151;
   --settings-input-bg: #0a0a0f;
+  --card-bg: #1f2937;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -61,12 +62,13 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Added light theme styles */
+/* Enhanced light theme with better color definitions */
 :root.light {
   --app-bg: #f9fafb;
-  --sidebar-bg: linear-gradient(to bottom, #ffffff, #f3f4f6);
-  --agent-bg: linear-gradient(to bottom right, #f3f4f6, #e5e7eb);
-  --agent-hover: linear-gradient(to bottom right, #e5e7eb, #d1d5db);
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --agent-bg: #f3f4f6;
+  --agent-hover: #e5e7eb;
   --agent-icon: #6b7280;
   --tooltip-bg: #1f2937;
   --tooltip-text: #ffffff;
@@ -75,14 +77,18 @@
   --chat-border: #e5e7eb;
   --message-user-bg: linear-gradient(to bottom right, #7c3aed, #2563eb);
   --message-assistant-bg: #f3f4f6;
-  --input-bg: #f9fafb;
+  --input-bg: #ffffff;
   --settings-bg: #ffffff;
   --settings-border: #e5e7eb;
   --settings-text: #111827;
   --settings-text-muted: #6b7280;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
   --settings-button-bg: #f3f4f6;
   --settings-button-hover: #e5e7eb;
   --settings-input-bg: #f9fafb;
+  --card-bg: #ffffff;
 
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);
@@ -94,6 +100,10 @@
   --primary-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
+  --muted: oklch(0.961 0 0);
+  --muted-foreground: oklch(0.533 0 0);
+  --accent: oklch(0.961 0 0);
+  --accent-foreground: oklch(0.145 0 0);
 }
 
 .dark {

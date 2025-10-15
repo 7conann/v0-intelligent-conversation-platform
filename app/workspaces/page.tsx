@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Hash } from "lucide-react"
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import type { Agent } from "@/types/chat"
 
 interface WorkspaceAgent extends Agent {
   is_favorite?: boolean
 }
+
+const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
 export default function WorkspacesPage() {
   const router = useRouter()
@@ -21,6 +24,15 @@ export default function WorkspacesPage() {
   const [agents, setAgents] = useState<WorkspaceAgent[]>([])
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
+  const [showCreateAgent, setShowCreateAgent] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [newAgent, setNewAgent] = useState({
+    name: "",
+    icon: "",
+    color: "#8B5CF6",
+    description: "",
+    trigger_word: "",
+  })
 
   useEffect(() => {
     const loadData = async () => {
@@ -40,6 +52,9 @@ export default function WorkspacesPage() {
         router.push("/login")
         return
       }
+
+      const userEmail = session.user.email
+      setIsAuthorized(AUTHORIZED_EMAILS.includes(userEmail || ""))
 
       const { data: agentsData, error: agentsError } = await supabase
         .from("agents")
@@ -209,6 +224,58 @@ export default function WorkspacesPage() {
     setSelectedAgent(null)
   }
 
+  const handleCreateAgent = async () => {
+    if (!newAgent.name || !newAgent.icon || !newAgent.trigger_word) {
+      addToast({
+        title: "Campos obrigatórios",
+        description: "Preencha nome, ícone e palavra-chave",
+        variant: "error",
+      })
+      return
+    }
+
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from("agents")
+      .insert({
+        name: newAgent.name,
+        icon: newAgent.icon,
+        color: newAgent.color,
+        description: newAgent.description,
+        trigger_word: newAgent.trigger_word,
+        is_system: false,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error creating agent:", error)
+      addToast({
+        title: "Erro ao criar agente",
+        description: error.message,
+        variant: "error",
+      })
+      return
+    }
+
+    addToast({
+      title: "Agente criado",
+      description: `${newAgent.name} foi criado com sucesso`,
+      variant: "success",
+    })
+
+    setAgents((prev) => [...prev, data as WorkspaceAgent])
+    setShowCreateAgent(false)
+    setNewAgent({
+      name: "",
+      icon: "",
+      color: "#8B5CF6",
+      description: "",
+      trigger_word: "",
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -238,6 +305,15 @@ export default function WorkspacesPage() {
               <p className="text-sm text-muted-foreground">Configure palavras-chave dos agentes</p>
             </div>
           </div>
+          {isAuthorized && (
+            <Button
+              onClick={() => setShowCreateAgent(true)}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Novo Agente
+            </Button>
+          )}
         </div>
       </div>
 
@@ -345,6 +421,114 @@ export default function WorkspacesPage() {
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
                 >
                   Salvar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateAgent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold">Criar Novo Agente</h2>
+              <p className="text-sm text-muted-foreground">Preencha os dados do novo agente</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="agentName">Nome do Agente *</Label>
+                <Input
+                  id="agentName"
+                  type="text"
+                  value={newAgent.name}
+                  onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+                  placeholder="Ex: Vendas"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agentIcon">Ícone (Emoji) *</Label>
+                <Input
+                  id="agentIcon"
+                  type="text"
+                  value={newAgent.icon}
+                  onChange={(e) => setNewAgent({ ...newAgent, icon: e.target.value })}
+                  placeholder="Ex: 💼"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  maxLength={2}
+                />
+                <p className="text-xs text-muted-foreground">Use um emoji para representar o agente</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agentColor">Cor</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="agentColor"
+                    type="color"
+                    value={newAgent.color}
+                    onChange={(e) => setNewAgent({ ...newAgent, color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={newAgent.color}
+                    onChange={(e) => setNewAgent({ ...newAgent, color: e.target.value })}
+                    placeholder="#8B5CF6"
+                    className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agentTrigger">Palavra-chave *</Label>
+                <Input
+                  id="agentTrigger"
+                  type="text"
+                  value={newAgent.trigger_word}
+                  onChange={(e) => setNewAgent({ ...newAgent, trigger_word: e.target.value })}
+                  placeholder="Ex: #vendas"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                />
+                <p className="text-xs text-muted-foreground">Palavra-chave para ativar o agente no chat</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="agentDescription">Descrição</Label>
+                <Textarea
+                  id="agentDescription"
+                  value={newAgent.description}
+                  onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
+                  placeholder="Descreva a função do agente..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] min-h-[100px]"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => {
+                    setShowCreateAgent(false)
+                    setNewAgent({
+                      name: "",
+                      icon: "",
+                      color: "#8B5CF6",
+                      description: "",
+                      trigger_word: "",
+                    })
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleCreateAgent}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+                >
+                  Criar Agente
                 </Button>
               </div>
             </div>

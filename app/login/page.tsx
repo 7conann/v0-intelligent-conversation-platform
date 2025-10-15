@@ -33,7 +33,7 @@ export default function LoginPage() {
           data: { session },
         } = await supabase.auth.getSession()
 
-        if (session) {
+        if (session && !sessionStorage.getItem("just_logged_out")) {
           console.log("[v0] User already logged in, redirecting to /chat")
           addToast({
             title: "Bem-vindo de volta!",
@@ -41,6 +41,9 @@ export default function LoginPage() {
             variant: "success",
           })
           window.location.href = "/chat"
+        } else {
+          // Clear the logout flag if it exists
+          sessionStorage.removeItem("just_logged_out")
         }
       } catch (error) {
         console.error("[v0] Error checking session:", error)
@@ -158,6 +161,9 @@ export default function LoginPage() {
         description: "Redirecionando para o painel...",
         variant: "success",
       })
+
+      // Set a flag in sessionStorage to indicate that the user has just logged in
+      sessionStorage.setItem("just_logged_out", "false")
 
       setTimeout(() => {
         console.log("[v0] Executing redirect to /chat")

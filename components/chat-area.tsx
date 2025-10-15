@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { Badge } from "@/components/ui/badge"
 import { useState, useRef, useEffect } from "react"
 import type { Agent, Message, Chat } from "@/types/chat"
 import { Button } from "@/components/ui/button"
@@ -560,7 +560,7 @@ export function ChatArea({
             <button
               onClick={() => onSwitchChat(chat.id)}
               className={cn(
-                "!bg-gray-800 px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
+                "px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
                 currentChatId === chat.id
                   ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
                   : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
@@ -620,14 +620,14 @@ export function ChatArea({
           onClick={() => setDialogChatId(null)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            className="bg-[var(--card-bg)] border border-[var(--chat-border)] rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-white">Opções da Conversa</h3>
+              <h3 className="text-lg font-semibold text-[var(--settings-text)]">Opções da Conversa</h3>
               <button
                 onClick={() => setDialogChatId(null)}
-                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+                className="text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -639,7 +639,7 @@ export function ChatArea({
                   onToggleFavorite(dialogChatId)
                   setDialogChatId(null)
                 }}
-                className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all flex items-center gap-3 cursor-pointer"
               >
                 <Star
                   className={cn(
@@ -658,7 +658,7 @@ export function ChatArea({
 
               <button
                 onClick={() => exportSpecificChat(dialogChatId)}
-                className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+                className="w-full px-4 py-3 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all flex items-center gap-3 cursor-pointer"
               >
                 <Download className="w-5 h-5 text-purple-400" />
                 <span>Exportar conversa</span>
@@ -670,7 +670,7 @@ export function ChatArea({
                     setDialogChatId(null)
                     setConfirmDeleteChatId(dialogChatId)
                   }}
-                  className="w-full px-4 py-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all flex items-center gap-3 cursor-pointer"
+                  className="w-full px-4 py-3 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all flex items-center gap-3 cursor-pointer"
                 >
                   <X className="w-5 h-5 text-red-400" />
                   <span>Apagar conversa</span>
@@ -687,12 +687,12 @@ export function ChatArea({
           onClick={() => setConfirmDeleteChatId(null)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            className="bg-[var(--card-bg)] border border-[var(--chat-border)] rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-white mb-2">Confirmar exclusão</h3>
-              <p className="text-gray-400 text-sm">
+              <h3 className="text-lg font-semibold text-[var(--settings-text)] mb-2">Confirmar exclusão</h3>
+              <p className="text-[var(--settings-text-muted)] text-sm">
                 Tem certeza que deseja apagar a conversa "{chats.find((c) => c.id === confirmDeleteChatId)?.name}"? Esta
                 ação não pode ser desfeita.
               </p>
@@ -701,7 +701,7 @@ export function ChatArea({
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmDeleteChatId(null)}
-                className="flex-1 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-white transition-all cursor-pointer"
+                className="flex-1 px-4 py-2 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all cursor-pointer"
               >
                 Cancelar
               </button>
@@ -828,21 +828,43 @@ export function ChatArea({
             >
               <div
                 className={cn(
-                  "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-2 md:px-4 md:py-3 cursor-pointer transition-all !bg-gray-800",
+                  "max-w-[85%] md:max-w-[70%] rounded-2xl px-3 py-2 md:px-4 md:py-3 cursor-pointer transition-all",
                   message.sender === "user"
-                    ? "bg-[var(--message-user-bg)] text-white"
+                    ? "bg-[var(--message-user-bg)] text-[var(--settings-text)]"
                     : "bg-[var(--message-assistant-bg)] text-[var(--settings-text)] border border-[var(--chat-border)]",
                   selectedMessages.includes(message.id) && "ring-2 ring-purple-500",
                 )}
                 onClick={() => toggleMessageSelection(message.id)}
               >
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-xs font-medium opacity-70">
                     {message.sender === "user" ? "Você" : "Assistente"}
                   </span>
                   <span className="text-xs opacity-50">
                     {message.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
+                  {message.usedAgentIds && message.usedAgentIds.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {message.usedAgentIds.map((agentId) => {
+                        const agent = agents.find((a) => a.id === agentId)
+                        if (!agent) return null
+                        return (
+                          <Badge
+                            key={agentId}
+                            className="text-[10px] md:text-xs px-1.5 py-0 h-5 font-medium"
+                            style={{
+                              backgroundColor: `${agent.color}20`,
+                              color: agent.color,
+                              borderColor: `${agent.color}40`,
+                              borderWidth: "1px",
+                            }}
+                          >
+                            {agent.icon} {agent.name}
+                          </Badge>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
                 <p className="text-sm leading-relaxed break-words">{message.content}</p>
               </div>

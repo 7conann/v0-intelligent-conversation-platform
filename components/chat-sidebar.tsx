@@ -105,9 +105,8 @@ export function ChatSidebar({
 
       <div
         className={cn(
-          "bg-[#111827] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
           "fixed md:relative left-0 top-0 bottom-0 z-40",
-          // Mobile: hidden by default, shown when open
           "md:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           isCollapsed ? "w-16" : "w-64 md:w-40",
@@ -169,7 +168,7 @@ export function ChatSidebar({
                 onMouseLeave={handleMouseLeave}
                 className={cn(
                   "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
-                  "bg-[#111111] hover:bg-[#2a2a2a] hover:scale-105 hover:shadow-lg cursor-pointer",
+                  "bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105 hover:shadow-lg cursor-pointer",
                   isSelected && "border-2 border-solid",
                   isUsed && !isSelected && "border-2 border-dashed border-white/40",
                 )}
@@ -209,7 +208,7 @@ export function ChatSidebar({
         </button>
 
         <button
-          onClick={() => router.push("/settings")}
+          onClick={() => router.push("/profile")}
           className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
           title="Configurações"
         >
