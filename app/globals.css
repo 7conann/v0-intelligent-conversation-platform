@@ -4,58 +4,60 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* App custom variables for dark theme (default) */
   --app-bg: #0a0a0f;
-  --sidebar-bg: linear-gradient(to bottom, #111827, #030712);
-  --sidebar-border: #1f2937;
-  --agent-bg: linear-gradient(to bottom right, #1f2937, #111827);
-  --agent-hover: linear-gradient(to bottom right, #374151, #1f2937);
+  --sidebar-bg: #111827;
+  --sidebar-border: #374151;
+  --agent-bg: #1f2937;
+  --agent-hover: #374151;
   --agent-icon: #9ca3af;
   --tooltip-bg: #1f2937;
   --tooltip-text: #ffffff;
   --chat-bg: #0a0a0f;
   --chat-header-bg: #111827;
-  --chat-border: #1f2937;
-  --message-user-bg: linear-gradient(to bottom right, #7c3aed, #2563eb);
+  --chat-border: #374151;
+  --message-user-bg: #1f2937;
   --message-assistant-bg: #1f2937;
   --input-bg: #111827;
   --settings-bg: #111827;
-  --settings-border: #1f2937;
+  --settings-border: #374151;
   --settings-text: #ffffff;
   --settings-text-muted: #9ca3af;
   --text-primary: #ffffff;
   --text-secondary: #9ca3af;
-  --border-color: #1f2937;
+  --border-color: #374151;
   --settings-button-bg: #1f2937;
   --settings-button-hover: #374151;
   --settings-input-bg: #0a0a0f;
   --card-bg: #1f2937;
 
-  --background: 0 0% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 0 0% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 0 0% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 0 0% 9%;
-  --secondary: 0 0% 14.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 0 0% 14.9%;
-  --muted-foreground: 0 0% 63.9%;
-  --accent: 0 0% 14.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 14.9%;
-  --input: 0 0% 14.9%;
-  --ring: 0 0% 83.1%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
-  --radius: 0.5rem;
-  --sidebar: oklch(1 0 0);
+  /* Tailwind/shadcn variables */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -66,6 +68,7 @@
 }
 
 :root.light {
+  /* App custom variables for light theme */
   --app-bg: #f9fafb;
   --sidebar-bg: #ffffff;
   --sidebar-border: #e5e7eb;
@@ -77,7 +80,7 @@
   --chat-bg: #ffffff;
   --chat-header-bg: #f9fafb;
   --chat-border: #e5e7eb;
-  --message-user-bg: linear-gradient(to bottom right, #7c3aed, #2563eb);
+  --message-user-bg: #f3f4f6;
   --message-assistant-bg: #f3f4f6;
   --input-bg: #ffffff;
   --settings-bg: #ffffff;
@@ -92,6 +95,7 @@
   --settings-input-bg: #f9fafb;
   --card-bg: #ffffff;
 
+  /* Tailwind/shadcn variables for light theme */
   --background: 0 0% 100%;
   --foreground: 0 0% 3.9%;
   --card: 0 0% 100%;
