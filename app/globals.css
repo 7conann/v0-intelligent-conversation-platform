@@ -215,3 +215,6 @@
     display: none;
   }
 }
+body{
+  background-color: black !important;
+}

@@ -128,3 +128,6 @@
   pointer-events: none;
   z-index: 999999999 !important;
 }
+body{
+  background-color: black !important;
+}
