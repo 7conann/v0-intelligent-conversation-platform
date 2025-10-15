@@ -45,7 +45,6 @@ export default function ChatPage() {
           const { data: agentsData, error: agentsError } = await supabase
             .from("agents")
             .select("*")
-            .eq("is_system", true)
             .order("created_at", { ascending: true })
 
           if (agentsError) throw agentsError
@@ -65,6 +64,7 @@ export default function ChatPage() {
                 trigger_word: a.trigger_word,
               })),
             )
+            console.log(`[v0] 📊 Total de agentes carregados: ${loadedAgents.length}`)
             setAgents(loadedAgents)
           }
         } catch (error) {
@@ -215,7 +215,6 @@ export default function ChatPage() {
         const { data: agentsData, error: agentsError } = await supabase
           .from("agents")
           .select("*")
-          .eq("is_system", true)
           .order("created_at", { ascending: true })
 
         if (agentsError) throw agentsError
@@ -235,6 +234,7 @@ export default function ChatPage() {
               trigger_word: a.trigger_word,
             })),
           )
+          console.log(`[v0] 📊 Total de agentes recarregados: ${loadedAgents.length}`)
           setAgents(loadedAgents)
         }
       } catch (error) {
@@ -548,6 +548,10 @@ export default function ChatPage() {
     [chats],
   )
 
+  const updateChatName = useCallback((chatId: string, newName: string) => {
+    setChats((prev) => prev.map((chat) => (chat.id === chatId ? { ...chat, name: newName } : chat)))
+  }, [])
+
   const currentUsedAgents = usedAgentsPerChat[currentChatId] || []
   const currentSelectedAgents = selectedAgentsByChat[currentChatId] || []
   const currentChat = chats.find((c) => c.id === currentChatId)
@@ -600,6 +604,7 @@ export default function ChatPage() {
         onReorderChat={reorderChatByDrop}
         onImportChat={importChat}
         onToggleFavorite={toggleFavorite}
+        onUpdateChatName={updateChatName}
         messages={chatMessages}
         onAddMessage={addMessage}
         onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}

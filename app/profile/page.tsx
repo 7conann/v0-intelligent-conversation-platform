@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
+
 export default function ProfilePage() {
   const router = useRouter()
   const { addToast } = useToast()
@@ -18,6 +20,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [theme, setTheme] = useState("dark")
+  const [isAuthorized, setIsAuthorized] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -39,6 +42,7 @@ export default function ProfilePage() {
       }
 
       setUser(session.user)
+      setIsAuthorized(AUTHORIZED_EMAILS.includes(session.user.email || ""))
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -124,14 +128,14 @@ export default function ProfilePage() {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
         <div className="text-center">
-          <div className="mb-4 text-2xl text-foreground">Carregando perfil...</div>
+          <div className="mb-4 text-2xl text-[var(--text-primary)]">Carregando perfil...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-foreground">
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
       {/* Header */}
       <div className="border-b border-[var(--sidebar-border)] bg-[var(--chat-header-bg)] px-6 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
@@ -218,43 +222,45 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Workspaces Section */}
-        <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
-          <button
-            onClick={() => router.push("/workspaces")}
-            className="w-full flex items-center justify-between hover:bg-[var(--agent-bg)] rounded-lg p-4 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-600/20 to-blue-600/20 border border-cyan-500/30">
-                <Building2 className="h-5 w-5 text-cyan-400" />
+        {isAuthorized && (
+          <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
+            <button
+              onClick={() => router.push("/workspaces")}
+              className="w-full flex items-center justify-between hover:bg-[var(--agent-bg)] rounded-lg p-4 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-600/20 to-blue-600/20 border border-cyan-500/30">
+                  <Building2 className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-lg font-semibold">Workspaces</h2>
+                  <p className="text-sm text-muted-foreground">Configure APIs e agentes</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h2 className="text-lg font-semibold">Workspaces</h2>
-                <p className="text-sm text-muted-foreground">Configure APIs e agentes</p>
-              </div>
-            </div>
-            <ArrowLeft className="h-5 w-5 rotate-180 text-muted-foreground" />
-          </button>
-        </div>
+              <ArrowLeft className="h-5 w-5 rotate-180 text-muted-foreground" />
+            </button>
+          </div>
+        )}
 
-        {/* Custom Agents Section */}
-        <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
-          <button
-            onClick={() => router.push("/custom-agents")}
-            className="w-full flex items-center justify-between hover:bg-[var(--agent-bg)] rounded-lg p-4 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30">
-                <Users className="h-5 w-5 text-purple-400" />
+        {isAuthorized && (
+          <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
+            <button
+              onClick={() => router.push("/custom-agents")}
+              className="w-full flex items-center justify-between hover:bg-[var(--agent-bg)] rounded-lg p-4 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30">
+                  <Users className="h-5 w-5 text-purple-400" />
+                </div>
+                <div className="text-left">
+                  <h2 className="text-lg font-semibold">Agentes Customizados</h2>
+                  <p className="text-sm text-muted-foreground">Crie composições de agentes</p>
+                </div>
               </div>
-              <div className="text-left">
-                <h2 className="text-lg font-semibold">Agentes Customizados</h2>
-                <p className="text-sm text-muted-foreground">Crie composições de agentes</p>
-              </div>
-            </div>
-            <ArrowLeft className="h-5 w-5 rotate-180 text-muted-foreground" />
-          </button>
-        </div>
+              <ArrowLeft className="h-5 w-5 rotate-180 text-muted-foreground" />
+            </button>
+          </div>
+        )}
 
         {/* Theme Section */}
         <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">

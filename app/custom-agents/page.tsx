@@ -19,7 +19,6 @@ interface CustomAgent {
   agent_ids: string[]
   created_at: string
   trigger_word: string
-  
 }
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]

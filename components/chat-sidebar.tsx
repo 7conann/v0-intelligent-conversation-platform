@@ -4,11 +4,13 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { BarChart3, User, Code, Palette, Settings, ChevronLeft, ChevronRight, Briefcase, X } from "lucide-react"
+import { User, Settings, ChevronLeft, ChevronRight, Briefcase, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+
+const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
 interface ChatSidebarProps {
   agents: Agent[]
@@ -33,8 +35,8 @@ export function ChatSidebar({
   const [userName, setUserName] = useState("Usuário")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(false)
 
-  // Tooltip states
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
@@ -46,6 +48,8 @@ export function ChatSidebar({
       } = await supabase.auth.getSession()
 
       if (session) {
+        setIsAuthorized(AUTHORIZED_EMAILS.includes(session.user.email || ""))
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("display_name, avatar_url")
@@ -91,12 +95,6 @@ export function ChatSidebar({
   const handleMouseLeave = () => {
     setHoveredAgent(null)
     setCoords(null)
-  }
-
-  const getAgentIcon = (index: number) => {
-    const icons = [BarChart3, User, Code, Palette, BarChart3, User]
-    const Icon = icons[index % icons.length]
-    return Icon
   }
 
   return (
@@ -154,8 +152,7 @@ export function ChatSidebar({
             isCollapsed ? "flex flex-col" : "grid grid-cols-2",
           )}
         >
-          {agents.map((agent, index) => {
-            const Icon = getAgentIcon(index)
+          {agents.map((agent) => {
             const isSelected = selectedAgents.includes(agent.id)
             const isUsed = usedAgents.includes(agent.id)
             const messageCount = agentHistories[agent.id]?.length || 0
@@ -176,12 +173,14 @@ export function ChatSidebar({
                   ...(isSelected && { borderColor: agent.color }),
                 }}
               >
-                <Icon
-                  className="w-4 h-4 md:w-5 md:h-5 transition-colors duration-300"
+                <span
+                  className="text-lg md:text-xl transition-all duration-300"
                   style={{
-                    color: isSelected || isUsed ? agent.color : "var(--agent-icon)",
+                    filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
                   }}
-                />
+                >
+                  {agent.icon}
+                </span>
                 {messageCount > 0 && (
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
@@ -199,13 +198,15 @@ export function ChatSidebar({
 
         <div className="w-full h-px bg-[var(--sidebar-border)] mt-2" />
 
-        <button
-          onClick={() => router.push("/workspaces")}
-          className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-          title="Workspaces"
-        >
-          <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-        </button>
+        {isAuthorized && (
+          <button
+            onClick={() => router.push("/workspaces")}
+            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+            title="Workspaces"
+          >
+            <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+          </button>
+        )}
 
         <button
           onClick={() => router.push("/profile")}

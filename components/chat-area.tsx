@@ -22,8 +22,11 @@ import {
   Music,
   Star,
   Menu,
+  Pencil,
+  Check,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/client"
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -41,6 +44,7 @@ interface ChatAreaProps {
   messages: Record<string, Message[]>
   onAddMessage: (chatId: string, message: Message) => void
   onOpenMobileSidebar?: () => void
+  onUpdateChatName?: (chatId: string, newName: string) => void
   className?: string
 }
 
@@ -60,6 +64,7 @@ export function ChatArea({
   messages,
   onAddMessage,
   onOpenMobileSidebar,
+  onUpdateChatName,
   className,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
@@ -70,9 +75,12 @@ export function ChatArea({
   const [confirmDeleteChatId, setConfirmDeleteChatId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [editingChatId, setEditingChatId] = useState<string | null>(null)
+  const [editingChatName, setEditingChatName] = useState("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLInputElement>(null) // Ref for editing input
   const { addToast } = useToast()
 
   interface Attachment {
@@ -536,6 +544,57 @@ export function ChatArea({
     })
   }
 
+  const handleEditChatName = (chatId: string, currentName: string) => {
+    setEditingChatId(chatId)
+    setEditingChatName(currentName)
+    setTimeout(() => {
+      editInputRef.current?.focus()
+      editInputRef.current?.select()
+    }, 0)
+  }
+
+  const handleSaveChatName = async () => {
+    if (!editingChatId || !editingChatName.trim()) {
+      setEditingChatId(null)
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from("conversations")
+        .update({ title: editingChatName.trim() })
+        .eq("id", editingChatId)
+
+      if (error) throw error
+
+      if (onUpdateChatName) {
+        onUpdateChatName(editingChatId, editingChatName.trim())
+      }
+
+      addToast({
+        title: "Nome atualizado",
+        description: "O nome da conversa foi atualizado com sucesso",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error updating chat name:", error)
+      addToast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o nome da conversa",
+        variant: "error",
+      })
+    } finally {
+      setEditingChatId(null)
+      setEditingChatName("")
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingChatId(null)
+    setEditingChatName("")
+  }
+
   return (
     <div className={cn("flex flex-col h-full bg-[var(--chat-bg)] min-w-0", className)}>
       <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide shrink-0">
@@ -557,35 +616,68 @@ export function ChatArea({
             onDrop={(e) => handleDrop(e, chat.id)}
             onDragEnd={handleDragEnd}
           >
-            <button
-              onClick={() => onSwitchChat(chat.id)}
-              className={cn(
-                "px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
-                currentChatId === chat.id
-                  ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
-                  : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
-                draggedChatId === chat.id && "opacity-50",
-              )}
-            >
-              {chat.isFavorite && (
-                <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
-              )}
-              {chat.name}
-              {chat.contextMessages && chat.contextMessages.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
-              )}
-            </button>
+            {editingChatId === chat.id ? (
+              <div className="flex items-center gap-1 bg-[var(--agent-bg)] rounded-lg px-2 py-1">
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  value={editingChatName}
+                  onChange={(e) => setEditingChatName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveChatName()
+                    if (e.key === "Escape") handleCancelEdit()
+                  }}
+                  className="bg-transparent border-none outline-none text-[var(--settings-text)] text-xs md:text-sm w-24 md:w-32"
+                  maxLength={30}
+                />
+                <button
+                  onClick={handleSaveChatName}
+                  className="w-5 h-5 rounded flex items-center justify-center text-green-400 hover:bg-green-500/20 transition-all"
+                  title="Salvar"
+                >
+                  <Check className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="w-5 h-5 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
+                  title="Cancelar"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => onSwitchChat(chat.id)}
+                  className={cn(
+                    "px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
+                    currentChatId === chat.id
+                      ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
+                      : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
+                    draggedChatId === chat.id && "opacity-50",
+                  )}
+                >
+                  {chat.isFavorite && (
+                    <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
+                  )}
+                  {chat.name}
+                  {chat.contextMessages && chat.contextMessages.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                  )}
+                </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setDialogChatId(chat.id)
-              }}
-              className="w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
-              title="Opções"
-            >
-              <MoreVertical className="w-3 h-3 md:w-4 md:h-4" />
-            </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDialogChatId(chat.id)
+                  }}
+                  className="w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
+                  title="Opções"
+                >
+                  <MoreVertical className="w-3 h-3 md:w-4 md:h-4" />
+                </button>
+              </>
+            )}
           </div>
         ))}
         <button
@@ -634,6 +726,20 @@ export function ChatArea({
             </div>
 
             <div className="space-y-2">
+              <button
+                onClick={() => {
+                  const chat = chats.find((c) => c.id === dialogChatId)
+                  if (chat) {
+                    handleEditChatName(dialogChatId, chat.name)
+                    setDialogChatId(null)
+                  }
+                }}
+                className="w-full px-4 py-3 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all flex items-center gap-3 cursor-pointer"
+              >
+                <Pencil className="w-5 h-5 text-blue-400" />
+                <span>Editar nome</span>
+              </button>
+
               <button
                 onClick={() => {
                   onToggleFavorite(dialogChatId)

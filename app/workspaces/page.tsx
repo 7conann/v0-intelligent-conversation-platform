@@ -54,7 +54,18 @@ export default function WorkspacesPage() {
       }
 
       const userEmail = session.user.email
-      setIsAuthorized(AUTHORIZED_EMAILS.includes(userEmail || ""))
+      const authorized = AUTHORIZED_EMAILS.includes(userEmail || "")
+      setIsAuthorized(authorized)
+
+      if (!authorized) {
+        addToast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para acessar esta página",
+          variant: "error",
+        })
+        router.push("/profile")
+        return
+      }
 
       const { data: agentsData, error: agentsError } = await supabase
         .from("agents")
