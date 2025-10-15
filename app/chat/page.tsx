@@ -19,7 +19,6 @@ import {
 export default function ChatPage() {
   const router = useRouter()
   const { addToast } = useToast()
-  
   const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({})
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({})
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)

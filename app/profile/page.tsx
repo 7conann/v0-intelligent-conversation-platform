@@ -17,7 +17,7 @@ export default function ProfilePage() {
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
-  const [fullName, setFullName] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("")
   const [theme, setTheme] = useState("dark")
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -51,7 +51,7 @@ export default function ProfilePage() {
         .single()
 
       if (profile) {
-        setFullName(profile.full_name || "")
+        setDisplayName(profile.display_name || "")
         setAvatarUrl(profile.avatar_url || "")
       }
 
@@ -71,7 +71,7 @@ export default function ProfilePage() {
     const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email,
-      full_name: fullName,
+      display_name: displayName,
       avatar_url: avatarUrl,
       updated_at: new Date().toISOString(),
     })
@@ -154,9 +154,9 @@ export default function ProfilePage() {
             </div>
           </div>
           <Avatar className="h-16 w-16">
-            <AvatarImage src={avatarUrl || "/placeholder.svg"} alt={fullName || user?.email} />
+            <AvatarImage src={avatarUrl || "/placeholder.svg"} alt={displayName || user?.email} />
             <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xl">
-              {(fullName || user?.email || "U").charAt(0).toUpperCase()}
+              {(displayName || user?.email || "U").charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
         </div>
@@ -178,11 +178,11 @@ export default function ProfilePage() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Nome completo</Label>
+              <Label htmlFor="displayName">Nome de exibição</Label>
               <Input
-                id="fullName"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                id="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Seu nome"
                 className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
               />

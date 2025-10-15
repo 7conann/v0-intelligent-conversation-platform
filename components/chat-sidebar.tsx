@@ -4,13 +4,34 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { User, Settings, ChevronLeft, ChevronRight, Briefcase, X } from "lucide-react"
+import { User, Settings, ChevronLeft, ChevronRight, Briefcase, X, BarChart3, Code, Palette, Users } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
+
+const getAgentIconComponent = (agent: Agent) => {
+  // If icon is an emoji, return it
+  if (agent.icon && /\p{Emoji}/u.test(agent.icon)) {
+    return agent.icon
+  }
+
+  // Otherwise, return a lucide icon based on the agent name
+  const iconMap: Record<string, any> = {
+    Finanças: BarChart3,
+    RH: Users,
+    Vendas: BarChart3,
+    Dados: BarChart3,
+    Estratégia: BarChart3,
+    Marketing: Palette,
+    Educação: Code,
+  }
+
+  const IconComponent = iconMap[agent.name] || Code
+  return <IconComponent className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+}
 
 interface ChatSidebarProps {
   agents: Agent[]
@@ -156,6 +177,7 @@ export function ChatSidebar({
             const isSelected = selectedAgents.includes(agent.id)
             const isUsed = usedAgents.includes(agent.id)
             const messageCount = agentHistories[agent.id]?.length || 0
+            const iconContent = getAgentIconComponent(agent)
 
             return (
               <button
@@ -173,14 +195,25 @@ export function ChatSidebar({
                   ...(isSelected && { borderColor: agent.color }),
                 }}
               >
-                <span
-                  className="text-lg md:text-xl transition-all duration-300"
-                  style={{
-                    filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
-                  }}
-                >
-                  {agent.icon}
-                </span>
+                {typeof iconContent === "string" ? (
+                  <span
+                    className="text-lg md:text-xl transition-all duration-300"
+                    style={{
+                      filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+                    }}
+                  >
+                    {iconContent}
+                  </span>
+                ) : (
+                  <div
+                    className="transition-all duration-300"
+                    style={{
+                      filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+                    }}
+                  >
+                    {iconContent}
+                  </div>
+                )}
                 {messageCount > 0 && (
                   <span
                     className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"

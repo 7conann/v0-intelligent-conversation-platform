@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/ui/toast"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"login" | "cadastro">("login")
@@ -22,6 +23,8 @@ export default function LoginPage() {
   const [emailNotConfirmed, setEmailNotConfirmed] = useState(false)
   const [pendingEmail, setPendingEmail] = useState("")
   const [isResendingEmail, setIsResendingEmail] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -236,9 +239,10 @@ export default function LoginPage() {
       const supabase = createClient()
 
       const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost"
+      const productionUrl = "https://www.workspaceai.digital"
       const redirectUrl = isLocalhost
         ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat`
-        : `${window.location.origin}/chat`
+        : `${productionUrl}/chat`
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -445,15 +449,24 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium">
                   Senha
                 </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -509,15 +522,24 @@ export default function LoginPage() {
                 >
                   Senha
                 </Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="register-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -527,15 +549,24 @@ export default function LoginPage() {
                 >
                   Confirmar Senha
                 </Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -578,7 +609,8 @@ export default function LoginPage() {
 
         {/* Glowing orbs */}
         <div className="absolute top-20 left-20 w-64 h-64 bg-purple-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse delay-1000" />
+        <div className="absolute bottom-32 left-16 w-80 h-80 bg-blue-500 rounded-full blur-3xl opacity-20 animate-pulse delay-500" />
+        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-blue-300 rounded-full animate-ping delay-1000" />
 
         {/* Content */}
         <div className="relative z-10 text-center px-12 max-w-2xl">
@@ -631,11 +663,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-
-        {/* Decorative elements */}
-        <div className="absolute top-10 right-10 w-2 h-2 bg-white rounded-full animate-ping" />
-        <div className="absolute bottom-32 left-16 w-2 h-2 bg-purple-300 rounded-full animate-ping delay-500" />
-        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-blue-300 rounded-full animate-ping delay-1000" />
       </div>
     </div>
   )
