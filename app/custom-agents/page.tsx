@@ -14,22 +14,26 @@ interface CustomAgent {
   id: string
   name: string
   icon: string
+  color: string
   user_id: string
   agent_ids: string[]
   created_at: string
   trigger_word: string
-  
 }
+
+const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
 export default function CustomAgentsPage() {
   const router = useRouter()
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
+  const [isAuthorized, setIsAuthorized] = useState(false)
   const [customAgents, setCustomAgents] = useState<CustomAgent[]>([])
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newAgentName, setNewAgentName] = useState("")
   const [newAgentIcon, setNewAgentIcon] = useState("👔")
+  const [newAgentColor, setNewAgentColor] = useState("#8b5cf6")
   const [newAgentTriggerWord, setNewAgentTriggerWord] = useState("")
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([])
 
@@ -49,6 +53,20 @@ export default function CustomAgentsPage() {
           variant: "error",
         })
         router.push("/login")
+        return
+      }
+
+      const userEmail = session.user.email
+      const authorized = userEmail ? AUTHORIZED_EMAILS.includes(userEmail) : false
+      setIsAuthorized(authorized)
+
+      if (!authorized) {
+        addToast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para acessar esta página",
+          variant: "error",
+        })
+        router.push("/chat")
         return
       }
 
@@ -116,6 +134,7 @@ export default function CustomAgentsPage() {
       .insert({
         name: newAgentName,
         icon: newAgentIcon,
+        color: newAgentColor,
         trigger_word: newAgentTriggerWord,
         user_id: session.user.id,
         agent_ids: selectedAgentIds,
@@ -124,6 +143,7 @@ export default function CustomAgentsPage() {
       .single()
 
     if (error) {
+      console.error("[v0] Error creating custom agent:", error)
       addToast({
         title: "Erro ao criar",
         description: error.message,
@@ -142,6 +162,7 @@ export default function CustomAgentsPage() {
     setShowCreateModal(false)
     setNewAgentName("")
     setNewAgentIcon("👔")
+    setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
     setSelectedAgentIds([])
   }
@@ -181,6 +202,10 @@ export default function CustomAgentsPage() {
         </div>
       </div>
     )
+  }
+
+  if (!isAuthorized) {
+    return null
   }
 
   return (
@@ -243,7 +268,13 @@ export default function CustomAgentsPage() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/30">
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl border"
+                        style={{
+                          backgroundColor: `${customAgent.color}20`,
+                          borderColor: `${customAgent.color}40`,
+                        }}
+                      >
                         {customAgent.icon}
                       </div>
                       <div>
@@ -299,16 +330,37 @@ export default function CustomAgentsPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="agentIcon">Ícone (Emoji)</Label>
-                <Input
-                  id="agentIcon"
-                  value={newAgentIcon}
-                  onChange={(e) => setNewAgentIcon(e.target.value)}
-                  placeholder="👔"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
-                  maxLength={2}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="agentIcon">Ícone (Emoji)</Label>
+                  <Input
+                    id="agentIcon"
+                    value={newAgentIcon}
+                    onChange={(e) => setNewAgentIcon(e.target.value)}
+                    placeholder="👔"
+                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                    maxLength={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="agentColor">Cor</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="agentColor"
+                      type="color"
+                      value={newAgentColor}
+                      onChange={(e) => setNewAgentColor(e.target.value)}
+                      className="h-10 w-20 cursor-pointer"
+                    />
+                    <Input
+                      value={newAgentColor}
+                      onChange={(e) => setNewAgentColor(e.target.value)}
+                      placeholder="#8b5cf6"
+                      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -358,6 +410,7 @@ export default function CustomAgentsPage() {
                     setShowCreateModal(false)
                     setNewAgentName("")
                     setNewAgentIcon("👔")
+                    setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
                     setSelectedAgentIds([])
                   }}

@@ -150,6 +150,15 @@ export default function WorkspacesPage() {
   const handleSaveAgentConfig = async () => {
     if (!selectedAgent) return
 
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para editar agentes",
+        variant: "error",
+      })
+      return
+    }
+
     console.log("[v0] 💾 Salvando palavra-chave:", {
       agentId: selectedAgent.id,
       agentName: selectedAgent.name,
@@ -225,6 +234,15 @@ export default function WorkspacesPage() {
   }
 
   const handleCreateAgent = async () => {
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para criar agentes",
+        variant: "error",
+      })
+      return
+    }
+
     if (!newAgent.name || !newAgent.icon || !newAgent.trigger_word) {
       addToast({
         title: "Campos obrigatórios",
@@ -356,17 +374,19 @@ export default function WorkspacesPage() {
                 </div>
               </div>
 
-              <Button
-                onClick={() => {
-                  setSelectedAgent(agent)
-                  setShowAgentConfig(true)
-                }}
-                variant="outline"
-                className="w-full"
-              >
-                <SettingsIcon className="h-4 w-4 mr-2" />
-                Configurar
-              </Button>
+              {isAuthorized && (
+                <Button
+                  onClick={() => {
+                    setSelectedAgent(agent)
+                    setShowAgentConfig(true)
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  Configurar
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -428,6 +448,7 @@ export default function WorkspacesPage() {
         </div>
       )}
 
+      {/* Create Agent Modal */}
       {showCreateAgent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
