@@ -124,7 +124,7 @@ export function ChatSidebar({
 
       <div
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
+          "bg-[var(--sidebar-bg)] border-r] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
           "fixed md:relative left-0 top-0 bottom-0 z-40",
           "md:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
@@ -165,7 +165,7 @@ export function ChatSidebar({
           )}
         </div>
 
-        <div className="w-full h-px bg-[var(--sidebar-border)] mb-2" />
+        <div className="w-full h-px bg-[var(--background)] mb-2" />
 
         <div
           className={cn(
@@ -229,7 +229,7 @@ export function ChatSidebar({
 
         <div className="flex-1" />
 
-        <div className="w-full h-px bg-[var(--sidebar-border)] mt-2" />
+        <div className="w-full h-px bg-[var(--background)] mt-2" />
 
         {isAuthorized && (
           <button
