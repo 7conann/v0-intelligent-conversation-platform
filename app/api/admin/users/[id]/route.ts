@@ -1,20 +1,44 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
 import { isAdminUser, getDaysRemaining } from "@/lib/utils/trial"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log("[v0] [API] Fetching user details for:", params.id)
 
-    // Verify admin access
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session || !isAdminUser(session.user.email || "")) {
+      console.log("[v0] [API] Unauthorized access attempt to user details")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const supabase = createAdminClient()
+    const adminClient = createAdminClient()
 
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData, error: profileError } = await adminClient
       .from("profiles")
       .select("*")
       .eq("id", params.id)
@@ -27,7 +51,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     console.log("[v0] [API] Profile found:", profileData.email)
 
-    const { data: conversationsData, error: conversationsError } = await supabase
+    const { data: conversationsData, error: conversationsError } = await adminClient
       .from("conversations")
       .select("*")
       .eq("user_id", params.id)
@@ -41,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const conversationsWithDetails = await Promise.all(
       (conversationsData || []).map(async (conv) => {
-        const { data: messagesData } = await supabase.from("messages").select("*").eq("conversation_id", conv.id)
+        const { data: messagesData } = await adminClient.from("messages").select("*").eq("conversation_id", conv.id)
 
         const agentsUsed = new Set<string>()
         messagesData?.forEach((msg) => {

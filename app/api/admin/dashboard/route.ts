@@ -1,16 +1,42 @@
 import { NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { createClient } from "@/lib/supabase/client"
+import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
 import { isAdminUser, getDaysRemaining } from "@/lib/utils/trial"
 
 export async function GET(request: Request) {
   try {
-    const authClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
+
     const {
       data: { session },
-    } = await authClient.auth.getSession()
+    } = await supabase.auth.getSession()
+
+    console.log("[v0] [API] Session check:", {
+      hasSession: !!session,
+      email: session?.user?.email,
+      isAdmin: session?.user?.email ? isAdminUser(session.user.email) : false,
+    })
 
     if (!session || !isAdminUser(session.user.email || "")) {
+      console.log("[v0] [API] Unauthorized access attempt")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

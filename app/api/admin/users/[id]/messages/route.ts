@@ -1,5 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
+import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
+import { isAdminUser } from "@/lib/utils/trial"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -10,11 +13,39 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Conversation ID required" }, { status: 400 })
     }
 
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session || !isAdminUser(session.user.email || "")) {
+      console.log("[v0] [API] Unauthorized access attempt to messages")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
     console.log("[v0] [API] Fetching messages for conversation:", conversationId)
 
-    const supabase = createAdminClient()
+    const adminClient = createAdminClient()
 
-    const { data: messagesData, error } = await supabase
+    const { data: messagesData, error } = await adminClient
       .from("messages")
       .select("*")
       .eq("conversation_id", conversationId)
