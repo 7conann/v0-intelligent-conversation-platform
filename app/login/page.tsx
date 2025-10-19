@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [isResendingEmail, setIsResendingEmail] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [displayName, setDisplayName] = useState("")
+  const [phone, setPhone] = useState("")
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -152,6 +154,8 @@ export default function LoginPage() {
         return
       }
 
+      await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", data.user.id)
+
       if (rememberMe) {
         localStorage.setItem("rememberMe", "true")
       } else {
@@ -215,6 +219,15 @@ export default function LoginPage() {
       return
     }
 
+    if (!phone || phone.length < 10) {
+      addToast({
+        title: "Telefone inválido",
+        description: "Digite um telefone válido com DDD",
+        variant: "error",
+      })
+      return
+    }
+
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.error("[v0] Missing Supabase environment variables")
       addToast({
@@ -249,6 +262,10 @@ export default function LoginPage() {
         password,
         options: {
           emailRedirectTo: redirectUrl,
+          data: {
+            display_name: displayName || email.split("@")[0],
+            phone: phone,
+          },
         },
       })
 
@@ -264,6 +281,16 @@ export default function LoginPage() {
         return
       }
 
+      if (data.user) {
+        await supabase
+          .from("profiles")
+          .update({
+            phone: phone,
+            display_name: displayName || email.split("@")[0],
+          })
+          .eq("id", data.user.id)
+      }
+
       console.log("[v0] Registration successful")
       addToast({
         title: "Cadastro realizado com sucesso!",
@@ -275,6 +302,8 @@ export default function LoginPage() {
       setEmail("")
       setPassword("")
       setConfirmPassword("")
+      setDisplayName("")
+      setPhone("")
     } catch (err: any) {
       console.error("[v0] Unexpected error during registration:", err)
       addToast({
@@ -510,6 +539,38 @@ export default function LoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label
+                  htmlFor="display-name"
+                  className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium"
+                >
+                  Nome
+                </Label>
+                <Input
+                  id="display-name"
+                  type="text"
+                  placeholder="Seu nome"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone" className="text-gray-300 mb-1.5 md:mb-2 block text-xs md:text-sm font-medium">
+                  Telefone
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />

@@ -4,13 +4,15 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { Users, MessageSquare, Bot, TrendingUp, Search, Eye } from "lucide-react"
+import { Users, MessageSquare, Bot, TrendingUp, Search, Eye, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface UserMetrics {
   id: string
   email: string
   display_name: string
+  phone: string | null
   created_at: string
+  last_access: string | null
   total_conversations: number
   total_messages: number
   days_remaining: number
@@ -23,6 +25,8 @@ interface SystemMetrics {
   total_agents: number
 }
 
+const ITEMS_PER_PAGE = 10
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -34,6 +38,9 @@ export default function AdminDashboard() {
     total_agents: 0,
   })
   const [searchTerm, setSearchTerm] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [sortBy, setSortBy] = useState<"name" | "email" | "created_at" | "last_access">("created_at")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -80,11 +87,68 @@ export default function AdminDashboard() {
     checkAdminAndLoadData()
   }, [router])
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.display_name.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredUsers = users
+    .filter(
+      (user) =>
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.phone && user.phone.includes(searchTerm)),
+    )
+    .sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortBy) {
+        case "name":
+          aValue = a.display_name.toLowerCase()
+          bValue = b.display_name.toLowerCase()
+          break
+        case "email":
+          aValue = a.email.toLowerCase()
+          bValue = b.email.toLowerCase()
+          break
+        case "created_at":
+          aValue = new Date(a.created_at).getTime()
+          bValue = new Date(b.created_at).getTime()
+          break
+        case "last_access":
+          aValue = a.last_access ? new Date(a.last_access).getTime() : 0
+          bValue = b.last_access ? new Date(b.last_access).getTime() : 0
+          break
+        default:
+          return 0
+      }
+
+      if (sortOrder === "asc") {
+        return aValue > bValue ? 1 : -1
+      } else {
+        return aValue < bValue ? 1 : -1
+      }
+    })
+
+  const totalPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Nunca"
+    const date = new Date(dateString)
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  const handleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+    } else {
+      setSortBy(field)
+      setSortOrder("desc")
+    }
+  }
 
   if (loading) {
     return (
@@ -139,15 +203,30 @@ export default function AdminDashboard() {
         <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-[var(--text-primary)]">Usuários</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
-              <input
-                type="text"
-                placeholder="Buscar usuário..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+            <div className="flex items-center gap-4">
+              <select
+                value={sortBy}
+                onChange={(e) => handleSort(e.target.value as typeof sortBy)}
+                className="px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="created_at">Data de Criação</option>
+                <option value="last_access">Último Acesso</option>
+                <option value="name">Nome</option>
+                <option value="email">Email</option>
+              </select>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuário..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value)
+                    setCurrentPage(1)
+                  }}
+                  className="pl-10 pr-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
             </div>
           </div>
 
@@ -157,6 +236,8 @@ export default function AdminDashboard() {
                 <tr className="border-b border-[var(--sidebar-border)]">
                   <th className="text-left py-3 px-4 text-[var(--text-secondary)] font-medium">Usuário</th>
                   <th className="text-left py-3 px-4 text-[var(--text-secondary)] font-medium">Email</th>
+                  <th className="text-left py-3 px-4 text-[var(--text-secondary)] font-medium">Telefone</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Último Acesso</th>
                   <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Conversas</th>
                   <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Mensagens</th>
                   <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Dias Restantes</th>
@@ -164,13 +245,17 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr
                     key={user.id}
                     className="border-b border-[var(--sidebar-border)] hover:bg-[var(--app-bg)] transition-colors"
                   >
                     <td className="py-3 px-4 text-[var(--text-primary)]">{user.display_name}</td>
                     <td className="py-3 px-4 text-[var(--text-secondary)]">{user.email}</td>
+                    <td className="py-3 px-4 text-[var(--text-secondary)]">{user.phone || "Não cadastrado"}</td>
+                    <td className="py-3 px-4 text-center text-[var(--text-secondary)] text-sm">
+                      {formatDate(user.last_access)}
+                    </td>
                     <td className="py-3 px-4 text-center text-[var(--text-primary)]">{user.total_conversations}</td>
                     <td className="py-3 px-4 text-center text-[var(--text-primary)]">{user.total_messages}</td>
                     <td className="py-3 px-4 text-center">
@@ -202,6 +287,34 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6">
+              <p className="text-[var(--text-secondary)] text-sm">
+                Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} a{" "}
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredUsers.length)} de {filteredUsers.length} usuários
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--sidebar-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-[var(--text-primary)] px-4">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--sidebar-bg)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

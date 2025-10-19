@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
+import { PhoneModal } from "@/components/phone-modal"
 import type { Agent, Message, Chat } from "@/types/chat"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
@@ -29,6 +30,7 @@ export default function ChatPage() {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true)
   const [agents, setAgents] = useState<Agent[]>([])
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [showPhoneModal, setShowPhoneModal] = useState(false)
 
   const [chats, setChats] = useState<Chat[]>([])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
@@ -44,12 +46,20 @@ export default function ChatPage() {
       if (session) {
         const { data: profileData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
 
-        if (profileData && !isAdminUser(profileData.email)) {
-          if (isTrialExpired(profileData.created_at)) {
-            router.push("/trial-expired")
-            return
+        if (profileData) {
+          if (!profileData.phone) {
+            setShowPhoneModal(true)
+          }
+
+          if (!isAdminUser(profileData.email)) {
+            if (isTrialExpired(profileData.created_at)) {
+              router.push("/trial-expired")
+              return
+            }
           }
         }
+
+        await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", session.user.id)
 
         setUserId(session.user.id)
 
@@ -564,6 +574,29 @@ export default function ChatPage() {
     setChats((prev) => prev.map((chat) => (chat.id === chatId ? { ...chat, name: newName } : chat)))
   }, [])
 
+  const handlePhoneSubmit = async (phone: string) => {
+    if (!userId) return
+
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+    try {
+      await supabase.from("profiles").update({ phone }).eq("id", userId)
+
+      addToast({
+        title: "Telefone atualizado!",
+        description: "Seu número de telefone foi cadastrado com sucesso.",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error updating phone:", error)
+      addToast({
+        title: "Erro ao atualizar telefone",
+        description: "Não foi possível salvar seu número de telefone.",
+        variant: "error",
+      })
+    }
+  }
+
   const currentUsedAgents = usedAgentsPerChat[currentChatId] || []
   const currentSelectedAgents = selectedAgentsByChat[currentChatId] || []
   const currentChat = chats.find((c) => c.id === currentChatId)
@@ -594,6 +627,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-dvh md:h-screen bg-[var(--app-bg)] overflow-hidden">
+      <PhoneModal isOpen={showPhoneModal} onClose={() => setShowPhoneModal(false)} onSubmit={handlePhoneSubmit} />
       <ChatSidebar
         agents={agents}
         selectedAgents={currentSelectedAgents}
