@@ -170,11 +170,25 @@ export default function WorkspacesPage() {
       return
     }
 
-    console.log("[v0] 💾 Salvando palavra-chave:", {
+    if (!selectedAgent.name || !selectedAgent.icon || !selectedAgent.trigger_word) {
+      addToast({
+        title: "Campos obrigatórios",
+        description: "Preencha nome, ícone e palavra-chave",
+        variant: "error",
+      })
+      return
+    }
+
+    console.log("[v0] 💾 Salvando agente:", {
       agentId: selectedAgent.id,
       agentName: selectedAgent.name,
-      oldTriggerWord: agents.find((a) => a.id === selectedAgent.id)?.trigger_word,
-      newTriggerWord: selectedAgent.trigger_word,
+      changes: {
+        name: selectedAgent.name,
+        icon: selectedAgent.icon,
+        color: selectedAgent.color,
+        description: selectedAgent.description,
+        trigger_word: selectedAgent.trigger_word,
+      },
     })
 
     const supabase = createClient()
@@ -182,6 +196,10 @@ export default function WorkspacesPage() {
     const { data, error, count } = await supabase
       .from("agents")
       .update({
+        name: selectedAgent.name,
+        icon: selectedAgent.icon,
+        color: selectedAgent.color,
+        description: selectedAgent.description,
         trigger_word: selectedAgent.trigger_word,
       })
       .eq("id", selectedAgent.id)
@@ -195,7 +213,7 @@ export default function WorkspacesPage() {
     })
 
     if (error) {
-      console.error("[v0] ❌ Erro ao salvar palavra-chave:", error)
+      console.error("[v0] ❌ Erro ao salvar agente:", error)
       addToast({
         title: "Erro ao salvar",
         description: error.message,
@@ -214,28 +232,11 @@ export default function WorkspacesPage() {
       return
     }
 
-    console.log("[v0] ✅ Palavra-chave salva com sucesso no banco de dados")
-
-    const { data: verifyData, error: verifyError } = await supabase
-      .from("agents")
-      .select("trigger_word")
-      .eq("id", selectedAgent.id)
-      .single()
-
-    if (verifyError) {
-      console.error("[v0] ❌ Erro ao verificar salvamento:", verifyError)
-    } else {
-      console.log("[v0] 🔍 Verificação do banco de dados:", {
-        agentId: selectedAgent.id,
-        triggerWordNoBanco: verifyData.trigger_word,
-        triggerWordEsperada: selectedAgent.trigger_word,
-        match: verifyData.trigger_word === selectedAgent.trigger_word,
-      })
-    }
+    console.log("[v0] ✅ Agente salvo com sucesso no banco de dados")
 
     addToast({
-      title: "Configuração salva",
-      description: `Palavra-chave do ${selectedAgent.name} foi atualizada`,
+      title: "Agente atualizado",
+      description: `${selectedAgent.name} foi atualizado com sucesso`,
       variant: "success",
     })
 
@@ -316,7 +317,7 @@ export default function WorkspacesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-foreground">
+    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
       {/* Header */}
       <div className="border-b border-[var(--sidebar-border)] bg-[var(--chat-header-bg)] px-6 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
@@ -330,8 +331,8 @@ export default function WorkspacesPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Workspaces & Agentes</h1>
-              <p className="text-sm text-muted-foreground">Configure palavras-chave dos agentes</p>
+              <h1 className="text-2xl font-bold text-[var(--text-primary)]">Workspaces & Agentes</h1>
+              <p className="text-sm text-[var(--text-secondary)]">Configure palavras-chave dos agentes</p>
             </div>
           </div>
           {isAuthorized && (
@@ -363,14 +364,14 @@ export default function WorkspacesPage() {
                     {agent.icon}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{agent.name}</h3>
-                    <p className="text-xs text-muted-foreground">Agente especializado</p>
+                    <h3 className="font-semibold text-lg text-[var(--text-primary)]">{agent.name}</h3>
+                    <p className="text-xs text-[var(--text-secondary)]">Agente especializado</p>
                   </div>
                 </div>
                 <button onClick={() => handleToggleFavorite(agent.id)} className="hover:scale-110 transition-transform">
                   <Star
                     className={`h-5 w-5 ${
-                      agent.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"
+                      agent.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-[var(--text-secondary)]"
                     }`}
                   />
                 </button>
@@ -378,8 +379,8 @@ export default function WorkspacesPage() {
 
               <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <Hash className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
+                  <Hash className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-[var(--text-secondary)]">
                     Palavra-chave: {agent.trigger_word || "Não configurada"}
                   </span>
                 </div>
@@ -392,7 +393,7 @@ export default function WorkspacesPage() {
                     setShowAgentConfig(true)
                   }}
                   variant="outline"
-                  className="w-full"
+                  className="w-full bg-white text-black border-gray-300"
                 >
                   <SettingsIcon className="h-4 w-4 mr-2" />
                   Configurar
@@ -406,7 +407,7 @@ export default function WorkspacesPage() {
       {/* Agent Config Modal */}
       {showAgentConfig && selectedAgent && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-md w-full p-6">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3 mb-6">
               <div
                 className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
@@ -415,25 +416,92 @@ export default function WorkspacesPage() {
                 {selectedAgent.icon}
               </div>
               <div>
-                <h2 className="text-xl font-bold">Configurar {selectedAgent.name}</h2>
-                <p className="text-sm text-muted-foreground">Configure a palavra-chave do agente</p>
+                <h2 className="text-xl font-bold text-[var(--text-primary)]">Editar {selectedAgent.name}</h2>
+                <p className="text-sm text-[var(--text-secondary)]">Configure todos os dados do agente</p>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="triggerWord">Palavra-chave</Label>
+                <Label htmlFor="editAgentName" className="text-[var(--text-primary)]">
+                  Nome do Agente *
+                </Label>
                 <Input
-                  id="triggerWord"
+                  id="editAgentName"
+                  type="text"
+                  value={selectedAgent.name}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, name: e.target.value })}
+                  placeholder="Ex: Vendas"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
+                  Ícone (Emoji) *
+                </Label>
+                <Input
+                  id="editAgentIcon"
+                  type="text"
+                  value={selectedAgent.icon}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, icon: e.target.value })}
+                  placeholder="Ex: 💼"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                  maxLength={2}
+                />
+                <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editAgentColor" className="text-[var(--text-primary)]">
+                  Cor
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="editAgentColor"
+                    type="color"
+                    value={selectedAgent.color}
+                    onChange={(e) => setSelectedAgent({ ...selectedAgent, color: e.target.value })}
+                    className="w-20 h-10 cursor-pointer"
+                  />
+                  <Input
+                    type="text"
+                    value={selectedAgent.color}
+                    onChange={(e) => setSelectedAgent({ ...selectedAgent, color: e.target.value })}
+                    placeholder="#8B5CF6"
+                    className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editTriggerWord" className="text-[var(--text-primary)]">
+                  Palavra-chave *
+                </Label>
+                <Input
+                  id="editTriggerWord"
                   type="text"
                   value={selectedAgent.trigger_word || ""}
                   onChange={(e) => setSelectedAgent({ ...selectedAgent, trigger_word: e.target.value })}
                   placeholder="#vendas"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[var(--text-secondary)]">
                   Palavra-chave que será usada para ativar este agente (ex: #vendas, #suporte)
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editAgentDescription" className="text-[var(--text-primary)]">
+                  Descrição
+                </Label>
+                <Textarea
+                  id="editAgentDescription"
+                  value={selectedAgent.description || ""}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, description: e.target.value })}
+                  placeholder="Descreva a função do agente..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] min-h-[100px]"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -464,39 +532,45 @@ export default function WorkspacesPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
-              <h2 className="text-xl font-bold">Criar Novo Agente</h2>
-              <p className="text-sm text-muted-foreground">Preencha os dados do novo agente</p>
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Criar Novo Agente</h2>
+              <p className="text-sm text-[var(--text-secondary)]">Preencha os dados do novo agente</p>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="agentName">Nome do Agente *</Label>
+                <Label htmlFor="agentName" className="text-[var(--text-primary)]">
+                  Nome do Agente *
+                </Label>
                 <Input
                   id="agentName"
                   type="text"
                   value={newAgent.name}
                   onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
                   placeholder="Ex: Vendas"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="agentIcon">Ícone (Emoji) *</Label>
+                <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
+                  Ícone (Emoji) *
+                </Label>
                 <Input
                   id="agentIcon"
                   type="text"
                   value={newAgent.icon}
                   onChange={(e) => setNewAgent({ ...newAgent, icon: e.target.value })}
                   placeholder="Ex: 💼"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                   maxLength={2}
                 />
-                <p className="text-xs text-muted-foreground">Use um emoji para representar o agente</p>
+                <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="agentColor">Cor</Label>
+                <Label htmlFor="agentColor" className="text-[var(--text-primary)]">
+                  Cor
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     id="agentColor"
@@ -510,32 +584,36 @@ export default function WorkspacesPage() {
                     value={newAgent.color}
                     onChange={(e) => setNewAgent({ ...newAgent, color: e.target.value })}
                     placeholder="#8B5CF6"
-                    className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                    className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="agentTrigger">Palavra-chave *</Label>
+                <Label htmlFor="agentTrigger" className="text-[var(--text-primary)]">
+                  Palavra-chave *
+                </Label>
                 <Input
                   id="agentTrigger"
                   type="text"
                   value={newAgent.trigger_word}
                   onChange={(e) => setNewAgent({ ...newAgent, trigger_word: e.target.value })}
                   placeholder="Ex: #vendas"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
-                <p className="text-xs text-muted-foreground">Palavra-chave para ativar o agente no chat</p>
+                <p className="text-xs text-[var(--text-secondary)]">Palavra-chave para ativar o agente no chat</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="agentDescription">Descrição</Label>
+                <Label htmlFor="agentDescription" className="text-[var(--text-primary)]">
+                  Descrição
+                </Label>
                 <Textarea
                   id="agentDescription"
                   value={newAgent.description}
                   onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
                   placeholder="Descreva a função do agente..."
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] min-h-[100px]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] min-h-[100px]"
                 />
               </div>
 

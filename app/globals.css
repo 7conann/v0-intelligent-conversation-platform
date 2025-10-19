@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "tw-animate-css";
+/* Removed @import "tw-animate-css" that was causing CSS syntax errors */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -214,7 +214,29 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Added shake animation for draggable agents */
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0) rotate(0deg);
+    }
+    25% {
+      transform: translateX(-2px) rotate(-2deg);
+    }
+    50% {
+      transform: translateX(2px) rotate(2deg);
+    }
+    75% {
+      transform: translateX(-2px) rotate(-2deg);
+    }
+  }
+
+  .animate-shake {
+    animation: shake 0.3s ease-in-out infinite;
+  }
 }
-body{
+
+body {
   background-color: #0a0a0f !important;
 }

@@ -15,11 +15,12 @@ import {
   toggleConversationFavorite,
   deleteConversation as deleteConversationDB,
 } from "@/lib/supabase/conversations"
+import { isAdminUser, isTrialExpired } from "@/lib/utils/trial"
 
 export default function ChatPage() {
   const router = useRouter()
   const { addToast } = useToast()
-  
+
   const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({})
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({})
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
@@ -34,12 +35,22 @@ export default function ChatPage() {
 
   useEffect(() => {
     const loadUserAndConversations = async () => {
-      const supabase = createClient()
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
       const {
         data: { session },
       } = await supabase.auth.getSession()
 
       if (session) {
+        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+
+        if (profileData && !isAdminUser(profileData.email)) {
+          if (isTrialExpired(profileData.created_at)) {
+            router.push("/trial-expired")
+            return
+          }
+        }
+
         setUserId(session.user.id)
 
         try {
@@ -205,12 +216,12 @@ export default function ChatPage() {
     }
 
     loadUserAndConversations()
-  }, [addToast])
+  }, [addToast, router])
 
   useEffect(() => {
     const reloadAgents = async () => {
       console.log("[v0] 🔄 Página ficou visível, recarregando agentes do banco...")
-      const supabase = createClient()
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
       try {
         const { data: agentsData, error: agentsError } = await supabase

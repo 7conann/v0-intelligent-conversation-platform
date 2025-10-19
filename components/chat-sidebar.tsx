@@ -61,6 +61,14 @@ export function ChatSidebar({
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
+  const [draggedAgent, setDraggedAgent] = useState<string | null>(null)
+  const [draggedOverAgent, setDraggedOverAgent] = useState<string | null>(null)
+  const [localAgents, setLocalAgents] = useState<Agent[]>(agents)
+
+  useEffect(() => {
+    setLocalAgents(agents)
+  }, [agents])
+
   useEffect(() => {
     const loadProfile = async () => {
       const supabase = createClient()
@@ -118,6 +126,34 @@ export function ChatSidebar({
     setCoords(null)
   }
 
+  const handleDragStart = (e: React.DragEvent, agentId: string) => {
+    setDraggedAgent(agentId)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleDragOver = (e: React.DragEvent, agentId: string) => {
+    e.preventDefault()
+    if (draggedAgent && draggedAgent !== agentId) {
+      setDraggedOverAgent(agentId)
+    }
+  }
+
+  const handleDragEnd = () => {
+    if (draggedAgent && draggedOverAgent) {
+      const draggedIndex = localAgents.findIndex((a) => a.id === draggedAgent)
+      const targetIndex = localAgents.findIndex((a) => a.id === draggedOverAgent)
+
+      if (draggedIndex !== -1 && targetIndex !== -1) {
+        const newAgents = [...localAgents]
+        const [removed] = newAgents.splice(draggedIndex, 1)
+        newAgents.splice(targetIndex, 0, removed)
+        setLocalAgents(newAgents)
+      }
+    }
+    setDraggedAgent(null)
+    setDraggedOverAgent(null)
+  }
+
   return (
     <>
       {isMobileOpen && <div className="md:hidden fixed inset-0 bg-black/60 z-30" onClick={onMobileClose} />}
@@ -173,23 +209,31 @@ export function ChatSidebar({
             isCollapsed ? "flex flex-col" : "grid grid-cols-2",
           )}
         >
-          {agents.map((agent) => {
+          {localAgents.map((agent) => {
             const isSelected = selectedAgents.includes(agent.id)
             const isUsed = usedAgents.includes(agent.id)
             const messageCount = agentHistories[agent.id]?.length || 0
             const iconContent = getAgentIconComponent(agent)
+            const isDragging = draggedAgent === agent.id
+            const isDraggedOver = draggedOverAgent === agent.id
 
             return (
               <button
                 key={agent.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, agent.id)}
+                onDragOver={(e) => handleDragOver(e, agent.id)}
+                onDragEnd={handleDragEnd}
                 onClick={() => onToggleAgent(agent.id)}
                 onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
                 onMouseLeave={handleMouseLeave}
                 className={cn(
                   "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
-                  "bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105 hover:shadow-lg cursor-pointer",
+                  "bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105 hover:shadow-lg cursor-move",
                   isSelected && "border-2 border-solid",
                   isUsed && !isSelected && "border-2 border-dashed border-white/40",
+                  isDragging && "animate-shake opacity-50 scale-110",
+                  isDraggedOver && "scale-110 ring-2 ring-purple-500",
                 )}
                 style={{
                   ...(isSelected && { borderColor: agent.color }),
