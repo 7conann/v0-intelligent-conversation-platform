@@ -47,16 +47,16 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Title */}
         <h1 className="text-6xl md:text-7xl font-bold text-center mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
-          WORKSPACE E+I
+          WORKSPACE AI
         </h1>
-        <p className="text-center text-gray-300 text-xl mb-6">Plataforma de Conversas Inteligentes Multiagente</p>
+        <p className="text-center text-gray-300 text-xl mb-2">Plataforma de conversas inteligentes, multiagente</p>
+        <p className="text-center text-purple-400 text-lg mb-6 font-semibold">Empresas mais inteligentes.</p>
 
-        {/* Description */}
         <p className="text-center text-gray-400 max-w-3xl mx-auto mb-12 text-lg leading-relaxed">
-          Transforme decisões e resultados com uma memória organizacional inteligente, onde pessoas e IAs trabalham
-          juntas para gerar, reusar e evoluir conhecimento.
+          Transforme conhecimento em decisões estratégicas com inteligência artificial. Uma plataforma onde pessoas e
+          IAs trabalham juntas para gerar conhecimento, fortalecer a cultura e evoluir no compartilhamento do
+          conhecimento e na prática organizacional.
         </p>
 
         {/* CTA Buttons */}
@@ -70,7 +70,7 @@ export default function LandingPage() {
           <Button
             onClick={() => router.push("/login")}
             variant="outline"
-            className="border-2 border-gray-700 bg-transparent hover:bg-gray-800/50 text-white px-8 py-6 text-lg font-medium cursor-pointer"
+            className="border-2 border-gray-700 bg-transparent hover:bg-gray-800/50 text-white hover:text-white px-8 py-6 text-lg font-medium cursor-pointer"
           >
             Fazer Login
           </Button>
@@ -83,9 +83,9 @@ export default function LandingPage() {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-900/50 to-purple-800/50 flex items-center justify-center mx-auto mb-6 border border-purple-500/30">
               <Users className="w-8 h-8 text-purple-400" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-4">6 Agentes Especializados</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Mais de 40 Agentes Especializados</h3>
             <p className="text-gray-400 leading-relaxed">
-              Estratégia, Dados, RH, Finanças, Marketing e muito mais trabalhando em conjunto
+              Clones personalizados, conversas interconectadas e memória inteligente trabalhando em conjunto
             </p>
           </div>
 

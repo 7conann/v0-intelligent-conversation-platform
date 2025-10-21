@@ -388,10 +388,13 @@ export default function LoginPage() {
 
           {/* Title */}
           <h1 className="text-2xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-blue-500 bg-clip-text text-transparent">
-            WORKSPACE E+I
+            WORKSPACE AI
           </h1>
-          <p className="text-center text-gray-400 mb-8 md:mb-12 text-xs md:text-sm">
-            Plataforma de Conversas Inteligentes Multiagente
+          <p className="text-center text-gray-400 mb-2 text-xs md:text-sm">
+            Plataforma de conversas inteligentes, multiagente
+          </p>
+          <p className="text-center text-purple-400 mb-8 md:mb-12 text-xs md:text-sm font-semibold">
+            Empresas mais inteligentes.
           </p>
 
           {/* Email confirmation banner */}
@@ -705,16 +708,16 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-5xl font-bold text-white mb-6 leading-tight">
-            Transforme decisões com inteligência artificial
+            Transforme conhecimento em decisões estratégicas com inteligência artificial
           </h2>
           <p className="text-xl text-purple-200 leading-relaxed mb-12">
-            Uma plataforma onde pessoas e IAs trabalham juntas para gerar, reusar e evoluir conhecimento organizacional.
+            Uma plataforma onde pessoas e IAs trabalham juntas para gerar conhecimento, fortalecer a cultura e evoluir
+            no compartilhamento do conhecimento e na prática organizacional.
           </p>
 
-          {/* Feature pills */}
           <div className="flex flex-wrap gap-3 justify-center">
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
-              6 Agentes Especializados
+              Mais de 40 Agentes Especializados
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium">
               Conversas Interconectadas

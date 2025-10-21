@@ -37,7 +37,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     const loadUserAndConversations = async () => {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       const {
         data: { session },
@@ -231,7 +231,7 @@ export default function ChatPage() {
   useEffect(() => {
     const reloadAgents = async () => {
       console.log("[v0] 🔄 Página ficou visível, recarregando agentes do banco...")
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       try {
         const { data: agentsData, error: agentsError } = await supabase
@@ -577,7 +577,7 @@ export default function ChatPage() {
   const handlePhoneSubmit = async (phone: string) => {
     if (!userId) return
 
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    const supabase = createClient()
 
     try {
       await supabase.from("profiles").update({ phone }).eq("id", userId)

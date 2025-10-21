@@ -4,7 +4,22 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { Users, MessageSquare, Bot, TrendingUp, Search, Eye, ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  Users,
+  MessageSquare,
+  Bot,
+  TrendingUp,
+  Eye,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
+  X,
+  Calendar,
+  Phone,
+  Mail,
+  User,
+  Clock,
+} from "lucide-react"
 
 interface UserMetrics {
   id: string
@@ -25,6 +40,19 @@ interface SystemMetrics {
   total_agents: number
 }
 
+interface Filters {
+  searchName: string
+  searchEmail: string
+  searchPhone: string
+  trialStatus: "all" | "active" | "expired" | "admin"
+  createdFrom: string
+  createdTo: string
+  lastAccessFrom: string
+  lastAccessTo: string
+  sortBy: "name" | "email" | "created_at" | "last_access"
+  sortOrder: "asc" | "desc"
+}
+
 const ITEMS_PER_PAGE = 10
 
 export default function AdminDashboard() {
@@ -37,10 +65,20 @@ export default function AdminDashboard() {
     total_messages: 0,
     total_agents: 0,
   })
-  const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [sortBy, setSortBy] = useState<"name" | "email" | "created_at" | "last_access">("created_at")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false)
+  const [filters, setFilters] = useState<Filters>({
+    searchName: "",
+    searchEmail: "",
+    searchPhone: "",
+    trialStatus: "all",
+    createdFrom: "",
+    createdTo: "",
+    lastAccessFrom: "",
+    lastAccessTo: "",
+    sortBy: "name",
+    sortOrder: "asc",
+  })
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -88,17 +126,62 @@ export default function AdminDashboard() {
   }, [router])
 
   const filteredUsers = users
-    .filter(
-      (user) =>
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.phone && user.phone.includes(searchTerm)),
-    )
+    .filter((user) => {
+      // Name filter
+      if (filters.searchName && !user.display_name.toLowerCase().includes(filters.searchName.toLowerCase())) {
+        return false
+      }
+
+      // Email filter
+      if (filters.searchEmail && !user.email.toLowerCase().includes(filters.searchEmail.toLowerCase())) {
+        return false
+      }
+
+      // Phone filter
+      if (filters.searchPhone && (!user.phone || !user.phone.includes(filters.searchPhone))) {
+        return false
+      }
+
+      // Trial status filter
+      if (filters.trialStatus !== "all") {
+        if (filters.trialStatus === "admin" && user.days_remaining !== 999) return false
+        if (filters.trialStatus === "expired" && (user.days_remaining > 0 || user.days_remaining === 999)) return false
+        if (filters.trialStatus === "active" && (user.days_remaining <= 0 || user.days_remaining === 999)) return false
+      }
+
+      // Created date range filter
+      if (filters.createdFrom) {
+        const createdDate = new Date(user.created_at)
+        const fromDate = new Date(filters.createdFrom)
+        if (createdDate < fromDate) return false
+      }
+      if (filters.createdTo) {
+        const createdDate = new Date(user.created_at)
+        const toDate = new Date(filters.createdTo)
+        toDate.setHours(23, 59, 59, 999)
+        if (createdDate > toDate) return false
+      }
+
+      // Last access date range filter
+      if (filters.lastAccessFrom && user.last_access) {
+        const accessDate = new Date(user.last_access)
+        const fromDate = new Date(filters.lastAccessFrom)
+        if (accessDate < fromDate) return false
+      }
+      if (filters.lastAccessTo && user.last_access) {
+        const accessDate = new Date(user.last_access)
+        const toDate = new Date(filters.lastAccessTo)
+        toDate.setHours(23, 59, 59, 999)
+        if (accessDate > toDate) return false
+      }
+
+      return true
+    })
     .sort((a, b) => {
       let aValue: any
       let bValue: any
 
-      switch (sortBy) {
+      switch (filters.sortBy) {
         case "name":
           aValue = a.display_name.toLowerCase()
           bValue = b.display_name.toLowerCase()
@@ -119,7 +202,7 @@ export default function AdminDashboard() {
           return 0
       }
 
-      if (sortOrder === "asc") {
+      if (filters.sortOrder === "asc") {
         return aValue > bValue ? 1 : -1
       } else {
         return aValue < bValue ? 1 : -1
@@ -141,14 +224,32 @@ export default function AdminDashboard() {
     })
   }
 
-  const handleSort = (field: typeof sortBy) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-    } else {
-      setSortBy(field)
-      setSortOrder("desc")
-    }
+  const resetFilters = () => {
+    setFilters({
+      searchName: "",
+      searchEmail: "",
+      searchPhone: "",
+      trialStatus: "all",
+      createdFrom: "",
+      createdTo: "",
+      lastAccessFrom: "",
+      lastAccessTo: "",
+      sortBy: "name",
+      sortOrder: "asc",
+    })
+    setCurrentPage(1)
   }
+
+  const activeFiltersCount = [
+    filters.searchName,
+    filters.searchEmail,
+    filters.searchPhone,
+    filters.trialStatus !== "all",
+    filters.createdFrom,
+    filters.createdTo,
+    filters.lastAccessFrom,
+    filters.lastAccessTo,
+  ].filter(Boolean).length
 
   if (loading) {
     return (
@@ -203,31 +304,18 @@ export default function AdminDashboard() {
         <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-[var(--text-primary)]">Usuários</h2>
-            <div className="flex items-center gap-4">
-              <select
-                value={sortBy}
-                onChange={(e) => handleSort(e.target.value as typeof sortBy)}
-                className="px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="created_at">Data de Criação</option>
-                <option value="last_access">Último Acesso</option>
-                <option value="name">Nome</option>
-                <option value="email">Email</option>
-              </select>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuário..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setCurrentPage(1)
-                  }}
-                  className="pl-10 pr-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
+            <button
+              onClick={() => setShowFilterSidebar(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Filtros
+              {activeFiltersCount > 0 && (
+                <span className="bg-white text-purple-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -317,6 +405,197 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {showFilterSidebar && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowFilterSidebar(false)} />
+          <div className="fixed right-0 top-0 h-full w-96 bg-[var(--sidebar-bg)] border-l border-[var(--sidebar-border)] z-50 overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Filtros Avançados</h3>
+                <button
+                  onClick={() => setShowFilterSidebar(false)}
+                  className="p-2 hover:bg-[var(--app-bg)] rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Search by name */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <User className="w-4 h-4" />
+                    Buscar por Nome
+                  </label>
+                  <input
+                    type="text"
+                    value={filters.searchName}
+                    onChange={(e) => {
+                      setFilters({ ...filters, searchName: e.target.value })
+                      setCurrentPage(1)
+                    }}
+                    placeholder="Digite o nome..."
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* Search by email */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <Mail className="w-4 h-4" />
+                    Buscar por Email
+                  </label>
+                  <input
+                    type="text"
+                    value={filters.searchEmail}
+                    onChange={(e) => {
+                      setFilters({ ...filters, searchEmail: e.target.value })
+                      setCurrentPage(1)
+                    }}
+                    placeholder="Digite o email..."
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* Search by phone */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <Phone className="w-4 h-4" />
+                    Buscar por Telefone
+                  </label>
+                  <input
+                    type="text"
+                    value={filters.searchPhone}
+                    onChange={(e) => {
+                      setFilters({ ...filters, searchPhone: e.target.value })
+                      setCurrentPage(1)
+                    }}
+                    placeholder="Digite o telefone..."
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                {/* Trial status */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <Clock className="w-4 h-4" />
+                    Status do Trial
+                  </label>
+                  <select
+                    value={filters.trialStatus}
+                    onChange={(e) => {
+                      setFilters({ ...filters, trialStatus: e.target.value as any })
+                      setCurrentPage(1)
+                    }}
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="active">Trial Ativo</option>
+                    <option value="expired">Trial Expirado</option>
+                    <option value="admin">Administradores</option>
+                  </select>
+                </div>
+
+                {/* Created date range */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <Calendar className="w-4 h-4" />
+                    Data de Criação
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="date"
+                      value={filters.createdFrom}
+                      onChange={(e) => {
+                        setFilters({ ...filters, createdFrom: e.target.value })
+                        setCurrentPage(1)
+                      }}
+                      className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                      type="date"
+                      value={filters.createdTo}
+                      onChange={(e) => {
+                        setFilters({ ...filters, createdTo: e.target.value })
+                        setCurrentPage(1)
+                      }}
+                      className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Last access date range */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)] mb-2">
+                    <Clock className="w-4 h-4" />
+                    Último Acesso
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      type="date"
+                      value={filters.lastAccessFrom}
+                      onChange={(e) => {
+                        setFilters({ ...filters, lastAccessFrom: e.target.value })
+                        setCurrentPage(1)
+                      }}
+                      className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <input
+                      type="date"
+                      value={filters.lastAccessTo}
+                      onChange={(e) => {
+                        setFilters({ ...filters, lastAccessTo: e.target.value })
+                        setCurrentPage(1)
+                      }}
+                      className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Sort options */}
+                <div>
+                  <label className="text-sm font-medium text-[var(--text-primary)] mb-2 block">Ordenar Por</label>
+                  <select
+                    value={filters.sortBy}
+                    onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as any })}
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500 mb-2"
+                  >
+                    <option value="name">Nome</option>
+                    <option value="email">Email</option>
+                    <option value="created_at">Data de Criação</option>
+                    <option value="last_access">Último Acesso</option>
+                  </select>
+                  <select
+                    value={filters.sortOrder}
+                    onChange={(e) => setFilters({ ...filters, sortOrder: e.target.value as any })}
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="asc">Crescente (A-Z)</option>
+                    <option value="desc">Decrescente (Z-A)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={resetFilters}
+                  className="flex-1 px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Limpar Filtros
+                </button>
+                <button
+                  onClick={() => setShowFilterSidebar(false)}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

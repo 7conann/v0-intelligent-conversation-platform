@@ -55,7 +55,7 @@ export function ChatSidebar({
   const router = useRouter()
   const [userName, setUserName] = useState("Usuário")
   const [avatarUrl, setAvatarUrl] = useState("")
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
 
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
@@ -98,19 +98,21 @@ export function ChatSidebar({
   }, [])
 
   useEffect(() => {
-    const savedCollapsed = localStorage.getItem("sidebarCollapsed")
-    if (savedCollapsed) {
-      setIsCollapsed(savedCollapsed === "true")
+    const savedExpanded = localStorage.getItem("sidebarExpanded")
+    if (savedExpanded !== null) {
+      setIsExpanded(savedExpanded === "true")
     }
   }, [])
 
-  const toggleCollapse = () => {
-    const newState = !isCollapsed
-    setIsCollapsed(newState)
-    localStorage.setItem("sidebarCollapsed", String(newState))
+  const toggleExpanded = () => {
+    const newState = !isExpanded
+    setIsExpanded(newState)
+    localStorage.setItem("sidebarExpanded", String(newState))
   }
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agentId: string, name: string) => {
+    if (isExpanded) return
+
     const rect = e.currentTarget.getBoundingClientRect()
     const messageCount = agentHistories[agentId]?.length || 0
     const tooltipText = messageCount > 0 ? `${name} (${messageCount} mensagens)` : name
@@ -160,11 +162,11 @@ export function ChatSidebar({
 
       <div
         className={cn(
-          "bg-[var(--sidebar-bg)] border-r] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
+          "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
           "fixed md:relative left-0 top-0 bottom-0 z-40",
           "md:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
-          isCollapsed ? "w-16" : "w-64 md:w-40",
+          isExpanded ? "w-64" : "w-20",
         )}
       >
         <button
@@ -172,21 +174,26 @@ export function ChatSidebar({
           className="md:hidden absolute right-2 top-2 w-8 h-8 rounded-full bg-[var(--agent-bg)] border border-[var(--sidebar-border)] flex items-center justify-center hover:bg-[var(--agent-hover)] transition-all z-10"
           title="Fechar menu"
         >
-          <X className="w-4 h-4" />
+          <X className="w-4 h-4 text-[var(--text-primary)]" />
         </button>
 
         <button
-          onClick={toggleCollapse}
+          onClick={toggleExpanded}
           className="hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full bg-[var(--agent-bg)] border border-[var(--sidebar-border)] items-center justify-center hover:bg-[var(--agent-hover)] transition-all z-10"
-          title={isCollapsed ? "Expandir sidebar" : "Recolher sidebar"}
+          title={isExpanded ? "Recolher sidebar" : "Expandir sidebar"}
         >
-          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {isExpanded ? (
+            <ChevronLeft className="w-4 h-4 text-[var(--text-primary)]" />
+          ) : (
+            <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
+          )}
         </button>
 
         <div className="flex flex-col items-center gap-2 mb-2">
           <button
             onClick={() => router.push("/profile")}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+            title={!isExpanded ? userName : undefined}
           >
             {avatarUrl ? (
               <img src={avatarUrl || "/placeholder.svg"} alt={userName} className="w-full h-full object-cover" />
@@ -194,8 +201,8 @@ export function ChatSidebar({
               <User className="w-5 h-5 md:w-6 md:h-6 text-white" />
             )}
           </button>
-          {!isCollapsed && (
-            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[120px] px-2">
+          {isExpanded && (
+            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[200px] px-2">
               {userName}
             </span>
           )}
@@ -205,8 +212,10 @@ export function ChatSidebar({
 
         <div
           className={cn(
-            "content-start px-2 md:px-3 gap-2 scrollbar-hide overflow-y-auto max-h-[calc(100vh-280px)] md:max-h-[calc(100vh-300px)]",
-            isCollapsed ? "flex flex-col" : "grid grid-cols-2",
+            "w-full px-2 md:px-3 gap-2 scrollbar-hide overflow-y-auto",
+            isExpanded
+              ? "flex flex-col max-h-[calc(100vh-280px)]"
+              : "grid grid-cols-1 place-items-center max-h-[calc(100vh-280px)]",
           )}
         >
           {localAgents.map((agent) => {
@@ -228,9 +237,11 @@ export function ChatSidebar({
                 onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
                 onMouseLeave={handleMouseLeave}
                 className={cn(
-                  "w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center transition-all duration-300 relative group",
-                  "bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105 hover:shadow-lg cursor-move",
-                  isSelected && "border-2 border-solid",
+                  "transition-all duration-300 relative group cursor-move",
+                  isExpanded
+                    ? "w-full px-4 py-3 rounded-xl flex items-center gap-3 justify-start bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-[1.02]"
+                    : "w-12 h-12 rounded-xl flex items-center justify-center bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105",
+                  isSelected && "border-2 border-solid shadow-lg",
                   isUsed && !isSelected && "border-2 border-dashed border-white/40",
                   isDragging && "animate-shake opacity-50 scale-110",
                   isDraggedOver && "scale-110 ring-2 ring-purple-500",
@@ -238,10 +249,12 @@ export function ChatSidebar({
                 style={{
                   ...(isSelected && { borderColor: agent.color }),
                 }}
+                title={isExpanded ? undefined : agent.name}
               >
+                {/* Icon */}
                 {typeof iconContent === "string" ? (
                   <span
-                    className="text-lg md:text-xl transition-all duration-300"
+                    className={cn("transition-all duration-300", isExpanded ? "text-xl" : "text-lg md:text-xl")}
                     style={{
                       filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
                     }}
@@ -258,9 +271,21 @@ export function ChatSidebar({
                     {iconContent}
                   </div>
                 )}
+
+                {/* Name - only show when expanded */}
+                {isExpanded && (
+                  <span className="text-sm font-medium text-[var(--text-primary)] truncate flex-1 text-left">
+                    {agent.name}
+                  </span>
+                )}
+
+                {/* Message count badge */}
                 {messageCount > 0 && (
                   <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
+                    className={cn(
+                      "rounded-full text-[9px] font-bold flex items-center justify-center text-white",
+                      isExpanded ? "px-2 py-0.5 ml-auto" : "absolute -top-1 -right-1 w-4 h-4",
+                    )}
                     style={{ backgroundColor: agent.color }}
                   >
                     {messageCount > 9 ? "9+" : messageCount}
@@ -275,23 +300,25 @@ export function ChatSidebar({
 
         <div className="w-full h-px bg-[var(--background)] mt-2" />
 
-        {isAuthorized && (
-          <button
-            onClick={() => router.push("/workspaces")}
-            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-            title="Workspaces"
-          >
-            <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-          </button>
-        )}
+        <div className="flex items-center gap-2 px-2">
+          {isAuthorized && (
+            <button
+              onClick={() => router.push("/workspaces")}
+              className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+              title="Workspace"
+            >
+              <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+            </button>
+          )}
 
-        <button
-          onClick={() => router.push("/profile")}
-          className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-          title="Configurações"
-        >
-          <Settings className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-        </button>
+          <button
+            onClick={() => router.push("/profile")}
+            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+            title="Configurações"
+          >
+            <Settings className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+          </button>
+        </div>
 
         {hoveredAgent &&
           coords &&
