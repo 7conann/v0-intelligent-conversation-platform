@@ -31,6 +31,7 @@ interface UserMetrics {
   total_conversations: number
   total_messages: number
   days_remaining: number
+  
 }
 
 interface SystemMetrics {
