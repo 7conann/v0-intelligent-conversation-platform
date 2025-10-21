@@ -300,7 +300,7 @@ export function ChatSidebar({
 
         <div className="w-full h-px bg-[var(--background)] mt-2" />
 
-        <div className="flex items-center gap-2 px-2">
+        <div className="flex items-center gap-2 px-2 flex-col">
           {isAuthorized && (
             <button
               onClick={() => router.push("/workspaces")}
