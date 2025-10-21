@@ -144,7 +144,7 @@ export default function ProfilePage() {
               variant="ghost"
               size="icon"
               onClick={() => router.push("/chat")}
-              className="hover:bg-[var(--agent-bg)]"
+              className=""
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
