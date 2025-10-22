@@ -4,7 +4,19 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { User, Settings, ChevronLeft, ChevronRight, Briefcase, X, BarChart3, Code, Palette, Users } from "lucide-react"
+import {
+  User,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Briefcase,
+  X,
+  BarChart3,
+  Code,
+  Palette,
+  Users,
+  Layers,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
@@ -41,6 +53,7 @@ interface ChatSidebarProps {
   agentHistories: Record<string, Message[]>
   isMobileOpen?: boolean
   onMobileClose?: () => void
+  onAgentOrderChange?: (agentIds: string[]) => void
 }
 
 export function ChatSidebar({
@@ -51,6 +64,7 @@ export function ChatSidebar({
   agentHistories,
   isMobileOpen = false,
   onMobileClose,
+  onAgentOrderChange,
 }: ChatSidebarProps) {
   const router = useRouter()
   const [userName, setUserName] = useState("Usuário")
@@ -140,7 +154,7 @@ export function ChatSidebar({
     }
   }
 
-  const handleDragEnd = () => {
+  const handleDragEnd = async () => {
     if (draggedAgent && draggedOverAgent) {
       const draggedIndex = localAgents.findIndex((a) => a.id === draggedAgent)
       const targetIndex = localAgents.findIndex((a) => a.id === draggedOverAgent)
@@ -150,6 +164,24 @@ export function ChatSidebar({
         const [removed] = newAgents.splice(draggedIndex, 1)
         newAgents.splice(targetIndex, 0, removed)
         setLocalAgents(newAgents)
+
+        // Save new order to database
+        const supabase = createClient()
+        const agentIds = newAgents.map((a) => a.id)
+
+        // Update order for each agent
+        for (let i = 0; i < newAgents.length; i++) {
+          const agent = newAgents[i]
+          const tableName = (agent as any).isCustomAgent ? "custom_agents" : "agents"
+          await supabase.from(tableName).update({ order: i }).eq("id", agent.id)
+        }
+
+        // Notify parent component
+        if (onAgentOrderChange) {
+          onAgentOrderChange(agentIds)
+        }
+
+        console.log("[v0] 💾 Agent order saved:", agentIds)
       }
     }
     setDraggedAgent(null)
@@ -225,6 +257,7 @@ export function ChatSidebar({
             const iconContent = getAgentIconComponent(agent)
             const isDragging = draggedAgent === agent.id
             const isDraggedOver = draggedOverAgent === agent.id
+            const isCustomAgent = (agent as any).isCustomAgent || false
 
             return (
               <button
@@ -251,7 +284,12 @@ export function ChatSidebar({
                 }}
                 title={isExpanded ? undefined : agent.name}
               >
-                {/* Icon */}
+                {isCustomAgent && (
+                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
+                    <Layers className="w-2.5 h-2.5 text-white" />
+                  </div>
+                )}
+
                 {typeof iconContent === "string" ? (
                   <span
                     className={cn("transition-all duration-300", isExpanded ? "text-xl" : "text-lg md:text-xl")}
@@ -272,14 +310,12 @@ export function ChatSidebar({
                   </div>
                 )}
 
-                {/* Name - only show when expanded */}
                 {isExpanded && (
                   <span className="text-sm font-medium text-[var(--text-primary)] truncate flex-1 text-left">
                     {agent.name}
                   </span>
                 )}
 
-                {/* Message count badge */}
                 {messageCount > 0 && (
                   <span
                     className={cn(

@@ -316,35 +316,41 @@ export default function CustomAgentsPage() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">Criar Agente Customizado</h2>
+            <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">Criar Agente Customizado</h2>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="agentName">Nome do Agente</Label>
+                <Label htmlFor="agentName" className="text-[var(--text-primary)]">
+                  Nome do Agente
+                </Label>
                 <Input
                   id="agentName"
                   value={newAgentName}
                   onChange={(e) => setNewAgentName(e.target.value)}
                   placeholder="Ex: Diretor Executivo, Consultor Estratégico..."
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="agentIcon">Ícone (Emoji)</Label>
+                  <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
+                    Ícone (Emoji)
+                  </Label>
                   <Input
                     id="agentIcon"
                     value={newAgentIcon}
                     onChange={(e) => setNewAgentIcon(e.target.value)}
                     placeholder="👔"
-                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                     maxLength={2}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="agentColor">Cor</Label>
+                  <Label htmlFor="agentColor" className="text-[var(--text-primary)]">
+                    Cor
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       id="agentColor"
@@ -357,28 +363,30 @@ export default function CustomAgentsPage() {
                       value={newAgentColor}
                       onChange={(e) => setNewAgentColor(e.target.value)}
                       placeholder="#8b5cf6"
-                      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                     />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="triggerWord">Palavra-chave</Label>
+                <Label htmlFor="triggerWord" className="text-[var(--text-primary)]">
+                  Palavra-chave
+                </Label>
                 <Input
                   id="triggerWord"
                   value={newAgentTriggerWord}
                   onChange={(e) => setNewAgentTriggerWord(e.target.value)}
                   placeholder="Ex: #vendas, #suporte, #estrategia..."
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)]"
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[var(--text-secondary)]">
                   Esta palavra-chave será adicionada automaticamente ao selecionar o agente no chat
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label>Selecione os Agentes (mínimo 1)</Label>
+                <Label className="text-[var(--text-primary)]">Selecione os Agentes (mínimo 1)</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {availableAgents.map((agent) => (
                     <button
@@ -397,7 +405,7 @@ export default function CustomAgentsPage() {
                         {agent.icon}
                       </div>
                       <div className="text-left">
-                        <p className="font-medium text-sm">{agent.name}</p>
+                        <p className="font-medium text-sm text-[var(--text-primary)]">{agent.name}</p>
                       </div>
                     </button>
                   ))}

@@ -393,7 +393,7 @@ export default function WorkspacesPage() {
                     setShowAgentConfig(true)
                   }}
                   variant="outline"
-                  className="w-full bg-white text-black border-gray-300"
+                  className="w-full border-[var(--sidebar-border)] hover:bg-[var(--agent-bg)] text-[var(--text-primary)]"
                 >
                   <SettingsIcon className="h-4 w-4 mr-2" />
                   Configurar

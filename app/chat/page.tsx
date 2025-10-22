@@ -57,19 +57,19 @@ const extractTextBodies = (resp: ExternalApiResponse): string[] => {
     .filter((m) => (m.type || "").toUpperCase() === "TEXT")
     .map((m) => m.content?.text?.body ?? "")
     .filter((s): s is string => Boolean(s && s.trim().length))
-    .map((s) =>
-      s
-        .replace(/\r\n/g, "\n") // normaliza quebras
-        .replace(/ {2}\n/g, "\n") // remove "dois espaços + quebra" típicos do WhatsApp
-        .replace(/^\s*-\s+/gm, "• ") // bullets '-' -> '•'
-        .replace(/^\s*\*\s+/gm, "• ") // bullets '*' -> '•'
-        .replace(/^\s*--\s*$/gm, "— — —") // separador
+    .map(
+      (s) =>
+        s
+          .replace(/\r\n/g, "\n") // normaliza quebras
+          .replace(/ {2}\n/g, "\n") // remove "dois espaços + quebra" típicos do WhatsApp
+          .replace(/^\s*-\s+/gm, "• ") // bullets '-' -> '•'
+          .replace(/^\s*\*\s+/gm, "• ") // bullets '*' -> '•'
+          .replace(/^\s*--\s*$/gm, "— — —"), // separador
     )
 }
 
 /** Escapa HTML cru para evitar XSS. */
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
 /** Converte o “glossário” (markdown/whatsapp-like) em HTML básico seguro. */
 /** Converte “glossário” em HTML, preservando blocos/linhas e agrupando listas. */
@@ -81,14 +81,14 @@ const markdownToHtmlFromGlossary = (raw: string): string => {
   t = t.replace(/ {2}\n/g, "\n")
   t = t.replace(/^\s*-\s+/gm, "• ")
   t = t.replace(/^\s*\*\s+/gm, "• ")
-t = t.replace(/(^|\n)[\s_–—-]{0,5}(?:—|–|-|_){3,}[\s_–—-]{0,5}(?=\n|$)/g, "$1<hr/>")
+  t = t.replace(/(^|\n)[\s_–—-]{0,5}(?:—|–|-|_){3,}[\s_–—-]{0,5}(?=\n|$)/g, "$1<hr/>")
 
   // Quebra em BLOCO por linha em branco (1+ linhas vazias)
   const blocks = t.split(/\n{2,}/)
   const out: string[] = []
 
-  for (let block of blocks) {
-    // Bloco de código cercado por ```
+  for (const block of blocks) {
+    // Bloco de código cercado por \`\`\`
     const fence = block.match(/^```([\s\S]*?)```$/)
     if (fence) {
       out.push(`<pre><code>${fence[1]}</code></pre>`)
@@ -96,29 +96,38 @@ t = t.replace(/(^|\n)[\s_–—-]{0,5}(?:—|–|-|_){3,}[\s_–—-]{0,5}(?=\n|
     }
 
     // Títulos
-    if (/^###\s+/.test(block)) { out.push(`<h3>${fmt(block.replace(/^###\s+/, ""))}</h3>`); continue }
-    if (/^##\s+/.test(block))  { out.push(`<h2>${fmt(block.replace(/^##\s+/, ""))}</h2>`); continue }
-    if (/^#\s+/.test(block))   { out.push(`<h1>${fmt(block.replace(/^#\s+/, ""))}</h1>`);  continue }
+    if (/^###\s+/.test(block)) {
+      out.push(`<h3>${fmt(block.replace(/^###\s+/, ""))}</h3>`)
+      continue
+    }
+    if (/^##\s+/.test(block)) {
+      out.push(`<h2>${fmt(block.replace(/^##\s+/, ""))}</h2>`)
+      continue
+    }
+    if (/^#\s+/.test(block)) {
+      out.push(`<h1>${fmt(block.replace(/^#\s+/, ""))}</h1>`)
+      continue
+    }
 
     const lines = block.split("\n")
 
     // Citações: todas as linhas iniciam com ">"
-    if (lines.every(l => /^>\s?/.test(l))) {
-      const inner = lines.map(l => fmt(l.replace(/^>\s?/, ""))).join("<br/>")
+    if (lines.every((l) => /^>\s?/.test(l))) {
+      const inner = lines.map((l) => fmt(l.replace(/^>\s?/, ""))).join("<br/>")
       out.push(`<blockquote>${inner}</blockquote>`)
       continue
     }
 
     // Listas com "• "
-    if (lines.every(l => /^•\s+/.test(l))) {
-      const items = lines.map(l => `<li>${fmt(l.replace(/^•\s+/, ""))}</li>`).join("")
+    if (lines.every((l) => /^•\s+/.test(l))) {
+      const items = lines.map((l) => `<li>${fmt(l.replace(/^•\s+/, ""))}</li>`).join("")
       out.push(`<ul>${items}</ul>`)
       continue
     }
 
     // Listas numeradas "1. ...", "2. ..."
-    if (lines.every(l => /^\d+\.\s+/.test(l))) {
-      const items = lines.map(l => `<li>${fmt(l.replace(/^\d+\.\s+/, ""))}</li>`).join("")
+    if (lines.every((l) => /^\d+\.\s+/.test(l))) {
+      const items = lines.map((l) => `<li>${fmt(l.replace(/^\d+\.\s+/, ""))}</li>`).join("")
       out.push(`<ol>${items}</ol>`)
       continue
     }
@@ -139,24 +148,20 @@ t = t.replace(/(^|\n)[\s_–—-]{0,5}(?:—|–|-|_){3,}[\s_–—-]{0,5}(?=\n|
     x = x.replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g, "$1<em>$2</em>")
     x = x.replace(/(?:^|[^_])_(.+?)_(?!_)/g, (m, p1) => m.replace(`_${p1}_`, `<em>${p1}</em>`))
     x = x.replace(/~(.+?)~/g, "<del>$1</del>")
-    x = x.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    x = x.replace(
+      /\[([^\]]+)\]$$(https?:\/\/[^)]+)$$/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+    )
     return x
   }
 }
 
-
 /** Tenta mapear agente da API externa para um agente local (por id ou nome); senão, usa os selecionados. */
-const resolveAgentIds = (
-  resp: ExternalApiResponse,
-  agents: Agent[],
-  fallbackSelectedIds: string[]
-): string[] => {
+const resolveAgentIds = (resp: ExternalApiResponse, agents: Agent[], fallbackSelectedIds: string[]): string[] => {
   const byId = resp.conversation?.aiAgentId ?? null
   const byName = (resp.conversation?.aiAgentName || "").toLowerCase().trim()
 
-  const match =
-    agents.find((a) => a.id === byId) ??
-    agents.find((a) => a.name.toLowerCase().trim() === byName)
+  const match = agents.find((a) => a.id === byId) ?? agents.find((a) => a.name.toLowerCase().trim() === byName)
 
   if (match) return [match.id]
   return fallbackSelectedIds
@@ -210,25 +215,58 @@ export default function ChatPage() {
           const { data: agentsData, error: agentsError } = await supabase
             .from("agents")
             .select("*")
-            .order("created_at", { ascending: true })
+            .order("order", { ascending: true })
+
+          const { data: customAgentsData, error: customAgentsError } = await supabase
+            .from("custom_agents")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .order("order", { ascending: true })
 
           if (agentsError) throw agentsError
+          if (customAgentsError) console.error("Error loading custom agents:", customAgentsError)
+
+          const loadedAgents: Agent[] = []
 
           if (agentsData) {
-            const loadedAgents: Agent[] = agentsData.map((agent) => ({
-              id: agent.id,
-              name: agent.name,
-              icon: agent.icon,
-              color: agent.color,
-              trigger_word: agent.trigger_word,
-            }))
-            console.log(
-              "[v0] 📥 Agentes carregados inicialmente:",
-              loadedAgents.map((a) => ({ name: a.name, trigger_word: a.trigger_word }))
+            loadedAgents.push(
+              ...agentsData.map((agent) => ({
+                id: agent.id,
+                name: agent.name,
+                icon: agent.icon,
+                color: agent.color,
+                trigger_word: agent.trigger_word,
+              })),
             )
-            console.log(`[v0] 📊 Total de agentes carregados: ${loadedAgents.length}`)
-            setAgents(loadedAgents)
           }
+
+          if (customAgentsData) {
+            loadedAgents.push(
+              ...customAgentsData.map(
+                (agent) =>
+                  ({
+                    id: agent.id,
+                    name: agent.name,
+                    icon: agent.icon,
+                    color: agent.color,
+                    trigger_word: agent.trigger_word,
+                    isCustomAgent: true,
+                    agent_ids: agent.agent_ids,
+                  }) as any,
+              ),
+            )
+          }
+
+          console.log(
+            "[v0] 📥 Agentes carregados inicialmente:",
+            loadedAgents.map((a) => ({
+              name: a.name,
+              trigger_word: a.trigger_word,
+              isCustom: (a as any).isCustomAgent,
+            })),
+          )
+          console.log(`[v0] 📊 Total de agentes carregados: ${loadedAgents.length}`)
+          setAgents(loadedAgents)
         } catch (error) {
           console.error("[v0] Error loading agents:", error)
           addToast({
@@ -316,7 +354,7 @@ export default function ChatPage() {
                     agentHistories,
                     isFavorite: conv.is_favorite,
                   }
-                })
+                }),
               )
 
               setChats(loadedChats)
@@ -343,7 +381,7 @@ export default function ChatPage() {
                   const selectedAgents =
                     conv.conversation_agents?.filter((ca: any) => ca.is_selected).map((ca: any) => ca.agent_id) || []
                   loadedSelectedAgents[conv.id] = selectedAgents
-                })
+                }),
               )
 
               setChatMessages(loadedMessages)
@@ -374,28 +412,63 @@ export default function ChatPage() {
       const supabase = createClient()
 
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session) return
+
         const { data: agentsData, error: agentsError } = await supabase
           .from("agents")
           .select("*")
-          .order("created_at", { ascending: true })
+          .order("order", { ascending: true })
+
+        const { data: customAgentsData, error: customAgentsError } = await supabase
+          .from("custom_agents")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("order", { ascending: true })
 
         if (agentsError) throw agentsError
+        if (customAgentsError) console.error("Error loading custom agents:", customAgentsError)
+
+        const loadedAgents: Agent[] = []
 
         if (agentsData) {
-          const loadedAgents: Agent[] = agentsData.map((agent) => ({
-            id: agent.id,
-            name: agent.name,
-            icon: agent.icon,
-            color: agent.color,
-            trigger_word: agent.trigger_word,
-          }))
-          console.log(
-            "[v0] ✅ Agentes recarregados do banco:",
-            loadedAgents.map((a) => ({ name: a.name, trigger_word: a.trigger_word }))
+          loadedAgents.push(
+            ...agentsData.map((agent) => ({
+              id: agent.id,
+              name: agent.name,
+              icon: agent.icon,
+              color: agent.color,
+              trigger_word: agent.trigger_word,
+            })),
           )
-          console.log(`[v0] 📊 Total de agentes recarregados: ${loadedAgents.length}`)
-          setAgents(loadedAgents)
         }
+
+        if (customAgentsData) {
+          loadedAgents.push(
+            ...customAgentsData.map(
+              (agent) =>
+                ({
+                  id: agent.id,
+                  name: agent.name,
+                  icon: agent.icon,
+                  color: agent.color,
+                  trigger_word: agent.trigger_word,
+                  isCustomAgent: true,
+                  agent_ids: agent.agent_ids,
+                }) as any,
+            ),
+          )
+        }
+
+        console.log(
+          "[v0] ✅ Agentes recarregados do banco:",
+          loadedAgents.map((a) => ({ name: a.name, trigger_word: a.trigger_word, isCustom: (a as any).isCustomAgent })),
+        )
+        console.log(`[v0] 📊 Total de agentes recarregados: ${loadedAgents.length}`)
+        setAgents(loadedAgents)
       } catch (error) {
         console.error("[v0] ❌ Erro ao recarregar agentes:", error)
       }
@@ -435,7 +508,7 @@ export default function ChatPage() {
         }
       })
     },
-    [currentChatId]
+    [currentChatId],
   )
 
   const markAgentAsUsed = useCallback((chatId: string, agentId: string) => {
@@ -454,7 +527,7 @@ export default function ChatPage() {
           }
         }
         return chat
-      })
+      }),
     )
   }, [])
 
@@ -478,7 +551,7 @@ export default function ChatPage() {
         }
       }
     },
-    [userId, workspaceId, addToast]
+    [userId, workspaceId, addToast],
   )
 
   const createNewChat = useCallback(async () => {
@@ -517,7 +590,9 @@ export default function ChatPage() {
 
       try {
         const usedAgentIds = Array.from(
-          new Set(messages.filter((m) => (m as any).usedAgentIds?.length).flatMap((m) => (m as any).usedAgentIds || []))
+          new Set(
+            messages.filter((m) => (m as any).usedAgentIds?.length).flatMap((m) => (m as any).usedAgentIds || []),
+          ),
         )
 
         const newConversation = await saveConversation(
@@ -525,7 +600,7 @@ export default function ChatPage() {
           workspaceId,
           `Conversa ${chats.length + 1}`,
           usedAgentIds,
-          false
+          false,
         )
 
         const agentHistories: Record<string, Message[]> = {}
@@ -563,7 +638,7 @@ export default function ChatPage() {
         })
       }
     },
-    [userId, workspaceId, chats, addToast]
+    [userId, workspaceId, chats, addToast],
   )
 
   const deleteChat = useCallback(
@@ -610,7 +685,7 @@ export default function ChatPage() {
         })
       }
     },
-    [chats, currentChatId, addToast]
+    [chats, currentChatId, addToast],
   )
 
   const toggleFavorite = useCallback(
@@ -639,7 +714,7 @@ export default function ChatPage() {
         })
       }
     },
-    [chats, addToast]
+    [chats, addToast],
   )
 
   const reorderChatByDrop = useCallback(
@@ -654,7 +729,7 @@ export default function ChatPage() {
       newChats.splice(targetIndex, 0, draggedChat)
       setChats(newChats)
     },
-    [chats]
+    [chats],
   )
 
   const importChat = useCallback(
@@ -662,7 +737,7 @@ export default function ChatPage() {
       const sortedMessages = [...messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
       const usedAgentIds = Array.from(
-        new Set(sortedMessages.filter((m: any) => m.usedAgentIds?.length).flatMap((m: any) => m.usedAgentIds || []))
+        new Set(sortedMessages.filter((m: any) => m.usedAgentIds?.length).flatMap((m: any) => m.usedAgentIds || [])),
       )
 
       const agentHistories: Record<string, Message[]> = {}
@@ -690,7 +765,7 @@ export default function ChatPage() {
 
       setCurrentChatId(newChatId)
     },
-    [chats]
+    [chats],
   )
 
   const updateChatName = useCallback((chatId: string, newName: string) => {
@@ -724,77 +799,67 @@ export default function ChatPage() {
      HANDLER PARA RESPOSTA DA API EXTERNA (usa máscara -> HTML)
      Chame isto quando o JSON deles chegar.
      ======================================================================= */
-const handleExternalApiResponse = useCallback(
-  async (apiPayload: ExternalApiResponse, opts?: { decorate?: boolean }) => {
-    const decorate = opts?.decorate ?? true
+  const handleExternalApiResponse = useCallback(
+    async (apiPayload: ExternalApiResponse, opts?: { decorate?: boolean }) => {
+      const decorate = opts?.decorate ?? true
 
-    if (!currentChatId) {
-      console.warn("[v0] Sem currentChatId no momento de inserir a resposta.")
-      return
-    }
-
-    try {
-      const parts = extractTextBodies(apiPayload) // cada TEXT body de aiMessages
-      if (parts.length === 0) return
-
-      const header = decorate
-        ? `### 🤖 ${apiPayload.conversation?.aiAgentName || "Assistente"}\n`
-        : ""
-      const footer =
-        decorate && apiPayload.usage?.credits != null
-          // ? `\n\n—\n📌 _Uso_: ${apiPayload.usage.credits} crédito(s)`
-          ? `\n\n—\n📌 `
-          : ""
-
-    
-
-      // mapeia para agente local
-      const agentIds = resolveAgentIds(
-        apiPayload,
-        agents,
-        selectedAgentsByChat[currentChatId] || []
-      )
-
-      for (let pIndex = 0; pIndex < parts.length; pIndex++) {
-        const isFirstPart = pIndex === 0
-        const isLastPart  = pIndex === parts.length - 1
-
-        // aplica header apenas na primeira parte, footer apenas na última
-        const raw = `${isFirstPart ? header : ""}${parts[pIndex]}${isLastPart ? footer : ""}`
-
-        // 🔥 converte markdown-like -> HTML seguro
-        const html = markdownToHtmlFromGlossary(raw)
-
-        // ⚙️ quebra por <hr/> (se houver) — cada pedaço vira uma bolha
-        const chunks = html
-          .split(/<hr\s*\/?>/i)
-          .map((s) => s.trim())
-          .filter(Boolean)
-
-        for (let i = 0; i < chunks.length; i++) {
-          await addMessage(currentChatId, {
-            id: `ext-${apiPayload.messageId ?? Date.now()}-${pIndex}-${i}`,
-            content: chunks[i],
-            sender: "assistant",
-            timestamp: new Date(),
-            usedAgentIds: agentIds,
-            asHtml: true, // será renderizado via dangerouslySetInnerHTML
-          } as any)
-        }
+      if (!currentChatId) {
+        console.warn("[v0] Sem currentChatId no momento de inserir a resposta.")
+        return
       }
-    } catch (err) {
-      console.error("[v0] Erro ao processar resposta externa:", err)
-      addToast({
-        title: "Erro ao processar resposta",
-        description: "Não foi possível formatar e salvar a resposta da IA.",
-        variant: "error",
-      })
-    }
-  },
-  [agents, selectedAgentsByChat, currentChatId, addMessage, addToast]
-)
 
+      try {
+        const parts = extractTextBodies(apiPayload) // cada TEXT body de aiMessages
+        if (parts.length === 0) return
 
+        const header = decorate ? `### 🤖 ${apiPayload.conversation?.aiAgentName || "Assistente"}\n` : ""
+        const footer =
+          decorate && apiPayload.usage?.credits != null
+            ? // ? `\n\n—\n📌 _Uso_: ${apiPayload.usage.credits} crédito(s)`
+              `\n\n—\n📌 `
+            : ""
+
+        // mapeia para agente local
+        const agentIds = resolveAgentIds(apiPayload, agents, selectedAgentsByChat[currentChatId] || [])
+
+        for (let pIndex = 0; pIndex < parts.length; pIndex++) {
+          const isFirstPart = pIndex === 0
+          const isLastPart = pIndex === parts.length - 1
+
+          // aplica header apenas na primeira parte, footer apenas na última
+          const raw = `${isFirstPart ? header : ""}${parts[pIndex]}${isLastPart ? footer : ""}`
+
+          // 🔥 converte markdown-like -> HTML seguro
+          const html = markdownToHtmlFromGlossary(raw)
+
+          // ⚙️ quebra por <hr/> (se houver) — cada pedaço vira uma bolha
+          const chunks = html
+            .split(/<hr\s*\/?>/i)
+            .map((s) => s.trim())
+            .filter(Boolean)
+
+          for (let i = 0; i < chunks.length; i++) {
+            await addMessage(currentChatId, {
+              id: `ext-${apiPayload.messageId ?? Date.now()}-${pIndex}-${i}`,
+              content: chunks[i],
+              sender: "assistant",
+              timestamp: new Date(),
+              usedAgentIds: agentIds,
+              asHtml: true, // será renderizado via dangerouslySetInnerHTML
+            } as any)
+          }
+        }
+      } catch (err) {
+        console.error("[v0] Erro ao processar resposta externa:", err)
+        addToast({
+          title: "Erro ao processar resposta",
+          description: "Não foi possível formatar e salvar a resposta da IA.",
+          variant: "error",
+        })
+      }
+    },
+    [agents, selectedAgentsByChat, currentChatId, addMessage, addToast],
+  )
 
   const currentUsedAgents = usedAgentsPerChat[currentChatId || ""] || []
   const currentSelectedAgents = selectedAgentsByChat[currentChatId || ""] || []
@@ -831,6 +896,9 @@ const handleExternalApiResponse = useCallback(
         agentHistories={currentAgentHistories}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
+        onAgentOrderChange={(agentIds) => {
+          console.log("[v0] 🔄 Agent order changed:", agentIds)
+        }}
       />
       <ChatArea
         agents={agents}
@@ -849,7 +917,7 @@ const handleExternalApiResponse = useCallback(
         messages={chatMessages}
         onAddMessage={addMessage}
         onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-        onExternalApiResponse={handleExternalApiResponse}  // ⬅️ CHAME AQUI quando a API deles responder
+        onExternalApiResponse={handleExternalApiResponse} // ⬅️ CHAME AQUI quando a API deles responder
         className="flex-1 w-full"
       />
     </div>
