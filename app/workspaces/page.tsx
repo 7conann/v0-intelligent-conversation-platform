@@ -393,9 +393,9 @@ export default function WorkspacesPage() {
                     setShowAgentConfig(true)
                   }}
                   variant="outline"
-                  className="w-full border-[var(--sidebar-border)] hover:bg-[var(--agent-bg)] text-[var(--text-primary)]"
+                  className="w-full border-[var(--sidebar-border)] cursor-pointer text-[black]"
                 >
-                  <SettingsIcon className="h-4 w-4 mr-2" />
+                  <SettingsIcon className="h-4 w-4 mr-2 " />
                   Configurar
                 </Button>
               )}
@@ -511,7 +511,7 @@ export default function WorkspacesPage() {
                     setSelectedAgent(null)
                   }}
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 text-[black]"
                 >
                   Cancelar
                 </Button>

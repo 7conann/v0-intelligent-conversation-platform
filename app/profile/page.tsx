@@ -153,12 +153,16 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={avatarUrl || "/placeholder.svg"} alt={displayName || user?.email} />
-            <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xl">
-              {(displayName || user?.email || "U").charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+   <Avatar className="h-16 w-16">
+  <AvatarImage 
+    src="/iredondo.png" 
+    alt={displayName || user?.email || "Logo"} 
+  />
+  <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xl">
+    {(displayName || user?.email || "U").charAt(0).toUpperCase()}
+  </AvatarFallback>
+</Avatar>
+
         </div>
       </div>
 
