@@ -46,6 +46,7 @@ interface ChatAreaProps {
   onOpenMobileSidebar?: () => void
   onUpdateChatName?: (chatId: string, newName: string) => void
   className?: string
+  onExternalApiResponse?: (payload: any, opts?: { decorate?: boolean }) => Promise<void>
 }
 
 export function ChatArea({
@@ -65,6 +66,8 @@ export function ChatArea({
   onAddMessage,
   onOpenMobileSidebar,
   onUpdateChatName,
+    onExternalApiResponse, // ⬅️ agora vem pra cá
+
   className,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
@@ -331,126 +334,142 @@ export function ChatArea({
     }
   }
 
-  const sendMessage = async () => {
-    if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
+const sendMessage = async () => {
+  if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: input,
-      sender: "user",
-      timestamp: new Date(),
-      usedAgentIds: selectedAgents,
+  const userMessage: Message = {
+    id: Date.now().toString(),
+    content: input,
+    sender: "user",
+    timestamp: new Date(),
+    usedAgentIds: selectedAgents,
+  }
+
+  onAddMessage(currentChatId, userMessage)
+
+  setInput("")
+  const attachmentsToSend = [...attachments]
+  setAttachments([])
+  setIsLoading(true)
+
+  selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
+
+  try {
+    const isFirstMessage = currentMessages.length === 0
+    let messageToSend = input
+
+    if (isFirstMessage && contextMessages && contextMessages.length > 0) {
+      const contextText = contextMessages
+        .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
+        .join("\n\n")
+      messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
     }
 
-    onAddMessage(currentChatId, userMessage)
+    let payload: any
 
-    setInput("")
-    const attachmentsToSend = [...attachments]
-    setAttachments([])
-    setIsLoading(true)
-
-    selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
-
-    try {
-      const isFirstMessage = currentMessages.length === 0
-      let messageToSend = input
-
-      if (isFirstMessage && contextMessages && contextMessages.length > 0) {
-        const contextText = contextMessages
-          .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
-          .join("\n\n")
-        messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
-      }
-
-      let payload: any
-
-      if (attachmentsToSend.length > 0) {
-        const attachment = attachmentsToSend[0]
-        payload = {
-          content: {
-            image: {
-              url: attachment.data,
-              caption: messageToSend || "Imagem enviada",
-            },
+    if (attachmentsToSend.length > 0) {
+      const attachment = attachmentsToSend[0]
+      payload = {
+        content: {
+          image: {
+            url: attachment.data,
+            caption: messageToSend || "Imagem enviada",
           },
-          type: "IMAGE",
-          contactIdentifier: currentChatId,
-          contactName: `Chat ${currentChatId}`,
-        }
-      } else {
-        payload = {
-          content: {
-            text: {
-              body: messageToSend,
-            },
-          },
-          type: "TEXT",
-          contactIdentifier: currentChatId,
-          contactName: `Chat ${currentChatId}`,
-        }
-      }
-
-      const response = await fetch("/api/send-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error("[v0] ❌ ERRO NA API:", errorData)
-        throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
+        type: "IMAGE",
+        contactIdentifier: currentChatId,
+        contactName: `Chat ${currentChatId}`,
       }
+    } else {
+      payload = {
+        content: {
+          text: {
+            body: messageToSend,
+          },
+        },
+        type: "TEXT",
+        contactIdentifier: currentChatId,
+        contactName: `Chat ${currentChatId}`,
+      }
+    }
 
-      const data = await response.json()
+    console.log("[v0] 🚀 Payload enviado para /api/send-message:", payload)
 
-      console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
+    const response = await fetch("/api/send-message", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
 
-      if (data.success && data.aiMessages && data.aiMessages.length > 0) {
-        data.aiMessages.forEach((msg: any, index: number) => {
-          if (msg.content?.text?.body) {
-            const messageContent = msg.content.text.body
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      console.error("[v0] ❌ ERRO NA API:", errorData)
+      throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
+    }
 
-            setTimeout(() => {
-              const assistantMessage: Message = {
-                id: `${Date.now()}-${index}`,
-                content: messageContent,
-                sender: "assistant",
-                timestamp: new Date(),
-                usedAgentIds: selectedAgents,
-              }
+    const data = await response.json()
+    console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
 
-              onAddMessage(currentChatId, assistantMessage)
-            }, index * 150)
+    // 🔧 DEBUG para confirmar se o handler de formatação está chegando como prop
+    // Obs: certifique-se de que ChatAreaProps tenha onExternalApiResponse e que ChatPage o passe.
+    // @ts-ignore - caso o tipo ainda não tenha sido atualizado
+    const hasFormatter = typeof onExternalApiResponse === "function"
+    // @ts-ignore
+    console.log("[v0] 🔧 onExternalApiResponse disponível?", hasFormatter)
+
+    // Se houver handler, delega a formatação (máscara -> HTML) pra ele
+    // @ts-ignore
+    if (hasFormatter) {
+      // @ts-ignore
+      console.log("[v0] 🔧 Encaminhando payload para onExternalApiResponse (com máscara/decorate=true)")
+      // @ts-ignore
+      await onExternalApiResponse(data, { decorate: true })
+      return
+    }
+
+    // Fallback (sem o handler): mantém o fluxo antigo (texto puro sem máscara)
+    console.warn("[v0] ⚠️ Sem onExternalApiResponse — usando fallback SEM formatação.")
+    if (data.success && data.aiMessages && data.aiMessages.length > 0) {
+      const texts = data.aiMessages
+        .map((m: any) => m?.content?.text?.body)
+        .filter(Boolean)
+
+      console.log("[v0] 🧾 Fallback: corpos de texto detectados:", texts.length)
+      texts.forEach((messageContent: string, index: number) => {
+        setTimeout(() => {
+          const assistantMessage: Message = {
+            id: `${Date.now()}-${index}`,
+            content: messageContent,
+            sender: "assistant",
+            timestamp: new Date(),
+            usedAgentIds: selectedAgents,
           }
-        })
-      } else {
-        const assistantMessage: Message = {
-          id: Date.now().toString(),
-          content: "Resposta recebida com sucesso.",
-          sender: "assistant",
-          timestamp: new Date(),
-        }
-
-        onAddMessage(currentChatId, assistantMessage)
-      }
-    } catch (error) {
-      console.error("[v0] ❌ ERRO:", error)
-
+          onAddMessage(currentChatId, assistantMessage)
+        }, index * 150)
+      })
+    } else {
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
+        id: Date.now().toString(),
+        content: "Resposta recebida com sucesso.",
         sender: "assistant",
         timestamp: new Date(),
       }
-
       onAddMessage(currentChatId, assistantMessage)
-    } finally {
-      setIsLoading(false)
     }
+  } catch (error) {
+    console.error("[v0] ❌ ERRO:", error)
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
+      sender: "assistant",
+      timestamp: new Date(),
+    }
+    onAddMessage(currentChatId, assistantMessage)
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   const toggleMessageSelection = (messageId: string) => {
     setSelectedMessages((prev) =>
@@ -972,7 +991,29 @@ export function ChatArea({
                     </div>
                   )}
                 </div>
-                <p className="text-sm leading-relaxed break-words">{message.content}</p>
+{(() => {
+  // verifica se o conteúdo é HTML (salvo pelo handleExternalApiResponse)
+  const isHtml =
+    (message as any).asHtml ||
+    /<\/?(?:h1|h2|h3|p|strong|em|code|pre|blockquote|a|hr|ul|ol|li)\b/i.test(message.content)
+
+  if (isHtml) {
+    return (
+      <div
+        className="prose prose-invert max-w-none text-sm leading-relaxed break-words
+                   prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-3 prose-hr:border-purple-700/40"
+        dangerouslySetInnerHTML={{ __html: message.content }}
+      />
+    )
+  }
+
+  return (
+    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+      {message.content}
+    </p>
+  )
+})()}
+
               </div>
             </div>
           ))

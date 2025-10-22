@@ -18,6 +18,150 @@ import {
 } from "@/lib/supabase/conversations"
 import { isAdminUser, isTrialExpired } from "@/lib/utils/trial"
 
+/* =======================================================================
+   TIPOS DA RESPOSTA EXTERNA (ex.: BluBash)
+   ======================================================================= */
+type ExternalAiText = {
+  content?: { type?: string; text?: { body?: string | null } | null } | null
+  type?: string | null
+  sender_type?: string | null
+  sender_name?: string | null
+  channel_message_id?: string | null
+}
+
+type ExternalApiResponse = {
+  success?: boolean
+  contactId?: string
+  conversationId?: string
+  messageId?: string
+  conversation?: {
+    status?: string
+    assignedToHuman?: boolean
+    aiAgentId?: string
+    aiAgentName?: string
+    teamId?: string
+    teamName?: string
+  } | null
+  aiMessages?: ExternalAiText[] | null
+  usage?: { credits?: number } | null
+}
+
+/* =======================================================================
+   GLOSSÁRIO: EXTRACT + MASK (para HTML)
+   ======================================================================= */
+
+/** Junta os corpos de texto de aiMessages (apenas TEXT) e normaliza listas/quebras. */
+const extractTextBodies = (resp: ExternalApiResponse): string[] => {
+  if (!resp?.aiMessages?.length) return []
+  return resp.aiMessages
+    .filter((m) => (m.type || "").toUpperCase() === "TEXT")
+    .map((m) => m.content?.text?.body ?? "")
+    .filter((s): s is string => Boolean(s && s.trim().length))
+    .map((s) =>
+      s
+        .replace(/\r\n/g, "\n") // normaliza quebras
+        .replace(/ {2}\n/g, "\n") // remove "dois espaços + quebra" típicos do WhatsApp
+        .replace(/^\s*-\s+/gm, "• ") // bullets '-' -> '•'
+        .replace(/^\s*\*\s+/gm, "• ") // bullets '*' -> '•'
+        .replace(/^\s*--\s*$/gm, "— — —") // separador
+    )
+}
+
+/** Escapa HTML cru para evitar XSS. */
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+
+/** Converte o “glossário” (markdown/whatsapp-like) em HTML básico seguro. */
+/** Converte “glossário” em HTML, preservando blocos/linhas e agrupando listas. */
+const markdownToHtmlFromGlossary = (raw: string): string => {
+  // Base seguro: escapa HTML e normaliza quebras
+  let t = escapeHtml(raw).replace(/\r\n/g, "\n").trim()
+
+  // Normalizações de bullets/separador
+  t = t.replace(/ {2}\n/g, "\n")
+  t = t.replace(/^\s*-\s+/gm, "• ")
+  t = t.replace(/^\s*\*\s+/gm, "• ")
+t = t.replace(/(^|\n)[\s_–—-]{0,5}(?:—|–|-|_){3,}[\s_–—-]{0,5}(?=\n|$)/g, "$1<hr/>")
+
+  // Quebra em BLOCO por linha em branco (1+ linhas vazias)
+  const blocks = t.split(/\n{2,}/)
+  const out: string[] = []
+
+  for (let block of blocks) {
+    // Bloco de código cercado por ```
+    const fence = block.match(/^```([\s\S]*?)```$/)
+    if (fence) {
+      out.push(`<pre><code>${fence[1]}</code></pre>`)
+      continue
+    }
+
+    // Títulos
+    if (/^###\s+/.test(block)) { out.push(`<h3>${fmt(block.replace(/^###\s+/, ""))}</h3>`); continue }
+    if (/^##\s+/.test(block))  { out.push(`<h2>${fmt(block.replace(/^##\s+/, ""))}</h2>`); continue }
+    if (/^#\s+/.test(block))   { out.push(`<h1>${fmt(block.replace(/^#\s+/, ""))}</h1>`);  continue }
+
+    const lines = block.split("\n")
+
+    // Citações: todas as linhas iniciam com ">"
+    if (lines.every(l => /^>\s?/.test(l))) {
+      const inner = lines.map(l => fmt(l.replace(/^>\s?/, ""))).join("<br/>")
+      out.push(`<blockquote>${inner}</blockquote>`)
+      continue
+    }
+
+    // Listas com "• "
+    if (lines.every(l => /^•\s+/.test(l))) {
+      const items = lines.map(l => `<li>${fmt(l.replace(/^•\s+/, ""))}</li>`).join("")
+      out.push(`<ul>${items}</ul>`)
+      continue
+    }
+
+    // Listas numeradas "1. ...", "2. ..."
+    if (lines.every(l => /^\d+\.\s+/.test(l))) {
+      const items = lines.map(l => `<li>${fmt(l.replace(/^\d+\.\s+/, ""))}</li>`).join("")
+      out.push(`<ol>${items}</ol>`)
+      continue
+    }
+
+    // Parágrafo padrão: preserva quebras simples como <br/>
+    out.push(`<p>${fmt(block).replace(/\n/g, "<br/>")}</p>`)
+  }
+
+  return out.join("\n")
+
+  // Inline: negrito/itálico/código/links
+  function fmt(s: string) {
+    let x = s
+    x = x.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code}</code></pre>`)
+    x = x.replace(/`([^`]+?)`/g, "<code>$1</code>")
+    x = x.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
+    x = x.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    x = x.replace(/(^|[^*])\*(?!\*)(.+?)\*(?!\*)/g, "$1<em>$2</em>")
+    x = x.replace(/(?:^|[^_])_(.+?)_(?!_)/g, (m, p1) => m.replace(`_${p1}_`, `<em>${p1}</em>`))
+    x = x.replace(/~(.+?)~/g, "<del>$1</del>")
+    x = x.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    return x
+  }
+}
+
+
+/** Tenta mapear agente da API externa para um agente local (por id ou nome); senão, usa os selecionados. */
+const resolveAgentIds = (
+  resp: ExternalApiResponse,
+  agents: Agent[],
+  fallbackSelectedIds: string[]
+): string[] => {
+  const byId = resp.conversation?.aiAgentId ?? null
+  const byName = (resp.conversation?.aiAgentName || "").toLowerCase().trim()
+
+  const match =
+    agents.find((a) => a.id === byId) ??
+    agents.find((a) => a.name.toLowerCase().trim() === byName)
+
+  if (match) return [match.id]
+  return fallbackSelectedIds
+}
+
 export default function ChatPage() {
   const router = useRouter()
   const { addToast } = useToast()
@@ -60,7 +204,6 @@ export default function ChatPage() {
         }
 
         await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", session.user.id)
-
         setUserId(session.user.id)
 
         try {
@@ -81,10 +224,7 @@ export default function ChatPage() {
             }))
             console.log(
               "[v0] 📥 Agentes carregados inicialmente:",
-              loadedAgents.map((a) => ({
-                name: a.name,
-                trigger_word: a.trigger_word,
-              })),
+              loadedAgents.map((a) => ({ name: a.name, trigger_word: a.trigger_word }))
             )
             console.log(`[v0] 📊 Total de agentes carregados: ${loadedAgents.length}`)
             setAgents(loadedAgents)
@@ -176,7 +316,7 @@ export default function ChatPage() {
                     agentHistories,
                     isFavorite: conv.is_favorite,
                   }
-                }),
+                })
               )
 
               setChats(loadedChats)
@@ -203,7 +343,7 @@ export default function ChatPage() {
                   const selectedAgents =
                     conv.conversation_agents?.filter((ca: any) => ca.is_selected).map((ca: any) => ca.agent_id) || []
                   loadedSelectedAgents[conv.id] = selectedAgents
-                }),
+                })
               )
 
               setChatMessages(loadedMessages)
@@ -251,10 +391,7 @@ export default function ChatPage() {
           }))
           console.log(
             "[v0] ✅ Agentes recarregados do banco:",
-            loadedAgents.map((a) => ({
-              name: a.name,
-              trigger_word: a.trigger_word,
-            })),
+            loadedAgents.map((a) => ({ name: a.name, trigger_word: a.trigger_word }))
           )
           console.log(`[v0] 📊 Total de agentes recarregados: ${loadedAgents.length}`)
           setAgents(loadedAgents)
@@ -298,7 +435,7 @@ export default function ChatPage() {
         }
       })
     },
-    [currentChatId],
+    [currentChatId]
   )
 
   const markAgentAsUsed = useCallback((chatId: string, agentId: string) => {
@@ -317,7 +454,7 @@ export default function ChatPage() {
           }
         }
         return chat
-      }),
+      })
     )
   }, [])
 
@@ -330,7 +467,7 @@ export default function ChatPage() {
 
       if (userId && workspaceId) {
         try {
-          await saveMessage(userId, chatId, message.content, message.sender, message.usedAgentIds || [], [])
+          await saveMessage(userId, chatId, message.content, message.sender, (message as any).usedAgentIds || [], [])
         } catch (error: any) {
           console.error("[v0] Error saving message:", error?.message || error)
           addToast({
@@ -341,7 +478,7 @@ export default function ChatPage() {
         }
       }
     },
-    [userId, workspaceId, addToast],
+    [userId, workspaceId, addToast]
   )
 
   const createNewChat = useCallback(async () => {
@@ -380,9 +517,7 @@ export default function ChatPage() {
 
       try {
         const usedAgentIds = Array.from(
-          new Set(
-            messages.filter((m) => m.usedAgentIds && m.usedAgentIds.length > 0).flatMap((m) => m.usedAgentIds || []),
-          ),
+          new Set(messages.filter((m) => (m as any).usedAgentIds?.length).flatMap((m) => (m as any).usedAgentIds || []))
         )
 
         const newConversation = await saveConversation(
@@ -390,27 +525,23 @@ export default function ChatPage() {
           workspaceId,
           `Conversa ${chats.length + 1}`,
           usedAgentIds,
-          false,
+          false
         )
 
         const agentHistories: Record<string, Message[]> = {}
-        messages.forEach((message) => {
-          if (message.usedAgentIds) {
-            message.usedAgentIds.forEach((agentId) => {
-              if (!agentHistories[agentId]) {
-                agentHistories[agentId] = []
-              }
-              agentHistories[agentId].push(message)
-            })
-          }
+        messages.forEach((message: any) => {
+          message.usedAgentIds?.forEach((agentId: string) => {
+            if (!agentHistories[agentId]) agentHistories[agentId] = []
+            agentHistories[agentId].push(message)
+          })
         })
 
         const newChat: Chat = {
           id: newConversation.id,
           name: newConversation.title,
           contextMessages: messages,
-          usedAgentIds: usedAgentIds,
-          agentHistories: agentHistories,
+          usedAgentIds,
+          agentHistories,
           isFavorite: false,
         }
 
@@ -420,7 +551,7 @@ export default function ChatPage() {
         setUsedAgentsPerChat((prev) => ({ ...prev, [newConversation.id]: usedAgentIds }))
         setSelectedAgentsByChat((prev) => ({ ...prev, [newConversation.id]: [] }))
 
-        for (const message of messages) {
+        for (const message of messages as any[]) {
           await saveMessage(userId, newConversation.id, message.content, message.sender, message.usedAgentIds || [], [])
         }
       } catch (error) {
@@ -432,7 +563,7 @@ export default function ChatPage() {
         })
       }
     },
-    [userId, workspaceId, chats, addToast],
+    [userId, workspaceId, chats, addToast]
   )
 
   const deleteChat = useCallback(
@@ -479,7 +610,7 @@ export default function ChatPage() {
         })
       }
     },
-    [chats, currentChatId, addToast],
+    [chats, currentChatId, addToast]
   )
 
   const toggleFavorite = useCallback(
@@ -508,7 +639,7 @@ export default function ChatPage() {
         })
       }
     },
-    [chats, addToast],
+    [chats, addToast]
   )
 
   const reorderChatByDrop = useCallback(
@@ -523,7 +654,7 @@ export default function ChatPage() {
       newChats.splice(targetIndex, 0, draggedChat)
       setChats(newChats)
     },
-    [chats],
+    [chats]
   )
 
   const importChat = useCallback(
@@ -531,23 +662,15 @@ export default function ChatPage() {
       const sortedMessages = [...messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
 
       const usedAgentIds = Array.from(
-        new Set(
-          sortedMessages
-            .filter((m) => m.usedAgentIds && m.usedAgentIds.length > 0)
-            .flatMap((m) => m.usedAgentIds || []),
-        ),
+        new Set(sortedMessages.filter((m: any) => m.usedAgentIds?.length).flatMap((m: any) => m.usedAgentIds || []))
       )
 
       const agentHistories: Record<string, Message[]> = {}
-      sortedMessages.forEach((message) => {
-        if (message.usedAgentIds) {
-          message.usedAgentIds.forEach((agentId) => {
-            if (!agentHistories[agentId]) {
-              agentHistories[agentId] = []
-            }
-            agentHistories[agentId].push(message)
-          })
-        }
+      sortedMessages.forEach((message: any) => {
+        message.usedAgentIds?.forEach((agentId: string) => {
+          if (!agentHistories[agentId]) agentHistories[agentId] = []
+          agentHistories[agentId].push(message)
+        })
       })
 
       const newChatId = String(chats.length + 1)
@@ -567,7 +690,7 @@ export default function ChatPage() {
 
       setCurrentChatId(newChatId)
     },
-    [chats],
+    [chats]
   )
 
   const updateChatName = useCallback((chatId: string, newName: string) => {
@@ -597,21 +720,93 @@ export default function ChatPage() {
     }
   }
 
-  const currentUsedAgents = usedAgentsPerChat[currentChatId] || []
-  const currentSelectedAgents = selectedAgentsByChat[currentChatId] || []
+  /* =======================================================================
+     HANDLER PARA RESPOSTA DA API EXTERNA (usa máscara -> HTML)
+     Chame isto quando o JSON deles chegar.
+     ======================================================================= */
+const handleExternalApiResponse = useCallback(
+  async (apiPayload: ExternalApiResponse, opts?: { decorate?: boolean }) => {
+    const decorate = opts?.decorate ?? true
+
+    if (!currentChatId) {
+      console.warn("[v0] Sem currentChatId no momento de inserir a resposta.")
+      return
+    }
+
+    try {
+      const parts = extractTextBodies(apiPayload) // cada TEXT body de aiMessages
+      if (parts.length === 0) return
+
+      const header = decorate
+        ? `### 🤖 ${apiPayload.conversation?.aiAgentName || "Assistente"}\n`
+        : ""
+      const footer =
+        decorate && apiPayload.usage?.credits != null
+          // ? `\n\n—\n📌 _Uso_: ${apiPayload.usage.credits} crédito(s)`
+          ? `\n\n—\n📌 `
+          : ""
+
+    
+
+      // mapeia para agente local
+      const agentIds = resolveAgentIds(
+        apiPayload,
+        agents,
+        selectedAgentsByChat[currentChatId] || []
+      )
+
+      for (let pIndex = 0; pIndex < parts.length; pIndex++) {
+        const isFirstPart = pIndex === 0
+        const isLastPart  = pIndex === parts.length - 1
+
+        // aplica header apenas na primeira parte, footer apenas na última
+        const raw = `${isFirstPart ? header : ""}${parts[pIndex]}${isLastPart ? footer : ""}`
+
+        // 🔥 converte markdown-like -> HTML seguro
+        const html = markdownToHtmlFromGlossary(raw)
+
+        // ⚙️ quebra por <hr/> (se houver) — cada pedaço vira uma bolha
+        const chunks = html
+          .split(/<hr\s*\/?>/i)
+          .map((s) => s.trim())
+          .filter(Boolean)
+
+        for (let i = 0; i < chunks.length; i++) {
+          await addMessage(currentChatId, {
+            id: `ext-${apiPayload.messageId ?? Date.now()}-${pIndex}-${i}`,
+            content: chunks[i],
+            sender: "assistant",
+            timestamp: new Date(),
+            usedAgentIds: agentIds,
+            asHtml: true, // será renderizado via dangerouslySetInnerHTML
+          } as any)
+        }
+      }
+    } catch (err) {
+      console.error("[v0] Erro ao processar resposta externa:", err)
+      addToast({
+        title: "Erro ao processar resposta",
+        description: "Não foi possível formatar e salvar a resposta da IA.",
+        variant: "error",
+      })
+    }
+  },
+  [agents, selectedAgentsByChat, currentChatId, addMessage, addToast]
+)
+
+
+
+  const currentUsedAgents = usedAgentsPerChat[currentChatId || ""] || []
+  const currentSelectedAgents = selectedAgentsByChat[currentChatId || ""] || []
   const currentChat = chats.find((c) => c.id === currentChatId)
 
   const currentAgentHistories: Record<string, Message[]> = {}
-  const currentChatMessages = chatMessages[currentChatId] || []
-  currentChatMessages.forEach((message) => {
-    if (message.usedAgentIds) {
-      message.usedAgentIds.forEach((agentId) => {
-        if (!currentAgentHistories[agentId]) {
-          currentAgentHistories[agentId] = []
-        }
-        currentAgentHistories[agentId].push(message)
-      })
-    }
+  const currentChatMessages = chatMessages[currentChatId || ""] || []
+  currentChatMessages.forEach((message: any) => {
+    message.usedAgentIds?.forEach((agentId: string) => {
+      if (!currentAgentHistories[agentId]) currentAgentHistories[agentId] = []
+      currentAgentHistories[agentId].push(message)
+    })
   })
 
   if (isLoadingConversations || !currentChatId) {
@@ -644,7 +839,7 @@ export default function ChatPage() {
         chats={chats}
         onCreateNewChat={createNewChat}
         onSwitchChat={setCurrentChatId}
-        onMarkAgentAsUsed={(agentId) => markAgentAsUsed(currentChatId, agentId)}
+        onMarkAgentAsUsed={(agentId) => markAgentAsUsed(currentChatId!, agentId)}
         onCreateChatWithMessages={createChatWithMessages}
         onDeleteChat={deleteChat}
         onReorderChat={reorderChatByDrop}
@@ -654,6 +849,7 @@ export default function ChatPage() {
         messages={chatMessages}
         onAddMessage={addMessage}
         onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        onExternalApiResponse={handleExternalApiResponse}  // ⬅️ CHAME AQUI quando a API deles responder
         className="flex-1 w-full"
       />
     </div>
