@@ -816,7 +816,7 @@ export default function ChatPage() {
         const footer =
           decorate && apiPayload.usage?.credits != null
             ? // ? `\n\n—\n📌 _Uso_: ${apiPayload.usage.credits} crédito(s)`
-              `\n\n—\n📌 `
+              ``
             : ""
 
         // mapeia para agente local
