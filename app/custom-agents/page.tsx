@@ -223,7 +223,7 @@ export default function CustomAgentsPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold">Agentes Customizados</h1>
+              <h1 className="text-2xl  text-[var(--settings-text)] font-bold">Agentes Customizados</h1>
               <p className="text-sm text-muted-foreground">Crie composições de agentes especializados</p>
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function CustomAgentsPage() {
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/30 mb-6">
               <Users className="h-10 w-10 text-purple-400" />
             </div>
-            <h2 className="text-2xl font-bold mb-2">Nenhum agente customizado</h2>
+            <h2 className="text-2xl font-bold mb-2 text-[var(--settings-text)]">Nenhum agente customizado</h2>
             <p className="text-muted-foreground mb-6 text-center max-w-md">
               Crie composições de agentes para ter um "diretor" que combina múltiplos especialistas
             </p>
