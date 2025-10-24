@@ -89,7 +89,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       email: profileData.email,
       display_name: profileData.display_name || "Sem nome",
       created_at: profileData.created_at,
-      days_remaining: isAdminUser(profileData.email) ? 999 : getDaysRemaining(profileData.created_at),
+      days_remaining: getDaysRemaining(profileData.email, profileData.created_at, profileData.account_expiration_date),
     }
 
     console.log("[v0] [API] Returning user data with", conversationsWithDetails.length, "conversations")
@@ -100,6 +100,71 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     })
   } catch (error) {
     console.error("[v0] [API] Error in user details:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    console.log("[v0] [API] Updating user expiration for:", params.id)
+
+    const cookieStore = await cookies()
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session || !isAdminUser(session.user.email || "")) {
+      console.log("[v0] [API] Unauthorized access attempt to update user")
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { account_expiration_date } = body
+
+    if (!account_expiration_date) {
+      return NextResponse.json({ error: "account_expiration_date is required" }, { status: 400 })
+    }
+
+    const adminClient = createAdminClient()
+
+    const { data, error } = await adminClient
+      .from("profiles")
+      .update({ account_expiration_date })
+      .eq("id", params.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] [API] Error updating profile:", error)
+      return NextResponse.json({ error: "Failed to update user" }, { status: 500 })
+    }
+
+    console.log("[v0] [API] User expiration updated successfully")
+
+    return NextResponse.json({
+      success: true,
+      user: data,
+    })
+  } catch (error) {
+    console.error("[v0] [API] Error updating user expiration:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

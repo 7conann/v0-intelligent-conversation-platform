@@ -17,12 +17,15 @@ import {
   deleteConversation as deleteConversationDB,
 } from "@/lib/supabase/conversations"
 import { isAdminUser, isTrialExpired } from "@/lib/utils/trial"
+import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
+import { getCustomAgents } from "@/lib/supabase/agents"
+import { getAgents } from "@/lib/supabase/agents"
 
 /* =======================================================================
    TIPOS DA RESPOSTA EXTERNA (ex.: BluBash)
    ======================================================================= */
 type ExternalAiText = {
-  content?: { type?: string; text?: { body?: string | null } | null } | null
+  content?: { type?: string; text?: { body?: string | null } } | null
   type?: string | null
   sender_type?: string | null
   sender_name?: string | null
@@ -178,6 +181,7 @@ export default function ChatPage() {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [isLoadingConversations, setIsLoadingConversations] = useState(true)
   const [agents, setAgents] = useState<Agent[]>([])
+  const [agentPreferences, setAgentPreferences] = useState<Record<string, boolean>>({})
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
 
@@ -201,7 +205,7 @@ export default function ChatPage() {
           }
 
           if (!isAdminUser(profileData.email)) {
-            if (isTrialExpired(profileData.created_at)) {
+            if (isTrialExpired(profileData.email, profileData.created_at, profileData.account_expiration_date)) {
               router.push("/trial-expired")
               return
             }
@@ -211,20 +215,61 @@ export default function ChatPage() {
         await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", session.user.id)
         setUserId(session.user.id)
 
+        const preferences = getAgentPreferences(session.user.id)
+        setAgentPreferences(preferences)
+        console.log("[v0] 👁️ Agent preferences loaded from localStorage:", preferences)
+
+        console.log("[v0] 🔍 Buscando workspace para user_id:", session.user.id)
+        const { data: workspaces } = await supabase
+          .from("workspaces")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .limit(1)
+
+        let workspace = workspaces?.[0]
+
+        if (!workspace) {
+          console.log("[v0] ⚠️ Workspace não encontrado, criando novo...")
+          const { data: newWorkspace } = await supabase
+            .from("workspaces")
+            .insert({
+              user_id: session.user.id,
+              name: "Workspace Padrão",
+            })
+            .select()
+            .single()
+
+          workspace = newWorkspace
+          console.log("[v0] ✅ Novo workspace criado:", workspace)
+        }
+
+        if (workspace) {
+          setWorkspaceId(workspace.id)
+          console.log("[v0] 🏢 Workspace carregado:", {
+            id: workspace.id,
+            name: workspace.name,
+            user_id: workspace.user_id,
+          })
+        }
+
         try {
-          const { data: agentsData, error: agentsError } = await supabase
-            .from("agents")
-            .select("*")
-            .order("order", { ascending: true })
+          console.log("[v0] 🔍 Buscando agentes padrão...")
+          const agentsData = await getAgents()
 
-          const { data: customAgentsData, error: customAgentsError } = await supabase
-            .from("custom_agents")
-            .select("*")
-            .eq("user_id", session.user.id)
-            .order("order", { ascending: true })
+          console.log("[v0] 📦 Agentes padrão retornados:", agentsData?.length || 0)
 
-          if (agentsError) throw agentsError
-          if (customAgentsError) console.error("Error loading custom agents:", customAgentsError)
+          console.log("[v0] 🔍 Buscando custom agents para workspace_id:", workspace?.id)
+          let customAgentsData = null
+
+          if (workspace) {
+            try {
+              customAgentsData = await getCustomAgents(session.user.id, workspace.id)
+              console.log("[v0] 📦 Custom agents retornados do banco:", customAgentsData)
+              console.log("[v0] 📊 Quantidade de custom agents:", customAgentsData?.length || 0)
+            } catch (err) {
+              console.error("[v0] ❌ Erro ao buscar custom agents:", err)
+            }
+          }
 
           const loadedAgents: Agent[] = []
 
@@ -240,7 +285,11 @@ export default function ChatPage() {
             )
           }
 
-          if (customAgentsData) {
+          if (customAgentsData && customAgentsData.length > 0) {
+            console.log(
+              "[v0] ✅ Adicionando custom agents à lista:",
+              customAgentsData.map((a) => a.name),
+            )
             loadedAgents.push(
               ...customAgentsData.map(
                 (agent) =>
@@ -251,10 +300,11 @@ export default function ChatPage() {
                     color: agent.color,
                     trigger_word: agent.trigger_word,
                     isCustomAgent: true,
-                    agent_ids: agent.agent_ids,
                   }) as any,
               ),
             )
+          } else {
+            console.log("[v0] ⚠️ Nenhum custom agent encontrado para este workspace")
           }
 
           console.log(
@@ -276,30 +326,7 @@ export default function ChatPage() {
           })
         }
 
-        const { data: workspaces } = await supabase
-          .from("workspaces")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .limit(1)
-
-        let workspace = workspaces?.[0]
-
-        if (!workspace) {
-          const { data: newWorkspace } = await supabase
-            .from("workspaces")
-            .insert({
-              user_id: session.user.id,
-              name: "Workspace Padrão",
-            })
-            .select()
-            .single()
-
-          workspace = newWorkspace
-        }
-
         if (workspace) {
-          setWorkspaceId(workspace.id)
-
           try {
             const conversations = await getConversations(session.user.id, workspace.id)
 
@@ -407,8 +434,8 @@ export default function ChatPage() {
   }, [addToast, router])
 
   useEffect(() => {
-    const reloadAgents = async () => {
-      console.log("[v0] 🔄 Página ficou visível, recarregando agentes do banco...")
+    const reloadAgentsAndPreferences = async () => {
+      console.log("[v0] 🔄 Página ficou visível, recarregando agentes e preferências...")
       const supabase = createClient()
 
       try {
@@ -418,19 +445,35 @@ export default function ChatPage() {
 
         if (!session) return
 
-        const { data: agentsData, error: agentsError } = await supabase
-          .from("agents")
-          .select("*")
-          .order("order", { ascending: true })
+        const preferences = getAgentPreferences(session.user.id)
+        setAgentPreferences(preferences)
+        console.log("[v0] 👁️ Agent preferences reloaded from localStorage:", preferences)
 
-        const { data: customAgentsData, error: customAgentsError } = await supabase
-          .from("custom_agents")
+        console.log("[v0] 🔍 Buscando workspace para reload...")
+        const { data: workspaces } = await supabase
+          .from("workspaces")
           .select("*")
           .eq("user_id", session.user.id)
-          .order("order", { ascending: true })
+          .limit(1)
 
-        if (agentsError) throw agentsError
-        if (customAgentsError) console.error("Error loading custom agents:", customAgentsError)
+        const workspace = workspaces?.[0]
+        console.log("[v0] 🏢 Workspace para reload:", workspace?.id)
+
+        const agentsData = await getAgents()
+
+        console.log("[v0] 📦 Agentes padrão no reload:", agentsData?.length || 0)
+
+        let customAgentsData = null
+
+        if (workspace) {
+          try {
+            customAgentsData = await getCustomAgents(session.user.id, workspace.id)
+            console.log("[v0] 📦 Custom agents no reload:", customAgentsData?.length || 0)
+            console.log("[v0] 📦 Custom agents data:", customAgentsData)
+          } catch (err) {
+            console.error("Error loading custom agents:", err)
+          }
+        }
 
         const loadedAgents: Agent[] = []
 
@@ -446,7 +489,11 @@ export default function ChatPage() {
           )
         }
 
-        if (customAgentsData) {
+        if (customAgentsData && customAgentsData.length > 0) {
+          console.log(
+            "[v0] ✅ Adicionando custom agents no reload:",
+            customAgentsData.map((a) => a.name),
+          )
           loadedAgents.push(
             ...customAgentsData.map(
               (agent) =>
@@ -457,7 +504,6 @@ export default function ChatPage() {
                   color: agent.color,
                   trigger_word: agent.trigger_word,
                   isCustomAgent: true,
-                  agent_ids: agent.agent_ids,
                 }) as any,
             ),
           )
@@ -474,16 +520,23 @@ export default function ChatPage() {
       }
     }
 
+    const handleWindowFocus = () => {
+      console.log("[v0] 👁️ Janela ganhou foco, recarregando agentes e preferências...")
+      reloadAgentsAndPreferences()
+    }
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        console.log("[v0] 👁️ Página ficou visível, iniciando reload de agentes...")
-        reloadAgents()
+        console.log("[v0] 👁️ Página ficou visível, recarregando agentes e preferências...")
+        reloadAgentsAndPreferences()
       }
     }
 
+    window.addEventListener("focus", handleWindowFocus)
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
     return () => {
+      window.removeEventListener("focus", handleWindowFocus)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [])
@@ -874,6 +927,40 @@ export default function ChatPage() {
     })
   })
 
+  const handleToggleAgentVisibility = useCallback(
+    async (agentId: string) => {
+      if (!userId) return
+
+      const currentVisibility = agentPreferences[agentId] ?? true
+      const newVisibility = !currentVisibility
+
+      try {
+        toggleAgentVisibility(userId, agentId, newVisibility)
+        setAgentPreferences((prev) => ({ ...prev, [agentId]: newVisibility }))
+
+        addToast({
+          title: newVisibility ? "Agente ativado" : "Agente desativado",
+          description: `O agente ${newVisibility ? "aparecerá" : "não aparecerá mais"} na sua sidebar`,
+          variant: "success",
+        })
+      } catch (error) {
+        console.error("[v0] Error toggling agent visibility:", error)
+        addToast({
+          title: "Erro",
+          description: "Não foi possível alterar a visibilidade do agente",
+          variant: "error",
+        })
+      }
+    },
+    [userId, agentPreferences, addToast],
+  )
+
+  const visibleAgents = agents.filter((agent) => {
+    const preference = agentPreferences[agent.id]
+    // If no preference is set, show the agent by default
+    return preference === undefined || preference === true
+  })
+
   if (isLoadingConversations || !currentChatId) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -889,7 +976,10 @@ export default function ChatPage() {
     <div className="flex h-dvh md:h-screen bg-[var(--app-bg)] overflow-hidden">
       <PhoneModal isOpen={showPhoneModal} onClose={() => setShowPhoneModal(false)} onSubmit={handlePhoneSubmit} />
       <ChatSidebar
-        agents={agents}
+        agents={visibleAgents}
+        allAgents={agents}
+        agentPreferences={agentPreferences}
+        onToggleAgentVisibility={handleToggleAgentVisibility}
         selectedAgents={currentSelectedAgents}
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
@@ -901,7 +991,7 @@ export default function ChatPage() {
         }}
       />
       <ChatArea
-        agents={agents}
+        agents={visibleAgents}
         selectedAgents={currentSelectedAgents}
         currentChatId={currentChatId}
         chats={chats}

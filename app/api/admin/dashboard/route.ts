@@ -43,7 +43,27 @@ export async function GET(request: Request) {
     const adminClient = createAdminClient()
 
     console.log("[v0] [API] Fetching all profiles...")
-    const { data: profilesData, error: profilesError } = await adminClient.from("profiles").select("*")
+
+    let profilesData = null
+    let profilesError = null
+    let retries = 3
+
+    while (retries > 0) {
+      const result = await adminClient.from("profiles").select("*")
+      profilesData = result.data
+      profilesError = result.error
+
+      if (!profilesError) break
+
+      // If rate limited, wait and retry
+      if (profilesError.message?.includes("Too Many") || profilesError.code === "429") {
+        console.log(`[v0] [API] Rate limited, retrying... (${retries} attempts left)`)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        retries--
+      } else {
+        break
+      }
+    }
 
     if (profilesError) {
       console.error("[v0] [API] Error fetching profiles:", profilesError)
@@ -82,9 +102,14 @@ export async function GET(request: Request) {
             phone: profile.phone || null,
             created_at: profile.created_at,
             last_access: profile.last_access || null,
+            account_expiration_date: profile.account_expiration_date || null,
             total_conversations: userConversations?.length || 0,
             total_messages: userMessages?.length || 0,
-            days_remaining: isAdminUser(profile.email) ? 999 : getDaysRemaining(profile.created_at),
+            days_remaining: getDaysRemaining(
+              profile.email,
+              profile.created_at,
+              profile.account_expiration_date || null,
+            ),
           }
         }),
       )

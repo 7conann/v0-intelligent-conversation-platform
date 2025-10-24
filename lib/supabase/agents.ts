@@ -3,10 +3,31 @@ import { createClient } from "./client"
 export async function getAgents() {
   const supabase = createClient()
 
-  const { data, error } = await supabase.from("agents").select("*").eq("is_system", true).order("created_at")
+  try {
+    // Try querying with workspace_id column
+    const { data, error } = await supabase
+      .from("agents")
+      .select("*")
+      .or("is_system.eq.true,workspace_id.is.null")
+      .order("order")
 
-  if (error) throw error
-  return data
+    if (error) throw error
+    return data
+  } catch (error: any) {
+    // If workspace_id column doesn't exist, fall back to simple query
+    if (error?.message?.includes("workspace_id")) {
+      console.log("[v0] workspace_id column not found, using fallback query")
+      const { data, error: fallbackError } = await supabase
+        .from("agents")
+        .select("*")
+        .order("order", { ascending: true, nullsFirst: false })
+
+      if (fallbackError) throw fallbackError
+      console.log(`[v0] 📦 Loaded ${data?.length || 0} agents from agents table`)
+      return data
+    }
+    throw error
+  }
 }
 
 export async function toggleAgentFavorite(userId: string, agentId: string, isFavorite: boolean) {
@@ -46,15 +67,37 @@ export async function getFavoriteAgents(userId: string) {
 export async function getCustomAgents(userId: string, workspaceId: string) {
   const supabase = createClient()
 
-  const { data, error } = await supabase
-    .from("custom_agents")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("workspace_id", workspaceId)
-    .order("created_at", { ascending: false })
+  try {
+    // Try querying agents table with workspace_id
+    const { data, error } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .eq("is_system", false)
+      .order("created_at", { ascending: false })
 
-  if (error) throw error
-  return data
+    if (error) throw error
+    return data
+  } catch (error: any) {
+    // If workspace_id column doesn't exist, fall back to custom_agents table
+    if (error?.message?.includes("workspace_id") || error?.code === "42703") {
+      console.log("[v0] workspace_id column not found in agents table, trying custom_agents table")
+      const { data, error: fallbackError } = await supabase
+        .from("custom_agents")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false })
+
+      if (fallbackError) {
+        console.log("[v0] Error loading custom_agents:", fallbackError.message)
+        return []
+      }
+      console.log(`[v0] 📦 Loaded ${data?.length || 0} custom agents from custom_agents table`)
+      return data
+    }
+    console.log("[v0] Error loading custom agents:", error.message)
+    return []
+  }
 }
 
 export async function createCustomAgent(
@@ -64,12 +107,12 @@ export async function createCustomAgent(
   description: string,
   icon: string,
   color: string,
-  agentIds: string[],
+  triggerWord: string,
 ) {
   const supabase = createClient()
 
   const { data, error } = await supabase
-    .from("custom_agents")
+    .from("agents")
     .insert({
       user_id: userId,
       workspace_id: workspaceId,
@@ -77,8 +120,8 @@ export async function createCustomAgent(
       description,
       icon,
       color,
-      agent_ids: agentIds,
-      is_favorite: false,
+      trigger_word: triggerWord,
+      is_system: false,
     })
     .select()
     .single()
@@ -87,18 +130,56 @@ export async function createCustomAgent(
   return data
 }
 
-export async function toggleCustomAgentFavorite(customAgentId: string, isFavorite: boolean) {
+export async function deleteCustomAgent(customAgentId: string) {
   const supabase = createClient()
 
-  const { error } = await supabase.from("custom_agents").update({ is_favorite: isFavorite }).eq("id", customAgentId)
+  const { error } = await supabase.from("agents").delete().eq("id", customAgentId)
 
   if (error) throw error
 }
 
-export async function deleteCustomAgent(customAgentId: string) {
+export async function getAllAgentsForWorkspace(workspaceId: string) {
   const supabase = createClient()
 
-  const { error } = await supabase.from("custom_agents").delete().eq("id", customAgentId)
+  try {
+    // Try querying with workspace_id column
+    const { data, error } = await supabase
+      .from("agents")
+      .select("*")
+      .or(`is_system.eq.true,workspace_id.eq.${workspaceId}`)
+      .order("order")
 
-  if (error) throw error
+    if (error) throw error
+    return data
+  } catch (error: any) {
+    // If workspace_id column doesn't exist, fall back to separate queries
+    if (error?.message?.includes("workspace_id") || error?.code === "42703") {
+      console.log("[v0] workspace_id column not found, using fallback queries")
+
+      const { data: allAgents, error: agentsError } = await supabase
+        .from("agents")
+        .select("*")
+        .order("order", { ascending: true, nullsFirst: false })
+
+      if (agentsError) throw agentsError
+
+      // Try to get custom agents from custom_agents table
+      const { data: customAgents, error: customError } = await supabase
+        .from("custom_agents")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false })
+
+      if (customError) {
+        console.log("[v0] Error loading custom agents:", customError.message)
+      }
+
+      const totalAgents = [...(allAgents || []), ...(customAgents || [])]
+      console.log(
+        `[v0] 📦 Total agents loaded: ${totalAgents.length} (${allAgents?.length || 0} from agents + ${customAgents?.length || 0} custom)`,
+      )
+      return totalAgents
+    }
+    throw error
+  }
 }

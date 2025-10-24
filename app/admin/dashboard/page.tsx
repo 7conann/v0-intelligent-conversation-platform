@@ -19,6 +19,7 @@ import {
   Mail,
   User,
   Clock,
+  Edit,
 } from "lucide-react"
 
 interface UserMetrics {
@@ -28,10 +29,10 @@ interface UserMetrics {
   phone: string | null
   created_at: string
   last_access: string | null
+  account_expiration_date: string | null
   total_conversations: number
   total_messages: number
   days_remaining: number
-  
 }
 
 interface SystemMetrics {
@@ -80,10 +81,13 @@ export default function AdminDashboard() {
     sortBy: "name",
     sortOrder: "asc",
   })
+  const [editingUser, setEditingUser] = useState<UserMetrics | null>(null)
+  const [newExpirationDate, setNewExpirationDate] = useState("")
+  const [savingExpiration, setSavingExpiration] = useState(false)
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       const {
         data: { session },
@@ -252,6 +256,40 @@ export default function AdminDashboard() {
     filters.lastAccessTo,
   ].filter(Boolean).length
 
+  const handleUpdateExpiration = async () => {
+    if (!editingUser) return
+
+    setSavingExpiration(true)
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          account_expiration_date: newExpirationDate || null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update expiration")
+      }
+
+      // Reload users data
+      const dashboardResponse = await fetch("/api/admin/dashboard")
+      const data = await dashboardResponse.json()
+      setUsers(data.users)
+
+      setEditingUser(null)
+      setNewExpirationDate("")
+    } catch (error) {
+      console.error("[v0] Error updating expiration:", error)
+      alert("Erro ao atualizar data de expiração")
+    } finally {
+      setSavingExpiration(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -363,13 +401,28 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => router.push(`/admin/users/${user.id}`)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Ver Detalhes
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => {
+                            setEditingUser(user)
+                            setNewExpirationDate(
+                              user.account_expiration_date
+                                ? new Date(user.account_expiration_date).toISOString().split("T")[0]
+                                : "",
+                            )
+                          }}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          title="Editar data de expiração"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/admin/users/${user.id}`)}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -406,6 +459,56 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {editingUser && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setEditingUser(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-lg z-50 p-6">
+            <h3 className="text-xl font-bold text-[var(--text-primary)] mb-4">Editar Data de Expiração</h3>
+            <p className="text-[var(--text-secondary)] mb-4">
+              Usuário: <span className="font-medium text-[var(--text-primary)]">{editingUser.display_name}</span>
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+                Nova Data de Expiração
+              </label>
+              <input
+                type="date"
+                value={newExpirationDate}
+                onChange={(e) => setNewExpirationDate(e.target.value)}
+                onClick={(e) => {
+                  const input = e.target as HTMLInputElement
+                  if (input.showPicker) {
+                    input.showPicker()
+                  }
+                }}
+                min={new Date().toISOString().split("T")[0]}
+                className="w-full px-4 py-3 bg-[var(--app-bg)] border-2 border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 cursor-pointer transition-all"
+                placeholder="Selecione uma data"
+              />
+              <p className="text-xs text-[var(--text-secondary)] mt-2">
+                Deixe vazio para acesso ilimitado (apenas para admins)
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setEditingUser(null)}
+                disabled={savingExpiration}
+                className="flex-1 px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--sidebar-bg)] transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdateExpiration}
+                disabled={savingExpiration}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingExpiration ? "Salvando..." : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {showFilterSidebar && (
         <>

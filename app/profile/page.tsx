@@ -109,10 +109,7 @@ export default function ProfilePage() {
 
     await supabase.auth.signOut()
 
-    // Limpar sessionStorage (credenciais do Supabase)
     sessionStorage.clear()
-
-    // Limpar localStorage (remember me, tema, etc)
     localStorage.clear()
 
     addToast({
@@ -134,18 +131,14 @@ export default function ProfilePage() {
     )
   }
 
+  const avatarAlt = displayName || user?.email || "Logo"
+
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
-      {/* Header */}
       <div className="border-b border-[var(--sidebar-border)] bg-[var(--chat-header-bg)] px-6 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/chat")}
-              className=""
-            >
+            <Button variant="ghost" size="icon" onClick={() => router.push("/chat")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -153,22 +146,16 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-   <Avatar className="h-16 w-16">
-  <AvatarImage 
-    src="/iredondo.png" 
-    alt={displayName || user?.email || "Logo"} 
-  />
-  <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xl">
-    {(displayName || user?.email || "U").charAt(0).toUpperCase()}
-  </AvatarFallback>
-</Avatar>
-
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={avatarUrl || "/iredondo.png"} alt={avatarAlt} />
+            <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xl">
+              {(displayName || user?.email || "U").charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
 
-      {/* Content */}
       <div className="mx-auto max-w-4xl p-6 space-y-6">
-        {/* Profile Section */}
         <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600/20 to-blue-600/20 border border-purple-500/30">
@@ -266,7 +253,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Theme Section */}
         <div className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30">
@@ -317,7 +303,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Logout Section */}
         <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-6">
           <button
             onClick={handleLogout}

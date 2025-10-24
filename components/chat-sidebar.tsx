@@ -16,6 +16,8 @@ import {
   Palette,
   Users,
   Layers,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
@@ -47,6 +49,9 @@ const getAgentIconComponent = (agent: Agent) => {
 
 interface ChatSidebarProps {
   agents: Agent[]
+  allAgents?: Agent[]
+  agentPreferences?: Record<string, boolean>
+  onToggleAgentVisibility?: (agentId: string) => void
   selectedAgents: string[]
   usedAgents: string[]
   onToggleAgent: (agentId: string) => void
@@ -58,6 +63,9 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({
   agents,
+  allAgents,
+  agentPreferences,
+  onToggleAgentVisibility,
   selectedAgents,
   usedAgents,
   onToggleAgent,
@@ -71,6 +79,7 @@ export function ChatSidebar({
   const [avatarUrl, setAvatarUrl] = useState("")
   const [isExpanded, setIsExpanded] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [showAgentSettings, setShowAgentSettings] = useState(false)
 
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
@@ -81,6 +90,16 @@ export function ChatSidebar({
 
   useEffect(() => {
     setLocalAgents(agents)
+    console.log(
+      "[v0] 🎨 SIDEBAR: Agentes recebidos:",
+      agents.map((a) => ({
+        name: a.name,
+        id: a.id,
+        isCustom: (a as any).isCustomAgent,
+        trigger: a.trigger_word,
+      })),
+    )
+    console.log("[v0] 🎨 SIDEBAR: Total de agentes na sidebar:", agents.length)
   }, [agents])
 
   useEffect(() => {
@@ -192,6 +211,53 @@ export function ChatSidebar({
     <>
       {isMobileOpen && <div className="md:hidden fixed inset-0 bg-black/60 z-30" onClick={onMobileClose} />}
 
+      {showAgentSettings && allAgents && onToggleAgentVisibility && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--sidebar-bg)] rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Gerenciar Agentes</h2>
+              <button
+                onClick={() => setShowAgentSettings(false)}
+                className="w-8 h-8 rounded-full bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all"
+              >
+                <X className="w-4 h-4 text-[var(--text-primary)]" />
+              </button>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              Escolha quais agentes você deseja ver na sidebar
+            </p>
+            <div className="space-y-2">
+              {allAgents.map((agent) => {
+                const isVisible = agentPreferences?.[agent.id] ?? true
+                const iconContent = getAgentIconComponent(agent)
+
+                return (
+                  <button
+                    key={agent.id}
+                    onClick={() => onToggleAgentVisibility(agent.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] transition-all"
+                  >
+                    {typeof iconContent === "string" ? (
+                      <span className="text-xl">{iconContent}</span>
+                    ) : (
+                      <div>{iconContent}</div>
+                    )}
+                    <span className="flex-1 text-left text-sm font-medium text-[var(--text-primary)]">
+                      {agent.name}
+                    </span>
+                    {isVisible ? (
+                      <Eye className="w-5 h-5 text-green-500" />
+                    ) : (
+                      <EyeOff className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div
         className={cn(
           "bg-[var(--sidebar-bg)] border-r border-[var(--sidebar-border)] flex flex-col items-center gap-4 py-4 md:py-6 transition-all duration-300",
@@ -228,7 +294,11 @@ export function ChatSidebar({
             title={!isExpanded ? userName : undefined}
           >
             {avatarUrl ? (
-              <img src={avatarUrl || "/placeholder.svg"} alt={userName} className="w-full h-full object-cover" />
+              <img
+                src={avatarUrl || "/placeholder.svg"}
+                alt={userName || "User avatar"}
+                className="w-full h-full object-cover"
+              />
             ) : (
               <User className="w-5 h-5 md:w-6 md:h-6 text-white" />
             )}
@@ -250,6 +320,7 @@ export function ChatSidebar({
               : "grid grid-cols-1 place-items-center max-h-[calc(100vh-280px)]",
           )}
         >
+          {console.log("[v0] 🎨 SIDEBAR: Renderizando", localAgents.length, "agentes")}
           {localAgents.map((agent) => {
             const isSelected = selectedAgents.includes(agent.id)
             const isUsed = usedAgents.includes(agent.id)
@@ -258,6 +329,10 @@ export function ChatSidebar({
             const isDragging = draggedAgent === agent.id
             const isDraggedOver = draggedOverAgent === agent.id
             const isCustomAgent = (agent as any).isCustomAgent || false
+
+            if (isCustomAgent) {
+              console.log("[v0] 🎨 SIDEBAR: Renderizando custom agent:", agent.name, "ID:", agent.id)
+            }
 
             return (
               <button
@@ -336,16 +411,19 @@ export function ChatSidebar({
 
         <div className="w-full h-px bg-[var(--background)] mt-2" />
 
-        <div className="flex items-center gap-2 px-2 flex-col">
-          {isAuthorized && (
-            <button
-              onClick={() => router.push("/workspaces")}
-              className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-              title="Workspace"
-            >
-              <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-            </button>
+        <div
+          className={cn(
+            "flex gap-2 px-2",
+            isExpanded ? "flex-row items-center justify-center" : "flex-col items-center",
           )}
+        >
+          <button
+            onClick={() => router.push("/workspaces")}
+            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+            title="Workspace"
+          >
+            <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+          </button>
 
           <button
             onClick={() => router.push("/profile")}

@@ -36,7 +36,7 @@ export default function UserDetailsPage() {
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       const {
         data: { session },
@@ -79,7 +79,7 @@ export default function UserDetailsPage() {
   const loadConversationMessages = async (conversationId: string) => {
     setLoadingMessages(true)
     try {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       const {
         data: { session },

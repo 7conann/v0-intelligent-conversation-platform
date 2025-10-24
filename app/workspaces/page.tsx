@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus } from "lucide-react"
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import type { Agent } from "@/types/chat"
+import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
 
 interface WorkspaceAgent extends Agent {
   is_favorite?: boolean
+  is_visible?: boolean
 }
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -25,6 +27,9 @@ export default function WorkspacesPage() {
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
   const [showCreateAgent, setShowCreateAgent] = useState(false)
+  const [showManageAgents, setShowManageAgents] = useState(false)
+  const [agentVisibility, setAgentVisibility] = useState<Record<string, boolean>>({})
+  const [userId, setUserId] = useState<string>("")
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [newAgent, setNewAgent] = useState({
     name: "",
@@ -56,16 +61,7 @@ export default function WorkspacesPage() {
       const userEmail = session.user.email
       const authorized = AUTHORIZED_EMAILS.includes(userEmail || "")
       setIsAuthorized(authorized)
-
-      if (!authorized) {
-        addToast({
-          title: "Acesso negado",
-          description: "Você não tem permissão para acessar esta página",
-          variant: "error",
-        })
-        router.push("/profile")
-        return
-      }
+      setUserId(session.user.id)
 
       const { data: agentsData, error: agentsError } = await supabase
         .from("agents")
@@ -77,6 +73,10 @@ export default function WorkspacesPage() {
       } else if (agentsData) {
         setAgents(agentsData as WorkspaceAgent[])
       }
+
+      const preferences = getAgentPreferences(session.user.id)
+      setAgentVisibility(preferences)
+      console.log("[v0] 👁️ Agent preferences loaded from localStorage:", preferences)
 
       const { data: favoritesData } = await supabase
         .from("agent_favorites")
@@ -111,7 +111,6 @@ export default function WorkspacesPage() {
     if (!agent) return
 
     if (agent.is_favorite) {
-      // Remove from favorites
       const { error } = await supabase
         .from("agent_favorites")
         .delete()
@@ -133,7 +132,6 @@ export default function WorkspacesPage() {
         variant: "success",
       })
     } else {
-      // Add to favorites
       const { error } = await supabase.from("agent_favorites").insert({
         user_id: session.user.id,
         agent_id: agentId,
@@ -156,6 +154,39 @@ export default function WorkspacesPage() {
     }
 
     setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, is_favorite: !a.is_favorite } : a)))
+  }
+
+  const handleToggleAgentVisibility = (agentId: string) => {
+    const currentVisibility = agentVisibility[agentId] ?? true
+    const newVisibility = !currentVisibility
+
+    setAgentVisibility((prev) => ({
+      ...prev,
+      [agentId]: newVisibility,
+    }))
+
+    try {
+      toggleAgentVisibility(userId, agentId, newVisibility)
+      console.log(`[v0] ✅ Agent ${agentId} visibility saved to localStorage: ${newVisibility}`)
+
+      addToast({
+        title: newVisibility ? "Agente ativado" : "Agente desativado",
+        description: newVisibility ? "O agente agora aparecerá na sidebar" : "O agente foi ocultado da sidebar",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error saving to localStorage:", error)
+      // Revert on error
+      setAgentVisibility((prev) => ({
+        ...prev,
+        [agentId]: currentVisibility,
+      }))
+      addToast({
+        title: "Erro",
+        description: "Não foi possível alterar a visibilidade do agente",
+        variant: "error",
+      })
+    }
   }
 
   const handleSaveAgentConfig = async () => {
@@ -325,7 +356,7 @@ export default function WorkspacesPage() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => router.push("/profile")}
+              onClick={() => router.push("/chat")}
               className="hover:bg-[var(--agent-bg)]"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -335,15 +366,25 @@ export default function WorkspacesPage() {
               <p className="text-sm text-[var(--text-secondary)]">Configure palavras-chave dos agentes</p>
             </div>
           </div>
-          {isAuthorized && (
+          <div className="flex items-center gap-3">
             <Button
-              onClick={() => setShowCreateAgent(true)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+              onClick={() => setShowManageAgents(true)}
+              variant="outline"
+              className="border-[var(--sidebar-border)] text-purple-500 hover:text-purple-500 hover:bg-transparent"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Novo Agente
+              <Eye className="h-4 w-4 mr-2" />
+              Gerenciar Agentes
             </Button>
-          )}
+            {isAuthorized && (
+              <Button
+                onClick={() => setShowCreateAgent(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Novo Agente
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -403,6 +444,76 @@ export default function WorkspacesPage() {
           ))}
         </div>
       </div>
+
+      {/* Manage Agents Visibility Dialog */}
+      {showManageAgents && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Gerenciar Visibilidade dos Agentes</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Ative ou desative quais agentes aparecem na sua sidebar
+              </p>
+            </div>
+
+            <div className="space-y-2 mb-6">
+              {agents.map((agent) => {
+                const isVisible = agentVisibility[agent.id] ?? true
+                return (
+                  <div
+                    key={agent.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
+                        style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
+                      >
+                        {agent.icon}
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-[var(--text-primary)]">{agent.name}</h3>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          {agent.trigger_word || "Sem palavra-chave"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleToggleAgentVisibility(agent.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                        isVisible
+                          ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                          : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                      }`}
+                    >
+                      {isVisible ? (
+                        <>
+                          <Eye className="h-4 w-4" />
+                          <span className="text-sm font-medium">Visível</span>
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="h-4 w-4" />
+                          <span className="text-sm font-medium">Oculto</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => setShowManageAgents(false)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+              >
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Agent Config Modal */}
       {showAgentConfig && selectedAgent && (

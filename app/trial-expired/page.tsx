@@ -11,7 +11,7 @@ export default function TrialExpiredPage() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+      const supabase = createClient()
 
       const {
         data: { session },
@@ -62,10 +62,7 @@ export default function TrialExpiredPage() {
 
         <button
           onClick={() => {
-            const supabase = createClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL,
-              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            )
+            const supabase = createClient()
             supabase.auth.signOut()
             router.push("/login")
           }}

@@ -1,10 +1,9 @@
 @import "tailwindcss";
-/* Removed @import "tw-animate-css" that was causing CSS syntax errors */
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* App custom variables for dark theme (default) */
   --app-bg: #0a0a0f;
   --sidebar-bg: #111827;
   --sidebar-border: #374151;
@@ -31,7 +30,6 @@
   --settings-input-bg: #0a0a0f;
   --card-bg: #1f2937;
 
-  /* Tailwind/shadcn variables */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -67,61 +65,6 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-:root.light {
-  /* App custom variables for light theme */
-  --app-bg: #f9fafb;
-  --sidebar-bg: #ffffff;
-  --sidebar-border: #e5e7eb;
-  --agent-bg: #f3f4f6;
-  --agent-hover: #e5e7eb;
-  --agent-icon: #6b7280;
-  --tooltip-bg: #1f2937;
-  --tooltip-text: #ffffff;
-  --chat-bg: #ffffff;
-  --chat-header-bg: #f9fafb;
-  --chat-border: #e5e7eb;
-  --message-user-bg: #f3f4f6;
-  --message-assistant-bg: #f3f4f6;
-  --input-bg: #ffffff;
-  --settings-bg: #ffffff;
-  --settings-border: #e5e7eb;
-  --settings-text: #111827;
-  --settings-text-muted: #6b7280;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border-color: #e5e7eb;
-  --settings-button-bg: #f3f4f6;
-  --settings-button-hover: #e5e7eb;
-  --settings-input-bg: #f9fafb;
-  --card-bg: #ffffff;
-
-  /* Tailwind/shadcn variables for light theme */
-  --background: 0 0% 100%;
-  --foreground: 0 0% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 3.9%;
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 0 0% 96.1%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 0 0% 96.1%;
-  --muted-foreground: 0 0% 45.1%;
-  --accent: 0 0% 96.1%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 0 0% 89.8%;
-  --input: 0 0% 89.8%;
-  --ring: 0 0% 3.9%;
-  --chart-1: 12 76% 61%;
-  --chart-2: 173 58% 39%;
-  --chart-3: 197 37% 24%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 27 87% 67%;
-}
-
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -155,6 +98,41 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+}
+
+.light {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 @theme inline {
@@ -203,6 +181,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-color: #0a0a0f !important;
   }
 }
 
@@ -215,7 +194,6 @@
     display: none;
   }
 
-  /* Added shake animation for draggable agents */
   @keyframes shake {
     0%,
     100% {
@@ -235,8 +213,4 @@
   .animate-shake {
     animation: shake 0.3s ease-in-out infinite;
   }
-}
-
-body {
-  background-color: #0a0a0f !important;
 }

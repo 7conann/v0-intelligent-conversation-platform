@@ -5,6 +5,7 @@ export interface Profile {
   avatar_url: string | null
   created_at: string
   updated_at: string
+  account_expiration_date: string | null
 }
 
 export interface Workspace {
@@ -21,19 +22,22 @@ export interface Agent {
   name: string
   icon: string
   color: string
-  api_key: string | null
-  password: string | null
-  workspace_id: string | null
+  description?: string
+  trigger_word?: string
+  is_system: boolean
+  order?: number
+  workspace_id?: string | null
+  user_id?: string | null
   created_at: string
 }
 
-export interface CustomAgent {
+export interface AgentPreference {
   id: string
-  name: string
-  icon: string
   user_id: string
-  agent_ids: string[]
+  agent_id: string
+  is_visible: boolean
   created_at: string
+  updated_at: string
 }
 
 export interface AgentFavorite {
