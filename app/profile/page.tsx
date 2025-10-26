@@ -85,6 +85,8 @@ export default function ProfilePage() {
       return
     }
 
+    window.location.reload()
+
     addToast({
       title: "Perfil atualizado",
       description: "Suas informações foram salvas com sucesso",

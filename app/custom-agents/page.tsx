@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Plus, Trash2, Users } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Users, Pencil } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -17,9 +17,11 @@ export default function CustomAgentsPage() {
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [customAgents, setCustomAgents] = useState<Agent[]>([])
+  const [customAgents, setCustomAgents] = useState<any[]>([])
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingAgent, setEditingAgent] = useState<any | null>(null)
   const [newAgentName, setNewAgentName] = useState("")
   const [newAgentDescription, setNewAgentDescription] = useState("")
   const [newAgentIcon, setNewAgentIcon] = useState("👔")
@@ -81,27 +83,22 @@ export default function CustomAgentsPage() {
         setWorkspaceId(workspace.id)
       }
 
-      const { data: agentsData, error: agentsError } = await supabase
-        .from("agents")
-        .select("*")
-        .or("is_system.eq.true,workspace_id.is.null")
-        .order("name")
+      const { data: agentsData } = await supabase.from("agents").select("*").order("order")
 
       if (agentsData) {
         setAvailableAgents(agentsData as Agent[])
       }
 
-      const { data: customAgentsData, error: customError } = workspace
+      const { data: customAgentsData } = workspace
         ? await supabase
-            .from("agents")
+            .from("custom_agents")
             .select("*")
             .eq("workspace_id", workspace.id)
-            .eq("is_system", false)
             .order("created_at", { ascending: false })
-        : { data: null, error: null }
+        : { data: null }
 
       if (customAgentsData) {
-        setCustomAgents(customAgentsData as Agent[])
+        setCustomAgents(customAgentsData as any[])
       }
 
       setLoading(false)
@@ -146,7 +143,7 @@ export default function CustomAgentsPage() {
     if (!session) return
 
     const { data, error } = await supabase
-      .from("agents")
+      .from("custom_agents")
       .insert({
         name: newAgentName,
         description: newAgentDescription,
@@ -155,7 +152,6 @@ export default function CustomAgentsPage() {
         trigger_word: newAgentTriggerWord,
         user_id: session.user.id,
         workspace_id: workspaceId,
-        is_system: false,
       })
       .select()
       .single()
@@ -176,8 +172,81 @@ export default function CustomAgentsPage() {
       variant: "success",
     })
 
-    setCustomAgents((prev) => [data as Agent, ...prev])
+    setCustomAgents((prev) => [data as any, ...prev])
     setShowCreateModal(false)
+    setNewAgentName("")
+    setNewAgentDescription("")
+    setNewAgentIcon("👔")
+    setNewAgentColor("#8b5cf6")
+    setNewAgentTriggerWord("")
+  }
+
+  const handleEditCustomAgent = (agent: any) => {
+    setEditingAgent(agent)
+    setNewAgentName(agent.name)
+    setNewAgentDescription(agent.description || "")
+    setNewAgentIcon(agent.icon)
+    setNewAgentColor(agent.color)
+    setNewAgentTriggerWord(agent.trigger_word)
+    setShowEditModal(true)
+  }
+
+  const handleUpdateCustomAgent = async () => {
+    if (!newAgentName.trim()) {
+      addToast({
+        title: "Nome obrigatório",
+        description: "Digite um nome para o agente customizado",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!newAgentTriggerWord.trim()) {
+      addToast({
+        title: "Palavra-chave obrigatória",
+        description: "Digite uma palavra-chave para ativar o agente (ex: #vendas)",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!editingAgent) return
+
+    const supabase = createClient()
+
+    const { data, error } = await supabase
+      .from("custom_agents")
+      .update({
+        name: newAgentName,
+        description: newAgentDescription,
+        icon: newAgentIcon,
+        color: newAgentColor,
+        trigger_word: newAgentTriggerWord,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", editingAgent.id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error("[v0] Error updating custom agent:", error)
+      addToast({
+        title: "Erro ao atualizar",
+        description: error.message,
+        variant: "error",
+      })
+      return
+    }
+
+    addToast({
+      title: "Agente atualizado",
+      description: `${newAgentName} foi atualizado com sucesso`,
+      variant: "success",
+    })
+
+    setCustomAgents((prev) => prev.map((a) => (a.id === editingAgent.id ? (data as any) : a)))
+    setShowEditModal(false)
+    setEditingAgent(null)
     setNewAgentName("")
     setNewAgentDescription("")
     setNewAgentIcon("👔")
@@ -188,7 +257,7 @@ export default function CustomAgentsPage() {
   const handleDeleteCustomAgent = async (id: string) => {
     const supabase = createClient()
 
-    const { error } = await supabase.from("agents").delete().eq("id", id)
+    const { error } = await supabase.from("custom_agents").delete().eq("id", id)
 
     if (error) {
       addToast({
@@ -293,12 +362,20 @@ export default function CustomAgentsPage() {
                       <p className="text-xs text-muted-foreground">{customAgent.trigger_word}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteCustomAgent(customAgent.id)}
-                    className="hover:scale-110 transition-transform text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditCustomAgent(customAgent)}
+                      className="hover:scale-110 transition-transform text-purple-400 hover:text-purple-300"
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCustomAgent(customAgent.id)}
+                      className="hover:scale-110 transition-transform text-red-400 hover:text-red-300"
+                    >
+                      <Trash2 className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
 
                 {customAgent.description && <p className="text-sm text-muted-foreground">{customAgent.description}</p>}
@@ -414,6 +491,120 @@ export default function CustomAgentsPage() {
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
                 >
                   Criar Agente
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">Editar Agente Customizado</h2>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="editAgentName" className="text-[var(--text-primary)]">
+                  Nome do Agente
+                </Label>
+                <Input
+                  id="editAgentName"
+                  value={newAgentName}
+                  onChange={(e) => setNewAgentName(e.target.value)}
+                  placeholder="Ex: Diretor Executivo, Consultor Estratégico..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editAgentDescription" className="text-[var(--text-primary)]">
+                  Descrição (opcional)
+                </Label>
+                <Input
+                  id="editAgentDescription"
+                  value={newAgentDescription}
+                  onChange={(e) => setNewAgentDescription(e.target.value)}
+                  placeholder="Descreva o propósito deste agente..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
+                    Ícone (Emoji)
+                  </Label>
+                  <Input
+                    id="editAgentIcon"
+                    value={newAgentIcon}
+                    onChange={(e) => setNewAgentIcon(e.target.value)}
+                    placeholder="👔"
+                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                    maxLength={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="editAgentColor" className="text-[var(--text-primary)]">
+                    Cor
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="editAgentColor"
+                      type="color"
+                      value={newAgentColor}
+                      onChange={(e) => setNewAgentColor(e.target.value)}
+                      className="h-10 w-20 cursor-pointer"
+                    />
+                    <Input
+                      value={newAgentColor}
+                      onChange={(e) => setNewAgentColor(e.target.value)}
+                      placeholder="#8b5cf6"
+                      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editTriggerWord" className="text-[var(--text-primary)]">
+                  Palavra-chave
+                </Label>
+                <Input
+                  id="editTriggerWord"
+                  value={newAgentTriggerWord}
+                  onChange={(e) => setNewAgentTriggerWord(e.target.value)}
+                  placeholder="Ex: #vendas, #suporte, #estrategia..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                />
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Esta palavra-chave será adicionada automaticamente ao selecionar o agente no chat
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setEditingAgent(null)
+                    setNewAgentName("")
+                    setNewAgentDescription("")
+                    setNewAgentIcon("👔")
+                    setNewAgentColor("#8b5cf6")
+                    setNewAgentTriggerWord("")
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleUpdateCustomAgent}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+                >
+                  Salvar Alterações
                 </Button>
               </div>
             </div>
