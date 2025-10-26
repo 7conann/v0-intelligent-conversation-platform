@@ -434,7 +434,7 @@ export default function WorkspacesPage() {
                     setShowAgentConfig(true)
                   }}
                   variant="outline"
-                  className="w-full border-[var(--sidebar-border)] cursor-pointer text-[black]"
+                  className="w-full border-[var(--sidebar-border)] cursor-pointer text-[var(--text-primary)]"
                 >
                   <SettingsIcon className="h-4 w-4 mr-2 " />
                   Configurar
@@ -622,13 +622,13 @@ export default function WorkspacesPage() {
                     setSelectedAgent(null)
                   }}
                   variant="outline"
-                  className="flex-1 text-[black]"
+                  className="flex-1 text-[var(--text-primary)]"
                 >
                   Cancelar
                 </Button>
                 <Button
                   onClick={handleSaveAgentConfig}
-                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-[var(--text-primary)]"
                 >
                   Salvar
                 </Button>
