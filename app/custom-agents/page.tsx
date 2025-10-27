@@ -142,9 +142,33 @@ export default function CustomAgentsPage() {
 
     if (!session) return
 
+    const agentId = crypto.randomUUID()
+
+    const { error: agentsError } = await supabase.from("agents").insert({
+      id: agentId,
+      name: newAgentName,
+      description: newAgentDescription,
+      trigger_word: newAgentTriggerWord,
+      is_system: false,
+      order: 100, // High order number so custom agents appear after default ones
+      color: newAgentColor,
+      icon: newAgentIcon,
+    })
+
+    if (agentsError) {
+      console.error("[v0] Error creating agent in agents table:", agentsError)
+      addToast({
+        title: "Erro ao criar",
+        description: agentsError.message,
+        variant: "error",
+      })
+      return
+    }
+
     const { data, error } = await supabase
       .from("custom_agents")
       .insert({
+        id: agentId, // Use the same ID
         name: newAgentName,
         description: newAgentDescription,
         icon: newAgentIcon,
@@ -152,12 +176,14 @@ export default function CustomAgentsPage() {
         trigger_word: newAgentTriggerWord,
         user_id: session.user.id,
         workspace_id: workspaceId,
+        agent_ids: [],
       })
       .select()
       .single()
 
     if (error) {
       console.error("[v0] Error creating custom agent:", error)
+      await supabase.from("agents").delete().eq("id", agentId)
       addToast({
         title: "Erro ao criar",
         description: error.message,
@@ -168,7 +194,7 @@ export default function CustomAgentsPage() {
 
     addToast({
       title: "Agente criado",
-      description: `${newAgentName} foi criado com sucesso`,
+      description: `${newAgentName} foi criado com sucesso e está visível para todos os usuários`,
       variant: "success",
     })
 
@@ -214,6 +240,27 @@ export default function CustomAgentsPage() {
 
     const supabase = createClient()
 
+    const { error: agentsError } = await supabase
+      .from("agents")
+      .update({
+        name: newAgentName,
+        description: newAgentDescription,
+        trigger_word: newAgentTriggerWord,
+        color: newAgentColor,
+        icon: newAgentIcon,
+      })
+      .eq("id", editingAgent.id)
+
+    if (agentsError) {
+      console.error("[v0] Error updating agent in agents table:", agentsError)
+      addToast({
+        title: "Erro ao atualizar",
+        description: agentsError.message,
+        variant: "error",
+      })
+      return
+    }
+
     const { data, error } = await supabase
       .from("custom_agents")
       .update({
@@ -257,6 +304,12 @@ export default function CustomAgentsPage() {
   const handleDeleteCustomAgent = async (id: string) => {
     const supabase = createClient()
 
+    const { error: agentsError } = await supabase.from("agents").delete().eq("id", id)
+
+    if (agentsError) {
+      console.error("[v0] Error deleting from agents table:", agentsError)
+    }
+
     const { error } = await supabase.from("custom_agents").delete().eq("id", id)
 
     if (error) {
@@ -270,7 +323,7 @@ export default function CustomAgentsPage() {
 
     addToast({
       title: "Agente deletado",
-      description: "Agente customizado foi removido",
+      description: "Agente customizado foi removido para todos os usuários",
       variant: "success",
     })
 
