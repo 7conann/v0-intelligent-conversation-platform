@@ -27,6 +27,7 @@ export default function CustomAgentsPage() {
   const [newAgentIcon, setNewAgentIcon] = useState("👔")
   const [newAgentColor, setNewAgentColor] = useState("#8b5cf6")
   const [newAgentTriggerWord, setNewAgentTriggerWord] = useState("")
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([])
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -176,7 +177,7 @@ export default function CustomAgentsPage() {
         trigger_word: newAgentTriggerWord,
         user_id: session.user.id,
         workspace_id: workspaceId,
-        agent_ids: [],
+        agent_ids: selectedAgentIds,
       })
       .select()
       .single()
@@ -205,6 +206,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon("👔")
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
+    setSelectedAgentIds([])
   }
 
   const handleEditCustomAgent = (agent: any) => {
@@ -214,6 +216,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon(agent.icon)
     setNewAgentColor(agent.color)
     setNewAgentTriggerWord(agent.trigger_word)
+    setSelectedAgentIds(agent.agent_ids || [])
     setShowEditModal(true)
   }
 
@@ -254,7 +257,7 @@ export default function CustomAgentsPage() {
     if (agentsError) {
       console.error("[v0] Error updating agent in agents table:", agentsError)
       addToast({
-        title: "Erro ao atualizar",
+        title: "Erro ao atualizar agente normal",
         description: agentsError.message,
         variant: "error",
       })
@@ -269,6 +272,7 @@ export default function CustomAgentsPage() {
         icon: newAgentIcon,
         color: newAgentColor,
         trigger_word: newAgentTriggerWord,
+        agent_ids: selectedAgentIds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editingAgent.id)
@@ -287,7 +291,7 @@ export default function CustomAgentsPage() {
 
     addToast({
       title: "Agente atualizado",
-      description: `${newAgentName} foi atualizado com sucesso`,
+      description: `${newAgentName} foi atualizado com sucesso em ambas as tabelas`,
       variant: "success",
     })
 
@@ -299,6 +303,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon("👔")
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
+    setSelectedAgentIds([])
   }
 
   const handleDeleteCustomAgent = async (id: string) => {
@@ -328,6 +333,16 @@ export default function CustomAgentsPage() {
     })
 
     setCustomAgents((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  const toggleAgentSelection = (agentId: string) => {
+    setSelectedAgentIds((prev) => {
+      if (prev.includes(agentId)) {
+        return prev.filter((id) => id !== agentId)
+      } else {
+        return [...prev, agentId]
+      }
+    })
   }
 
   if (loading) {
@@ -431,7 +446,28 @@ export default function CustomAgentsPage() {
                   </div>
                 </div>
 
-                {customAgent.description && <p className="text-sm text-muted-foreground">{customAgent.description}</p>}
+                {customAgent.description && (
+                  <p className="text-sm text-muted-foreground mb-3">{customAgent.description}</p>
+                )}
+
+                {customAgent.agent_ids && customAgent.agent_ids.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[var(--sidebar-border)]">
+                    <p className="text-xs text-muted-foreground mb-2">Agentes vinculados:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {customAgent.agent_ids.map((agentId: string) => {
+                        const agent = availableAgents.find((a) => a.id === agentId)
+                        return agent ? (
+                          <span
+                            key={agentId}
+                            className="text-xs px-2 py-1 rounded-md bg-[var(--agent-bg)] border border-[var(--sidebar-border)]"
+                          >
+                            {agent.name}
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -524,6 +560,33 @@ export default function CustomAgentsPage() {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-[var(--text-primary)]">Vincular Agentes (opcional)</Label>
+                <p className="text-xs text-[var(--text-secondary)] mb-3">
+                  Selecione os agentes que deseja vincular a este agente customizado
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border border-[var(--sidebar-border)] rounded-lg bg-[var(--input-bg)]">
+                  {availableAgents.map((agent) => (
+                    <label
+                      key={agent.id}
+                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
+                        selectedAgentIds.includes(agent.id)
+                          ? "bg-purple-500/20 border border-purple-500/50"
+                          : "bg-[var(--agent-bg)] border border-[var(--sidebar-border)] hover:border-purple-500/30"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAgentIds.includes(agent.id)}
+                        onChange={() => toggleAgentSelection(agent.id)}
+                        className="rounded border-[var(--sidebar-border)]"
+                      />
+                      <span className="text-sm text-[var(--text-primary)]">{agent.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -533,6 +596,7 @@ export default function CustomAgentsPage() {
                     setNewAgentIcon("👔")
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
+                    setSelectedAgentIds([])
                   }}
                   variant="outline"
                   className="flex-1"
@@ -637,6 +701,33 @@ export default function CustomAgentsPage() {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-[var(--text-primary)]">Vincular Agentes (opcional)</Label>
+                <p className="text-xs text-[var(--text-secondary)] mb-3">
+                  Selecione os agentes que deseja vincular a este agente customizado
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border border-[var(--sidebar-border)] rounded-lg bg-[var(--input-bg)]">
+                  {availableAgents.map((agent) => (
+                    <label
+                      key={agent.id}
+                      className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
+                        selectedAgentIds.includes(agent.id)
+                          ? "bg-purple-500/20 border border-purple-500/50"
+                          : "bg-[var(--agent-bg)] border border-[var(--sidebar-border)] hover:border-purple-500/30"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAgentIds.includes(agent.id)}
+                        onChange={() => toggleAgentSelection(agent.id)}
+                        className="rounded border-[var(--sidebar-border)]"
+                      />
+                      <span className="text-sm text-[var(--text-primary)]">{agent.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -647,6 +738,7 @@ export default function CustomAgentsPage() {
                     setNewAgentIcon("👔")
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
+                    setSelectedAgentIds([])
                   }}
                   variant="outline"
                   className="flex-1"
