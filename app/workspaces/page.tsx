@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff } from "lucide-react"
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { EmojiPicker } from "@/components/emoji-picker"
 import type { Agent } from "@/types/chat"
 import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
 
@@ -98,6 +99,33 @@ export default function WorkspacesPage() {
 
     loadData()
   }, [router, addToast])
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showAgentConfig) {
+          setShowAgentConfig(false)
+          setSelectedAgent(null)
+        }
+        if (showCreateAgent) {
+          setShowCreateAgent(false)
+          setNewAgent({
+            name: "",
+            icon: "",
+            color: "#8B5CF6",
+            description: "",
+            trigger_word: "",
+          })
+        }
+        if (showManageAgents) {
+          setShowManageAgents(false)
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape)
+    return () => window.removeEventListener("keydown", handleEscape)
+  }, [showAgentConfig, showCreateAgent, showManageAgents])
 
   const handleToggleFavorite = async (agentId: string) => {
     const supabase = createClient()
@@ -337,6 +365,68 @@ export default function WorkspacesPage() {
     })
   }
 
+  const handleDeleteAgent = async (agentId: string) => {
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para deletar agentes",
+        variant: "error",
+      })
+      return
+    }
+
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) return
+
+    // Check if agent is linked to any custom agents
+    const supabase = createClient()
+    const { data: linkedCustomAgents } = await supabase
+      .from("custom_agents")
+      .select("id, name")
+      .contains("agent_ids", [agentId])
+
+    if (linkedCustomAgents && linkedCustomAgents.length > 0) {
+      const customAgentNames = linkedCustomAgents.map((ca) => ca.name).join(", ")
+
+      if (
+        !confirm(
+          `Este agente está vinculado aos seguintes agentes customizados: ${customAgentNames}.\n\nAo deletar este agente, os agentes customizados vinculados também serão removidos. Deseja continuar?`,
+        )
+      ) {
+        return
+      }
+
+      // Delete linked custom agents
+      for (const customAgent of linkedCustomAgents) {
+        await supabase.from("custom_agents").delete().eq("id", customAgent.id)
+        await supabase.from("agents").delete().eq("id", customAgent.id)
+      }
+    }
+
+    // Delete the agent
+    const { error } = await supabase.from("agents").delete().eq("id", agentId)
+
+    if (error) {
+      addToast({
+        title: "Erro ao deletar",
+        description: error.message,
+        variant: "error",
+      })
+      return
+    }
+
+    addToast({
+      title: "Agente deletado",
+      description:
+        linkedCustomAgents && linkedCustomAgents.length > 0
+          ? `${agent.name} e ${linkedCustomAgents.length} agente(s) customizado(s) vinculado(s) foram removidos`
+          : `${agent.name} foi removido com sucesso`,
+      variant: "success",
+    })
+
+    setAgents((prev) => prev.filter((a) => a.id !== agentId))
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -428,17 +518,26 @@ export default function WorkspacesPage() {
               </div>
 
               {isAuthorized && (
-                <Button
-                  onClick={() => {
-                    setSelectedAgent(agent)
-                    setShowAgentConfig(true)
-                  }}
-                  variant="outline"
-                  className="w-full border-[var(--sidebar-border)] cursor-pointer ttext-[var(--text-primary)]"
-                >
-                  <SettingsIcon className="h-4 w-4 mr-2 " />
-                  Configurar
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setSelectedAgent(agent)
+                      setShowAgentConfig(true)
+                    }}
+                    variant="outline"
+                    className="flex-1 border-[var(--sidebar-border)] cursor-pointer text-[var(--text-primary)]"
+                  >
+                    <SettingsIcon className="h-4 w-4 mr-2" />
+                    Configurar
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteAgent(agent.id)}
+                    variant="outline"
+                    className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
           ))}
@@ -551,14 +650,9 @@ export default function WorkspacesPage() {
                 <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
                   Ícone (Emoji) *
                 </Label>
-                <Input
-                  id="editAgentIcon"
-                  type="text"
+                <EmojiPicker
                   value={selectedAgent.icon}
-                  onChange={(e) => setSelectedAgent({ ...selectedAgent, icon: e.target.value })}
-                  placeholder="Ex: 💼"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                  maxLength={2}
+                  onChange={(emoji) => setSelectedAgent({ ...selectedAgent, icon: emoji })}
                 />
                 <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
               </div>
@@ -616,7 +710,6 @@ export default function WorkspacesPage() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                
                 <Button
                   onClick={() => {
                     setShowAgentConfig(false)
@@ -667,15 +760,7 @@ export default function WorkspacesPage() {
                 <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
                   Ícone (Emoji) *
                 </Label>
-                <Input
-                  id="agentIcon"
-                  type="text"
-                  value={newAgent.icon}
-                  onChange={(e) => setNewAgent({ ...newAgent, icon: e.target.value })}
-                  placeholder="Ex: 💼"
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                  maxLength={2}
-                />
+                <EmojiPicker value={newAgent.icon} onChange={(emoji) => setNewAgent({ ...newAgent, icon: emoji })} />
                 <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
               </div>
 

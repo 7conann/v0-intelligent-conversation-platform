@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { EmojiPicker } from "@/components/emoji-picker"
 import type { Agent } from "@/types/database"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -107,6 +108,35 @@ export default function CustomAgentsPage() {
 
     loadData()
   }, [router, addToast])
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showCreateModal) {
+          setShowCreateModal(false)
+          setNewAgentName("")
+          setNewAgentDescription("")
+          setNewAgentIcon("👔")
+          setNewAgentColor("#8b5cf6")
+          setNewAgentTriggerWord("")
+          setSelectedAgentIds([])
+        }
+        if (showEditModal) {
+          setShowEditModal(false)
+          setEditingAgent(null)
+          setNewAgentName("")
+          setNewAgentDescription("")
+          setNewAgentIcon("👔")
+          setNewAgentColor("#8b5cf6")
+          setNewAgentTriggerWord("")
+          setSelectedAgentIds([])
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape)
+    return () => window.removeEventListener("keydown", handleEscape)
+  }, [showCreateModal, showEditModal])
 
   const handleCreateCustomAgent = async () => {
     if (!newAgentName.trim()) {
@@ -512,14 +542,7 @@ export default function CustomAgentsPage() {
                   <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
                     Ícone (Emoji)
                   </Label>
-                  <Input
-                    id="agentIcon"
-                    value={newAgentIcon}
-                    onChange={(e) => setNewAgentIcon(e.target.value)}
-                    placeholder="👔"
-                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                    maxLength={2}
-                  />
+                  <EmojiPicker value={newAgentIcon} onChange={setNewAgentIcon} />
                 </div>
 
                 <div className="space-y-2">
@@ -653,14 +676,7 @@ export default function CustomAgentsPage() {
                   <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
                     Ícone (Emoji)
                   </Label>
-                  <Input
-                    id="editAgentIcon"
-                    value={newAgentIcon}
-                    onChange={(e) => setNewAgentIcon(e.target.value)}
-                    placeholder="👔"
-                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                    maxLength={2}
-                  />
+                  <EmojiPicker value={newAgentIcon} onChange={setNewAgentIcon} />
                 </div>
 
                 <div className="space-y-2">
