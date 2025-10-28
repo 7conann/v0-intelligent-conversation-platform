@@ -599,6 +599,7 @@ export default function WorkspacesPage() {
         </div>
       </div>
 
+      
       <div className="mx-auto max-w-6xl p-6 pb-4">
         <div className="flex items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
