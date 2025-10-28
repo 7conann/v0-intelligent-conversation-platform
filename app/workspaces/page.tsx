@@ -602,6 +602,7 @@ export default function WorkspacesPage() {
               })}
             </div>
 
+            
             <div className="flex justify-end">
               <Button
                 onClick={() => setShowManageAgents(false)}
