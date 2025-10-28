@@ -1,8 +1,10 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2 } from "lucide-react"
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -10,12 +12,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { EmojiPicker } from "@/components/emoji-picker"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Agent } from "@/types/chat"
 import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
 
 interface WorkspaceAgent extends Agent {
   is_favorite?: boolean
   is_visible?: boolean
+  is_active?: boolean
+  group_name?: string
+  display_order?: number
 }
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -25,6 +31,7 @@ export default function WorkspacesPage() {
   const { addToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<WorkspaceAgent[]>([])
+  const [filteredAgents, setFilteredAgents] = useState<WorkspaceAgent[]>([])
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
   const [showCreateAgent, setShowCreateAgent] = useState(false)
@@ -32,12 +39,32 @@ export default function WorkspacesPage() {
   const [agentVisibility, setAgentVisibility] = useState<Record<string, boolean>>({})
   const [userId, setUserId] = useState<string>("")
   const [isAuthorized, setIsAuthorized] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "inactive">("active")
+  const [filterGroup, setFilterGroup] = useState<string>("all")
+  const [draggedAgent, setDraggedAgent] = useState<WorkspaceAgent | null>(null)
+  const [dragOverAgent, setDragOverAgent] = useState<WorkspaceAgent | null>(null)
   const [newAgent, setNewAgent] = useState({
     name: "",
     icon: "",
     color: "#8B5CF6",
     description: "",
     trigger_word: "",
+    group_name: "Geral",
+  })
+  const [newGroupName, setNewGroupName] = useState("")
+  const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false)
+  const [inactiveAgents, setInactiveAgents] = useState<Set<string>>(new Set())
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    description: string
+    onConfirm: () => void
+    variant?: "default" | "destructive"
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: () => {},
   })
 
   useEffect(() => {
@@ -64,20 +91,30 @@ export default function WorkspacesPage() {
       setIsAuthorized(authorized)
       setUserId(session.user.id)
 
+      const storedInactive = localStorage.getItem(`inactive_agents_${session.user.id}`)
+      if (storedInactive) {
+        setInactiveAgents(new Set(JSON.parse(storedInactive)))
+      }
+
       const { data: agentsData, error: agentsError } = await supabase
         .from("agents")
         .select("*")
-        .order("created_at", { ascending: true })
+        .order("order", { ascending: true })
 
       if (agentsError) {
         console.error("Error loading agents:", agentsError)
       } else if (agentsData) {
-        setAgents(agentsData as WorkspaceAgent[])
+        const mappedAgents = agentsData.map((agent: any) => ({
+          ...agent,
+          display_order: agent.display_order ?? agent.order ?? 0,
+          is_active: agent.is_active ?? true,
+          group_name: agent.group_name ?? "Geral",
+        }))
+        setAgents(mappedAgents as WorkspaceAgent[])
       }
 
       const preferences = getAgentPreferences(session.user.id)
       setAgentVisibility(preferences)
-      console.log("[v0] 👁️ Agent preferences loaded from localStorage:", preferences)
 
       const { data: favoritesData } = await supabase
         .from("agent_favorites")
@@ -101,6 +138,25 @@ export default function WorkspacesPage() {
   }, [router, addToast])
 
   useEffect(() => {
+    let filtered = [...agents]
+
+    if (filterStatus === "active") {
+      filtered = filtered.filter((a) => !inactiveAgents.has(a.id))
+    } else if (filterStatus === "inactive") {
+      filtered = filtered.filter((a) => inactiveAgents.has(a.id))
+    }
+
+    // Filter by group
+    if (filterGroup !== "all") {
+      filtered = filtered.filter((a) => a.group_name === filterGroup)
+    }
+
+    setFilteredAgents(filtered)
+  }, [agents, filterStatus, filterGroup, inactiveAgents])
+
+  const groups = Array.from(new Set(agents.map((a) => a.group_name || "Geral")))
+
+  useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (showAgentConfig) {
@@ -115,6 +171,7 @@ export default function WorkspacesPage() {
             color: "#8B5CF6",
             description: "",
             trigger_word: "",
+            group_name: "Geral",
           })
         }
         if (showManageAgents) {
@@ -126,6 +183,62 @@ export default function WorkspacesPage() {
     window.addEventListener("keydown", handleEscape)
     return () => window.removeEventListener("keydown", handleEscape)
   }, [showAgentConfig, showCreateAgent, showManageAgents])
+
+  const handleDragStart = (agent: WorkspaceAgent) => {
+    setDraggedAgent(agent)
+  }
+
+  const handleDragOver = (e: React.DragEvent, agent: WorkspaceAgent) => {
+    e.preventDefault()
+    setDragOverAgent(agent)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverAgent(null)
+  }
+
+  const handleDrop = async (targetAgent: WorkspaceAgent) => {
+    if (!draggedAgent || draggedAgent.id === targetAgent.id) {
+      setDragOverAgent(null)
+      return
+    }
+
+    const supabase = createClient()
+    const draggedIndex = agents.findIndex((a) => a.id === draggedAgent.id)
+    const targetIndex = agents.findIndex((a) => a.id === targetAgent.id)
+
+    // Reorder locally
+    const newAgents = [...agents]
+    newAgents.splice(draggedIndex, 1)
+    newAgents.splice(targetIndex, 0, draggedAgent)
+
+    const reorderedAgents = newAgents.map((agent, index) => ({
+      ...agent,
+      order: index,
+      display_order: index,
+    }))
+
+    setAgents(reorderedAgents)
+
+    // Update in database
+    const updates = reorderedAgents.map((agent, index) => ({
+      id: agent.id,
+      order: index,
+    }))
+
+    for (const update of updates) {
+      await supabase.from("agents").update({ order: update.order }).eq("id", update.id)
+    }
+
+    setDraggedAgent(null)
+    setDragOverAgent(null)
+
+    addToast({
+      title: "Ordem atualizada",
+      description: "A ordem dos agentes foi atualizada na sidebar",
+      variant: "success",
+    })
+  }
 
   const handleToggleFavorite = async (agentId: string) => {
     const supabase = createClient()
@@ -195,7 +308,6 @@ export default function WorkspacesPage() {
 
     try {
       toggleAgentVisibility(userId, agentId, newVisibility)
-      console.log(`[v0] ✅ Agent ${agentId} visibility saved to localStorage: ${newVisibility}`)
 
       addToast({
         title: newVisibility ? "Agente ativado" : "Agente desativado",
@@ -204,7 +316,6 @@ export default function WorkspacesPage() {
       })
     } catch (error) {
       console.error("[v0] Error saving to localStorage:", error)
-      // Revert on error
       setAgentVisibility((prev) => ({
         ...prev,
         [agentId]: currentVisibility,
@@ -238,21 +349,9 @@ export default function WorkspacesPage() {
       return
     }
 
-    console.log("[v0] 💾 Salvando agente:", {
-      agentId: selectedAgent.id,
-      agentName: selectedAgent.name,
-      changes: {
-        name: selectedAgent.name,
-        icon: selectedAgent.icon,
-        color: selectedAgent.color,
-        description: selectedAgent.description,
-        trigger_word: selectedAgent.trigger_word,
-      },
-    })
-
     const supabase = createClient()
 
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase
       .from("agents")
       .update({
         name: selectedAgent.name,
@@ -264,15 +363,7 @@ export default function WorkspacesPage() {
       .eq("id", selectedAgent.id)
       .select()
 
-    console.log("[v0] 📊 Resultado do UPDATE:", {
-      error: error,
-      data: data,
-      count: count,
-      rowsAffected: data?.length || 0,
-    })
-
     if (error) {
-      console.error("[v0] ❌ Erro ao salvar agente:", error)
       addToast({
         title: "Erro ao salvar",
         description: error.message,
@@ -280,18 +371,6 @@ export default function WorkspacesPage() {
       })
       return
     }
-
-    if (!data || data.length === 0) {
-      console.error("[v0] ❌ Nenhuma linha foi atualizada. Possível problema de RLS ou ID inválido.")
-      addToast({
-        title: "Erro ao salvar",
-        description: "Nenhuma linha foi atualizada. Verifique as permissões do banco de dados.",
-        variant: "error",
-      })
-      return
-    }
-
-    console.log("[v0] ✅ Agente salvo com sucesso no banco de dados")
 
     addToast({
       title: "Agente atualizado",
@@ -325,6 +404,14 @@ export default function WorkspacesPage() {
 
     const supabase = createClient()
 
+    const { data: maxOrderData } = await supabase
+      .from("agents")
+      .select("order")
+      .order("order", { ascending: false })
+      .limit(1)
+
+    const maxOrder = maxOrderData?.[0]?.order || 0
+
     const { data, error } = await supabase
       .from("agents")
       .insert({
@@ -334,6 +421,7 @@ export default function WorkspacesPage() {
         description: newAgent.description,
         trigger_word: newAgent.trigger_word,
         is_system: false,
+        order: maxOrder + 1,
       })
       .select()
       .single()
@@ -354,7 +442,14 @@ export default function WorkspacesPage() {
       variant: "success",
     })
 
-    setAgents((prev) => [...prev, data as WorkspaceAgent])
+    const mappedAgent = {
+      ...data,
+      display_order: data.order,
+      is_active: true,
+      group_name: newAgent.group_name,
+    }
+
+    setAgents((prev) => [...prev, mappedAgent as WorkspaceAgent])
     setShowCreateAgent(false)
     setNewAgent({
       name: "",
@@ -362,6 +457,7 @@ export default function WorkspacesPage() {
       color: "#8B5CF6",
       description: "",
       trigger_word: "",
+      group_name: "Geral",
     })
   }
 
@@ -369,7 +465,7 @@ export default function WorkspacesPage() {
     if (!isAuthorized) {
       addToast({
         title: "Acesso negado",
-        description: "Você não tem permissão para deletar agentes",
+        description: "Você não tem permissão para desativar agentes",
         variant: "error",
       })
       return
@@ -378,8 +474,8 @@ export default function WorkspacesPage() {
     const agent = agents.find((a) => a.id === agentId)
     if (!agent) return
 
-    // Check if agent is linked to any custom agents
     const supabase = createClient()
+
     const { data: linkedCustomAgents } = await supabase
       .from("custom_agents")
       .select("id, name")
@@ -388,43 +484,68 @@ export default function WorkspacesPage() {
     if (linkedCustomAgents && linkedCustomAgents.length > 0) {
       const customAgentNames = linkedCustomAgents.map((ca) => ca.name).join(", ")
 
-      if (
-        !confirm(
-          `Este agente está vinculado aos seguintes agentes customizados: ${customAgentNames}.\n\nAo deletar este agente, os agentes customizados vinculados também serão removidos. Deseja continuar?`,
-        )
-      ) {
-        return
-      }
+      setConfirmDialog({
+        isOpen: true,
+        title: "Desativar agente vinculado",
+        description: `Este agente está vinculado aos seguintes agentes customizados: ${customAgentNames}.\n\nAo desativar este agente, os agentes customizados vinculados também serão desativados. Deseja continuar?`,
+        variant: "destructive",
+        onConfirm: () => {
+          const newInactive = new Set(inactiveAgents)
+          linkedCustomAgents.forEach((ca) => newInactive.add(ca.id))
+          newInactive.add(agentId)
+          setInactiveAgents(newInactive)
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
 
-      // Delete linked custom agents
-      for (const customAgent of linkedCustomAgents) {
-        await supabase.from("custom_agents").delete().eq("id", customAgent.id)
-        await supabase.from("agents").delete().eq("id", customAgent.id)
-      }
-    }
-
-    // Delete the agent
-    const { error } = await supabase.from("agents").delete().eq("id", agentId)
-
-    if (error) {
-      addToast({
-        title: "Erro ao deletar",
-        description: error.message,
-        variant: "error",
+          addToast({
+            title: "Agente desativado",
+            description: `${agent.name} e ${linkedCustomAgents.length} agente(s) customizado(s) vinculado(s) foram movidos para a lixeira`,
+            variant: "success",
+          })
+        },
       })
-      return
+    } else {
+      setConfirmDialog({
+        isOpen: true,
+        title: "Desativar agente",
+        description: `Deseja desativar o agente "${agent.name}"?\n\nO agente será movido para a lixeira e não aparecerá mais na sidebar.\nVocê poderá restaurá-lo a qualquer momento usando o filtro "Inativos (Lixeira)".`,
+        variant: "destructive",
+        onConfirm: () => {
+          const newInactive = new Set(inactiveAgents)
+          newInactive.add(agentId)
+          setInactiveAgents(newInactive)
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+
+          addToast({
+            title: "Agente desativado",
+            description: `${agent.name} foi movido para a lixeira. Use o filtro "Inativos" para restaurá-lo.`,
+            variant: "success",
+          })
+        },
+      })
     }
+  }
 
-    addToast({
-      title: "Agente deletado",
-      description:
-        linkedCustomAgents && linkedCustomAgents.length > 0
-          ? `${agent.name} e ${linkedCustomAgents.length} agente(s) customizado(s) vinculado(s) foram removidos`
-          : `${agent.name} foi removido com sucesso`,
-      variant: "success",
+  const handleRestoreAgent = async (agentId: string) => {
+    const agent = agents.find((a) => a.id === agentId)
+    if (!agent) return
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Restaurar agente",
+      description: `Deseja restaurar o agente "${agent.name}"?\n\nO agente voltará a aparecer na sidebar e ficará ativo novamente.`,
+      onConfirm: () => {
+        const newInactive = new Set(inactiveAgents)
+        newInactive.delete(agentId)
+        setInactiveAgents(newInactive)
+        localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+
+        addToast({
+          title: "Agente restaurado",
+          description: `${agent.name} foi restaurado e voltará a aparecer na sidebar`,
+          variant: "success",
+        })
+      },
     })
-
-    setAgents((prev) => prev.filter((a) => a.id !== agentId))
   }
 
   if (loading) {
@@ -453,7 +574,7 @@ export default function WorkspacesPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)]">Workspaces & Agentes</h1>
-              <p className="text-sm text-[var(--text-secondary)]">Configure palavras-chave dos agentes</p>
+              <p className="text-sm text-[var(--text-secondary)]">Configure, organize e gerencie seus agentes</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -478,69 +599,145 @@ export default function WorkspacesPage() {
         </div>
       </div>
 
+      <div className="mx-auto max-w-6xl p-6 pb-4">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-sm text-[var(--text-secondary)]">Filtros:</span>
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "inactive")}
+            className="px-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)] text-sm"
+          >
+            <option value="all">Todos os status</option>
+            <option value="active">Ativos</option>
+            <option value="inactive">Inativos (Lixeira)</option>
+          </select>
+          <select
+            value={filterGroup}
+            onChange={(e) => setFilterGroup(e.target.value)}
+            className="px-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)] text-sm"
+          >
+            <option value="all">Todos os grupos</option>
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </select>
+          <div className="ml-auto text-sm text-[var(--text-secondary)]">
+            {filteredAgents.length} agente(s) encontrado(s)
+          </div>
+        </div>
+      </div>
+
       {/* Content */}
-      <div className="mx-auto max-w-6xl p-6">
+      <div className="mx-auto max-w-6xl px-6 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              className="rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6 hover:border-purple-500/50 transition-all"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
-                    style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
-                  >
-                    {agent.icon}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg text-[var(--text-primary)]">{agent.name}</h3>
-                    <p className="text-xs text-[var(--text-secondary)]">Agente especializado</p>
-                  </div>
-                </div>
-                <button onClick={() => handleToggleFavorite(agent.id)} className="hover:scale-110 transition-transform">
-                  <Star
-                    className={`h-5 w-5 ${
-                      agent.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-[var(--text-secondary)]"
-                    }`}
-                  />
-                </button>
-              </div>
+          {filteredAgents.map((agent) => {
+            const isInactive = inactiveAgents.has(agent.id)
 
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center gap-2 text-sm">
-                  <Hash className="h-4 w-4 text-[var(--text-secondary)]" />
-                  <span className="text-[var(--text-secondary)]">
-                    Palavra-chave: {agent.trigger_word || "Não configurada"}
-                  </span>
+            return (
+              <div
+                key={agent.id}
+                draggable={isAuthorized && !isInactive}
+                onDragStart={() => handleDragStart(agent)}
+                onDragOver={(e) => handleDragOver(e, agent)}
+                onDragLeave={handleDragLeave}
+                onDrop={() => handleDrop(agent)}
+                className={`rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6 hover:border-purple-500/50 transition-all ${
+                  isInactive ? "opacity-50" : ""
+                } ${isAuthorized && !isInactive ? "cursor-move" : ""} ${
+                  dragOverAgent?.id === agent.id ? "border-purple-500 scale-105" : ""
+                } ${draggedAgent?.id === agent.id ? "opacity-50" : ""}`}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 flex-1">
+                    {isAuthorized && !isInactive && (
+                      <GripVertical className="h-5 w-5 text-[var(--text-secondary)] flex-shrink-0" />
+                    )}
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl flex-shrink-0"
+                      style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
+                    >
+                      {agent.icon}
+                    </div>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <h3
+                        className="font-semibold text-lg text-[var(--text-primary)] line-clamp-2 break-words"
+                        title={agent.name}
+                      >
+                        {agent.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-[var(--text-secondary)] truncate">{agent.group_name || "Geral"}</p>
+                        {isInactive && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-500 whitespace-nowrap">
+                            Inativo
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleToggleFavorite(agent.id)}
+                    className="hover:scale-110 transition-transform flex-shrink-0"
+                  >
+                    <Star
+                      className={`h-5 w-5 ${
+                        agent.is_favorite ? "fill-yellow-400 text-yellow-400" : "text-[var(--text-secondary)]"
+                      }`}
+                    />
+                  </button>
                 </div>
-              </div>
 
-              {isAuthorized && (
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setSelectedAgent(agent)
-                      setShowAgentConfig(true)
-                    }}
-                    variant="outline"
-                    className="flex-1 border-[var(--sidebar-border)] cursor-pointer text-[var(--text-primary)]"
-                  >
-                    <SettingsIcon className="h-4 w-4 mr-2" />
-                    Configurar
-                  </Button>
-                  <Button
-                    onClick={() => handleDeleteAgent(agent.id)}
-                    variant="outline"
-                    className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Hash className="h-4 w-4 text-[var(--text-secondary)]" />
+                    <span className="text-[var(--text-secondary)]">
+                      Palavra-chave: {agent.trigger_word || "Não configurada"}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {isAuthorized && (
+                  <div className="flex gap-2">
+                    {isInactive ? (
+                      <Button
+                        onClick={() => handleRestoreAgent(agent.id)}
+                        variant="outline"
+                        className="flex-1 border-green-500/50 text-green-500 hover:bg-green-500/10"
+                      >
+                        Restaurar
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setSelectedAgent(agent)
+                            setShowAgentConfig(true)
+                          }}
+                          variant="outline"
+                          className="flex-1 border-[var(--sidebar-border)] cursor-pointer text-[var(--text-primary)]"
+                        >
+                          <SettingsIcon className="h-4 w-4 mr-2" />
+                          Configurar
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteAgent(agent.id)}
+                          variant="outline"
+                          className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -602,7 +799,6 @@ export default function WorkspacesPage() {
               })}
             </div>
 
-            
             <div className="flex justify-end">
               <Button
                 onClick={() => setShowManageAgents(false)}
@@ -710,6 +906,52 @@ export default function WorkspacesPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="editAgentGroup" className="text-[var(--text-primary)]">
+                  Grupo
+                </Label>
+                <select
+                  id="editAgentGroup"
+                  value={isCreatingNewGroup ? "__new__" : selectedAgent.group_name || "Geral"}
+                  onChange={(e) => {
+                    if (e.target.value === "__new__") {
+                      setIsCreatingNewGroup(true)
+                      setNewGroupName("")
+                    } else {
+                      setIsCreatingNewGroup(false)
+                      setSelectedAgent({ ...selectedAgent, group_name: e.target.value })
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                >
+                  {groups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                  <option value="__new__">+ Novo Grupo</option>
+                </select>
+                {isCreatingNewGroup && (
+                  <Input
+                    type="text"
+                    placeholder="Nome do novo grupo"
+                    value={newGroupName}
+                    onChange={(e) => {
+                      setNewGroupName(e.target.value)
+                      setSelectedAgent({ ...selectedAgent, group_name: e.target.value })
+                    }}
+                    onBlur={() => {
+                      if (!newGroupName.trim()) {
+                        setIsCreatingNewGroup(false)
+                        setSelectedAgent({ ...selectedAgent, group_name: "Geral" })
+                      }
+                    }}
+                    autoFocus
+                    className="mt-2 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                  />
+                )}
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -815,6 +1057,52 @@ export default function WorkspacesPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="agentGroup" className="text-[var(--text-primary)]">
+                  Grupo
+                </Label>
+                <select
+                  id="agentGroup"
+                  value={isCreatingNewGroup ? "__new__" : newAgent.group_name}
+                  onChange={(e) => {
+                    if (e.target.value === "__new__") {
+                      setIsCreatingNewGroup(true)
+                      setNewGroupName("")
+                    } else {
+                      setIsCreatingNewGroup(false)
+                      setNewAgent({ ...newAgent, group_name: e.target.value })
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                >
+                  {groups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                  <option value="__new__">+ Novo Grupo</option>
+                </select>
+                {isCreatingNewGroup && (
+                  <Input
+                    type="text"
+                    placeholder="Nome do novo grupo"
+                    value={newGroupName}
+                    onChange={(e) => {
+                      setNewGroupName(e.target.value)
+                      setNewAgent({ ...newAgent, group_name: e.target.value })
+                    }}
+                    onBlur={() => {
+                      if (!newGroupName.trim()) {
+                        setIsCreatingNewGroup(false)
+                        setNewAgent({ ...newAgent, group_name: "Geral" })
+                      }
+                    }}
+                    autoFocus
+                    className="mt-2 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                  />
+                )}
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -825,6 +1113,7 @@ export default function WorkspacesPage() {
                       color: "#8B5CF6",
                       description: "",
                       trigger_word: "",
+                      group_name: "Geral",
                     })
                   }}
                   variant="outline"
@@ -843,6 +1132,15 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.variant === "destructive" ? "Desativar" : "Confirmar"}
+      />
     </div>
   )
 }
