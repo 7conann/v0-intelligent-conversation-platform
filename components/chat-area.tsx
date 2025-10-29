@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { AgentTagInput } from "@/components/agent-tag-input"
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -47,6 +48,7 @@ interface ChatAreaProps {
   onUpdateChatName?: (chatId: string, newName: string) => void
   className?: string
   onExternalApiResponse?: (payload: any, opts?: { decorate?: boolean }) => Promise<void>
+  onToggleAgent?: (agentId: string) => void
 }
 
 export function ChatArea({
@@ -66,8 +68,8 @@ export function ChatArea({
   onAddMessage,
   onOpenMobileSidebar,
   onUpdateChatName,
-    onExternalApiResponse, // ⬅️ agora vem pra cá
-
+  onExternalApiResponse,
+  onToggleAgent,
   className,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
@@ -109,8 +111,29 @@ export function ChatArea({
     setInput("")
   }, [currentChatId])
 
-  useEffect(() => {
-    if (selectedAgents.length > 0) {
+  const sendMessage = async () => {
+    if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: input,
+      sender: "user",
+      timestamp: new Date(),
+      usedAgentIds: selectedAgents,
+    }
+
+    onAddMessage(currentChatId, userMessage)
+
+    setInput("")
+    const attachmentsToSend = [...attachments]
+    setAttachments([])
+    setIsLoading(true)
+
+    selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
+
+    try {
+      const isFirstMessage = currentMessages.length === 0
+
       const triggerWords = selectedAgents
         .map((agentId) => {
           const agent = agents.find((a) => a.id === agentId)
@@ -119,115 +142,159 @@ export function ChatArea({
         .filter(Boolean)
         .join(" ")
 
-      if (triggerWords) {
-        const currentInput = input.trim()
+      let messageToSend = triggerWords ? `${triggerWords}: ${input}` : input
 
-        // Find where the message content starts (after trigger words and ":")
-        const colonIndex = currentInput.indexOf(":")
-        const messageContent = colonIndex !== -1 ? currentInput.substring(colonIndex + 1).trim() : currentInput
+      if (isFirstMessage && contextMessages && contextMessages.length > 0) {
+        const contextText = contextMessages
+          .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
+          .join("\n\n")
+        messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${messageToSend}`
+      }
 
-        // Check if messageContent looks like it might contain trigger words
-        const hasOnlyTriggerWords =
-          messageContent === "" ||
-          messageContent
-            .split(" ")
-            .every(
-              (word) => word.startsWith("#") || word.startsWith("@") || agents.some((a) => a.trigger_word === word),
-            )
+      let payload: any
 
-        if (hasOnlyTriggerWords) {
-          // If input is empty or only has trigger words, replace with new trigger words
-          setInput(triggerWords + ": ")
-        } else {
-          // If there's actual message content, preserve it and update trigger words
-          setInput(triggerWords + ": " + messageContent)
+      if (attachmentsToSend.length > 0) {
+        const attachment = attachmentsToSend[0]
+        payload = {
+          content: {
+            image: {
+              url: attachment.data,
+              caption: messageToSend || "Imagem enviada",
+            },
+          },
+          type: "IMAGE",
+          contactIdentifier: currentChatId,
+          contactName: `Chat ${currentChatId}`,
+        }
+      } else {
+        payload = {
+          content: {
+            text: {
+              body: messageToSend,
+            },
+          },
+          type: "TEXT",
+          contactIdentifier: currentChatId,
+          contactName: `Chat ${currentChatId}`,
         }
       }
-    } else {
-      setInput("")
-    }
-  }, [selectedAgents, agents])
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
+      console.log("[v0] 🚀 Payload enviado para /api/send-message:", payload)
 
-    if (attachments.length > 0) {
-      addToast({
-        title: "Limite de arquivo",
-        description: "Você só pode anexar 1 arquivo por vez. Remova o arquivo atual primeiro.",
-        variant: "error",
+      const response = await fetch("/api/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
-      if (attachmentInputRef.current) {
-        attachmentInputRef.current.value = ""
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("[v0] ❌ ERRO NA API:", errorData)
+        throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
       }
-      return
-    }
 
-    setIsUploading(true)
+      const data = await response.json()
+      console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
 
-    try {
-      const file = files[0] // Only take the first file
-      const reader = new FileReader()
+      // 🔧 DEBUG para confirmar se o handler de formatação está chegando como prop
+      // Obs: certifique-se de que ChatAreaProps tenha onExternalApiResponse e que ChatPage o passe.
+      // @ts-ignore - caso o tipo ainda não tenha sido atualizado
+      const hasFormatter = typeof onExternalApiResponse === "function"
+      // @ts-ignore
+      console.log("[v0] 🔧 onExternalApiResponse disponível?", hasFormatter)
 
-      reader.onload = (e) => {
-        const base64Data = e.target?.result as string
+      // Se houver handler, delega a formatação (máscara -> HTML) pra ele
+      // @ts-ignore
+      if (hasFormatter) {
+        // @ts-ignore
+        console.log("[v0] 🔧 Encaminhando payload para onExternalApiResponse (com máscara/decorate=true)")
+        // @ts-ignore
+        await onExternalApiResponse(data, { decorate: true })
+        return
+      }
 
-        const newAttachment: Attachment = {
-          name: file.name,
-          data: base64Data,
-          type: file.type,
-          size: file.size,
+      // Fallback (sem o handler): mantém o fluxo antigo (texto puro sem máscara)
+      console.warn("[v0] ⚠️ Sem onExternalApiResponse — usando fallback SEM formatação.")
+      if (data.success && data.aiMessages && data.aiMessages.length > 0) {
+        const texts = data.aiMessages.map((m: any) => m?.content?.text?.body).filter(Boolean)
+
+        console.log("[v0] 🧾 Fallback: corpos de texto detectados:", texts.length)
+        texts.forEach((messageContent: string, index: number) => {
+          setTimeout(() => {
+            const assistantMessage: Message = {
+              id: `${Date.now()}-${index}`,
+              content: messageContent,
+              sender: "assistant",
+              timestamp: new Date(),
+              usedAgentIds: selectedAgents,
+            }
+            onAddMessage(currentChatId, assistantMessage)
+          }, index * 150)
+        })
+      } else {
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          content: "Resposta recebida com sucesso.",
+          sender: "assistant",
+          timestamp: new Date(),
         }
-
-        setAttachments([newAttachment]) // Replace any existing attachment
-
-        addToast({
-          title: "Arquivo anexado",
-          description: `${file.name} foi anexado com sucesso`,
-          variant: "success",
-        })
+        onAddMessage(currentChatId, assistantMessage)
       }
-
-      reader.onerror = () => {
-        console.error("[v0] Error reading file:", file.name)
-        addToast({
-          title: "Erro ao ler arquivo",
-          description: `Não foi possível ler ${file.name}. Tente novamente.`,
-          variant: "error",
-        })
-      }
-
-      reader.readAsDataURL(file)
     } catch (error) {
-      console.error("[v0] Error processing file:", error)
-      addToast({
-        title: "Erro ao processar arquivo",
-        description: "Não foi possível processar o arquivo. Tente novamente.",
-        variant: "error",
-      })
-    } finally {
-      setIsUploading(false)
-      if (attachmentInputRef.current) {
-        attachmentInputRef.current.value = ""
+      console.error("[v0] ❌ ERRO:", error)
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
+        sender: "assistant",
+        timestamp: new Date(),
       }
+      onAddMessage(currentChatId, assistantMessage)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const removeAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index))
+  const toggleMessageSelection = (messageId: string) => {
+    setSelectedMessages((prev) =>
+      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId],
+    )
   }
 
-  const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) return <ImageIcon className="w-4 h-4" />
-    if (type.startsWith("audio/")) return <Music className="w-4 h-4" />
-    return <FileText className="w-4 h-4" />
+  const useSelectedMessages = () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    const combinedText = selected.map((m) => m.content).join("\n\n")
+    setInput(combinedText)
+    setSelectedMessages([])
   }
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + " B"
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB"
+  const createNewChatWithSelected = () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    onCreateChatWithMessages(selected)
+    setSelectedMessages([])
+  }
+
+  const handleDragStart = (e: React.DragEvent, chatId: string) => {
+    setDraggedChatId(chatId)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", chatId)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+
+  const handleDrop = (e: React.DragEvent, targetChatId: string) => {
+    e.preventDefault()
+    const draggedId = e.dataTransfer.getData("text/plain")
+    if (draggedId && draggedId !== targetChatId) {
+      onReorderChat(draggedId, targetChatId)
+    }
+    setDraggedChatId(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedChatId(null)
   }
 
   const exportConversation = () => {
@@ -334,184 +401,20 @@ export function ChatArea({
     }
   }
 
-const sendMessage = async () => {
-  if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
-
-  const userMessage: Message = {
-    id: Date.now().toString(),
-    content: input,
-    sender: "user",
-    timestamp: new Date(),
-    usedAgentIds: selectedAgents,
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return <ImageIcon className="w-4 h-4" />
+    if (type.startsWith("audio/")) return <Music className="w-4 h-4" />
+    return <FileText className="w-4 h-4" />
   }
 
-  onAddMessage(currentChatId, userMessage)
-
-  setInput("")
-  const attachmentsToSend = [...attachments]
-  setAttachments([])
-  setIsLoading(true)
-
-  selectedAgents.forEach((agentId) => onMarkAgentAsUsed(agentId))
-
-  try {
-    const isFirstMessage = currentMessages.length === 0
-    let messageToSend = input
-
-    if (isFirstMessage && contextMessages && contextMessages.length > 0) {
-      const contextText = contextMessages
-        .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
-        .join("\n\n")
-      messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${input}`
-    }
-
-    let payload: any
-
-    if (attachmentsToSend.length > 0) {
-      const attachment = attachmentsToSend[0]
-      payload = {
-        content: {
-          image: {
-            url: attachment.data,
-            caption: messageToSend || "Imagem enviada",
-          },
-        },
-        type: "IMAGE",
-        contactIdentifier: currentChatId,
-        contactName: `Chat ${currentChatId}`,
-      }
-    } else {
-      payload = {
-        content: {
-          text: {
-            body: messageToSend,
-          },
-        },
-        type: "TEXT",
-        contactIdentifier: currentChatId,
-        contactName: `Chat ${currentChatId}`,
-      }
-    }
-
-    console.log("[v0] 🚀 Payload enviado para /api/send-message:", payload)
-
-    const response = await fetch("/api/send-message", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      console.error("[v0] ❌ ERRO NA API:", errorData)
-      throw new Error(`API returned ${response.status}: ${errorData.error || "Unknown error"}`)
-    }
-
-    const data = await response.json()
-    console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
-
-    // 🔧 DEBUG para confirmar se o handler de formatação está chegando como prop
-    // Obs: certifique-se de que ChatAreaProps tenha onExternalApiResponse e que ChatPage o passe.
-    // @ts-ignore - caso o tipo ainda não tenha sido atualizado
-    const hasFormatter = typeof onExternalApiResponse === "function"
-    // @ts-ignore
-    console.log("[v0] 🔧 onExternalApiResponse disponível?", hasFormatter)
-
-    // Se houver handler, delega a formatação (máscara -> HTML) pra ele
-    // @ts-ignore
-    if (hasFormatter) {
-      // @ts-ignore
-      console.log("[v0] 🔧 Encaminhando payload para onExternalApiResponse (com máscara/decorate=true)")
-      // @ts-ignore
-      await onExternalApiResponse(data, { decorate: true })
-      return
-    }
-
-    // Fallback (sem o handler): mantém o fluxo antigo (texto puro sem máscara)
-    console.warn("[v0] ⚠️ Sem onExternalApiResponse — usando fallback SEM formatação.")
-    if (data.success && data.aiMessages && data.aiMessages.length > 0) {
-      const texts = data.aiMessages
-        .map((m: any) => m?.content?.text?.body)
-        .filter(Boolean)
-
-      console.log("[v0] 🧾 Fallback: corpos de texto detectados:", texts.length)
-      texts.forEach((messageContent: string, index: number) => {
-        setTimeout(() => {
-          const assistantMessage: Message = {
-            id: `${Date.now()}-${index}`,
-            content: messageContent,
-            sender: "assistant",
-            timestamp: new Date(),
-            usedAgentIds: selectedAgents,
-          }
-          onAddMessage(currentChatId, assistantMessage)
-        }, index * 150)
-      })
-    } else {
-      const assistantMessage: Message = {
-        id: Date.now().toString(),
-        content: "Resposta recebida com sucesso.",
-        sender: "assistant",
-        timestamp: new Date(),
-      }
-      onAddMessage(currentChatId, assistantMessage)
-    }
-  } catch (error) {
-    console.error("[v0] ❌ ERRO:", error)
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
-      sender: "assistant",
-      timestamp: new Date(),
-    }
-    onAddMessage(currentChatId, assistantMessage)
-  } finally {
-    setIsLoading(false)
-  }
-}
-
-
-  const toggleMessageSelection = (messageId: string) => {
-    setSelectedMessages((prev) =>
-      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId],
-    )
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + " B"
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB"
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB"
   }
 
-  const useSelectedMessages = () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const combinedText = selected.map((m) => m.content).join("\n\n")
-    setInput(combinedText)
-    setSelectedMessages([])
-  }
-
-  const createNewChatWithSelected = () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    onCreateChatWithMessages(selected)
-    setSelectedMessages([])
-  }
-
-  const handleDragStart = (e: React.DragEvent, chatId: string) => {
-    setDraggedChatId(chatId)
-    e.dataTransfer.effectAllowed = "move"
-    e.dataTransfer.setData("text/plain", chatId)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = "move"
-  }
-
-  const handleDrop = (e: React.DragEvent, targetChatId: string) => {
-    e.preventDefault()
-    const draggedId = e.dataTransfer.getData("text/plain")
-    if (draggedId && draggedId !== targetChatId) {
-      onReorderChat(draggedId, targetChatId)
-    }
-    setDraggedChatId(null)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedChatId(null)
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index))
   }
 
   const exportSpecificChat = (chatId: string) => {
@@ -612,6 +515,41 @@ const sendMessage = async () => {
   const handleCancelEdit = () => {
     setEditingChatId(null)
     setEditingChatName("")
+  }
+
+  const selectedAgentObjects = selectedAgents
+    .map((agentId) => agents.find((a) => a.id === agentId))
+    .filter((agent): agent is Agent => agent !== undefined)
+
+  const handleRemoveAgentTag = (agentId: string) => {
+    if (onToggleAgent) {
+      onToggleAgent(agentId)
+    }
+  }
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files) return
+
+    const file = files[0]
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const base64Data = e.target?.result as string
+      setAttachments((prev) => [
+        ...prev,
+        {
+          name: file.name,
+          data: base64Data.split(",")[1], // Remove the data URL prefix
+          type: file.type,
+          size: file.size,
+        },
+      ])
+    }
+    reader.readAsDataURL(file)
+
+    if (attachmentInputRef.current) {
+      attachmentInputRef.current.value = ""
+    }
   }
 
   return (
@@ -991,29 +929,24 @@ const sendMessage = async () => {
                     </div>
                   )}
                 </div>
-{(() => {
-  // verifica se o conteúdo é HTML (salvo pelo handleExternalApiResponse)
-  const isHtml =
-    (message as any).asHtml ||
-    /<\/?(?:h1|h2|h3|p|strong|em|code|pre|blockquote|a|hr|ul|ol|li)\b/i.test(message.content)
+                {(() => {
+                  // verifica se o conteúdo é HTML (salvo pelo handleExternalApiResponse)
+                  const isHtml =
+                    (message as any).asHtml ||
+                    /<\/?(?:h1|h2|h3|p|strong|em|code|pre|blockquote|a|hr|ul|ol|li)\b/i.test(message.content)
 
-  if (isHtml) {
-    return (
-      <div
-        className="prose prose-invert max-w-none text-sm leading-relaxed break-words
-                   prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-3 prose-hr:border-purple-700/40"
-        dangerouslySetInnerHTML={{ __html: message.content }}
-      />
-    )
-  }
+                  if (isHtml) {
+                    return (
+                      <div
+                        className="prose prose-invert max-w-none text-sm leading-relaxed break-words
+                                   prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-3 prose-hr:border-purple-700/40"
+                        dangerouslySetInnerHTML={{ __html: message.content }}
+                      />
+                    )
+                  }
 
-  return (
-    <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
-      {message.content}
-    </p>
-  )
-})()}
-
+                  return <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{message.content}</p>
+                })()}
               </div>
             </div>
           ))
@@ -1062,45 +995,51 @@ const sendMessage = async () => {
           </div>
         )}
 
-        <div className="flex gap-2 md:gap-3 items-end">
-          <input
-            ref={attachmentInputRef}
-            type="file"
-            multiple
-            accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.csv"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button
-            onClick={() => attachmentInputRef.current?.click()}
-            disabled={isUploading || selectedAgents.length === 0 || attachments.length > 0}
-            variant="outline"
-            className="h-[50px] md:h-[60px] px-3 md:px-4 border-[var(--chat-border)] hover:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
-            title={attachments.length > 0 ? "Remova o arquivo atual para anexar outro" : "Anexar arquivo"}
-          >
-            <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
+        <div className="flex flex-col gap-2">
+          {/* Agent tags displayed above the input */}
+          <AgentTagInput selectedAgents={selectedAgentObjects} onRemoveAgent={handleRemoveAgentTag} />
 
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                sendMessage()
-              }
-            }}
-            placeholder="Digite sua mensagem..."
-            className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
-            disabled={selectedAgents.length === 0}
-          />
-          <Button
-            onClick={sendMessage}
-            disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
-            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[50px] md:h-[60px] px-4 md:px-6 cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Send className="w-4 h-4 md:w-5 md:h-5" />
-          </Button>
+          {/* Input controls below the tags */}
+          <div className="flex gap-2 md:gap-3 items-end">
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.csv"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button
+              onClick={() => attachmentInputRef.current?.click()}
+              disabled={isUploading || selectedAgents.length === 0 || attachments.length > 0}
+              variant="outline"
+              className="h-[50px] md:h-[60px] px-3 md:px-4 border-[var(--chat-border)] hover:border-purple-500 cursor-pointer disabled:cursor-not-allowed"
+              title={attachments.length > 0 ? "Remova o arquivo atual para anexar outro" : "Anexar arquivo"}
+            >
+              <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  sendMessage()
+                }
+              }}
+              placeholder="Digite sua mensagem..."
+              className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
+              disabled={selectedAgents.length === 0}
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
+              className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[50px] md:h-[60px] px-4 md:px-6 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Send className="w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+          </div>
         </div>
 
         {isUploading && (

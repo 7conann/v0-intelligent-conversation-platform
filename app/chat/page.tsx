@@ -281,6 +281,7 @@ export default function ChatPage() {
                 icon: agent.icon,
                 color: agent.color,
                 trigger_word: agent.trigger_word,
+                group_name: agent.group_name || "Geral",
               })),
             )
           }
@@ -299,9 +300,14 @@ export default function ChatPage() {
                     icon: agent.icon,
                     color: agent.color,
                     trigger_word: agent.trigger_word,
+                    group_name: "Geral", // Always set to "Geral" for custom agents
                     isCustomAgent: true,
                   }) as any,
               ),
+            )
+            console.log(
+              "[v0] 📦 Custom agents com group_name:",
+              customAgentsData.map((a) => ({ name: a.name, group_name: "Geral" })),
             )
           } else {
             console.log("[v0] ⚠️ Nenhum custom agent encontrado para este workspace")
@@ -485,6 +491,7 @@ export default function ChatPage() {
               icon: agent.icon,
               color: agent.color,
               trigger_word: agent.trigger_word,
+              group_name: agent.group_name || "Geral",
             })),
           )
         }
@@ -503,6 +510,7 @@ export default function ChatPage() {
                   icon: agent.icon,
                   color: agent.color,
                   trigger_word: agent.trigger_word,
+                  group_name: "Geral", // Always set to "Geral" for custom agents
                   isCustomAgent: true,
                 }) as any,
             ),
@@ -1007,7 +1015,8 @@ export default function ChatPage() {
         messages={chatMessages}
         onAddMessage={addMessage}
         onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-        onExternalApiResponse={handleExternalApiResponse} // ⬅️ CHAME AQUI quando a API deles responder
+        onExternalApiResponse={handleExternalApiResponse}
+        onToggleAgent={toggleAgent}
         className="flex-1 w-full"
       />
     </div>

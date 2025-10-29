@@ -4,6 +4,7 @@ export interface Agent {
   icon: string
   color: string
   trigger_word?: string
+  group_name?: string
 }
 
 export interface Message {

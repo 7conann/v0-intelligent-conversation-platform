@@ -4,7 +4,19 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter } from "lucide-react"
+import {
+  ArrowLeft,
+  Star,
+  SettingsIcon,
+  Hash,
+  Plus,
+  Eye,
+  EyeOff,
+  Trash2,
+  GripVertical,
+  Filter,
+  AlertCircle,
+} from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -15,6 +27,7 @@ import { EmojiPicker } from "@/components/emoji-picker"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Agent } from "@/types/chat"
 import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
+import { runAgentManagementMigration } from "@/app/actions/run-migration"
 
 interface WorkspaceAgent extends Agent {
   is_favorite?: boolean
@@ -36,6 +49,9 @@ export default function WorkspacesPage() {
   const [showAgentConfig, setShowAgentConfig] = useState(false)
   const [showCreateAgent, setShowCreateAgent] = useState(false)
   const [showManageAgents, setShowManageAgents] = useState(false)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [createGroupName, setCreateGroupName] = useState("")
+  const [selectedAgentsForGroup, setSelectedAgentsForGroup] = useState<Set<string>>(new Set())
   const [agentVisibility, setAgentVisibility] = useState<Record<string, boolean>>({})
   const [userId, setUserId] = useState<string>("")
   const [isAuthorized, setIsAuthorized] = useState(false)
@@ -66,6 +82,8 @@ export default function WorkspacesPage() {
     description: "",
     onConfirm: () => {},
   })
+  const [showMigrationModal, setShowMigrationModal] = useState(false)
+  const [isMigrating, setIsMigrating] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -177,12 +195,20 @@ export default function WorkspacesPage() {
         if (showManageAgents) {
           setShowManageAgents(false)
         }
+        if (showCreateGroup) {
+          setShowCreateGroup(false)
+          setCreateGroupName("")
+          setSelectedAgentsForGroup(new Set())
+        }
+        if (showMigrationModal) {
+          setShowMigrationModal(false)
+        }
       }
     }
 
     window.addEventListener("keydown", handleEscape)
     return () => window.removeEventListener("keydown", handleEscape)
-  }, [showAgentConfig, showCreateAgent, showManageAgents])
+  }, [showAgentConfig, showCreateAgent, showManageAgents, showCreateGroup, showMigrationModal])
 
   const handleDragStart = (agent: WorkspaceAgent) => {
     setDraggedAgent(agent)
@@ -548,6 +574,132 @@ export default function WorkspacesPage() {
     })
   }
 
+  const handleCreateGroup = async () => {
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para criar grupos",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!createGroupName.trim()) {
+      addToast({
+        title: "Nome obrigatório",
+        description: "Digite um nome para o grupo",
+        variant: "error",
+      })
+      return
+    }
+
+    if (selectedAgentsForGroup.size === 0) {
+      addToast({
+        title: "Selecione agentes",
+        description: "Selecione pelo menos um agente para o grupo",
+        variant: "error",
+      })
+      return
+    }
+
+    const supabase = createClient()
+
+    const testAgentId = Array.from(selectedAgentsForGroup)[0]
+    const testResult = await supabase
+      .from("agents")
+      .update({ group_name: createGroupName.trim() })
+      .eq("id", testAgentId)
+
+    if (testResult.error && testResult.error.message.includes("group_name")) {
+      // Column doesn't exist, show migration modal
+      setShowMigrationModal(true)
+      return
+    }
+
+    // If test succeeded, update all agents
+    const updates = Array.from(selectedAgentsForGroup).map(async (agentId) => {
+      return await supabase.from("agents").update({ group_name: createGroupName.trim() }).eq("id", agentId)
+    })
+
+    try {
+      const results = await Promise.all(updates)
+
+      const errors = results.filter((r) => r.error)
+      if (errors.length > 0) {
+        console.error("[v0] Errors updating agents:", errors)
+        setShowMigrationModal(true)
+        return
+      }
+
+      setAgents((prev) =>
+        prev.map((agent) =>
+          selectedAgentsForGroup.has(agent.id) ? { ...agent, group_name: createGroupName.trim() } : agent,
+        ),
+      )
+
+      addToast({
+        title: "Grupo criado",
+        description: `Grupo "${createGroupName}" criado com ${selectedAgentsForGroup.size} agente(s)`,
+        variant: "success",
+      })
+
+      setShowCreateGroup(false)
+      setCreateGroupName("")
+      setSelectedAgentsForGroup(new Set())
+    } catch (error) {
+      console.error("[v0] Error creating group:", error)
+      setShowMigrationModal(true)
+    }
+  }
+
+  const handleToggleAgentForGroup = (agentId: string) => {
+    setSelectedAgentsForGroup((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(agentId)) {
+        newSet.delete(agentId)
+      } else {
+        newSet.add(agentId)
+      }
+      return newSet
+    })
+  }
+
+  const handleRunMigration = async () => {
+    setIsMigrating(true)
+
+    try {
+      const result = await runAgentManagementMigration()
+
+      if (result.success) {
+        addToast({
+          title: "Migração concluída",
+          description: result.message,
+          variant: "success",
+        })
+
+        // Wait a bit then reload the page
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      } else {
+        addToast({
+          title: "Erro na migração",
+          description: result.message,
+          variant: "error",
+        })
+        setIsMigrating(false)
+      }
+    } catch (error) {
+      console.error("[v0] Error running migration:", error)
+      addToast({
+        title: "Erro na migração",
+        description: "Ocorreu um erro ao executar a migração. Tente executar o script manualmente.",
+        variant: "error",
+      })
+      setIsMigrating(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -587,19 +739,28 @@ export default function WorkspacesPage() {
               Gerenciar Agentes
             </Button>
             {isAuthorized && (
-              <Button
-                onClick={() => setShowCreateAgent(true)}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Criar Novo Agente
-              </Button>
+              <>
+                <Button
+                  onClick={() => setShowCreateGroup(true)}
+                  variant="outline"
+                  className="border-[var(--sidebar-border)] text-blue-500 hover:text-blue-500 hover:bg-transparent"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Grupo
+                </Button>
+                <Button
+                  onClick={() => setShowCreateAgent(true)}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Criar Novo Agente
+                </Button>
+              </>
             )}
           </div>
         </div>
       </div>
 
-      
       <div className="mx-auto max-w-6xl p-6 pb-4">
         <div className="flex items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
@@ -1129,6 +1290,211 @@ export default function WorkspacesPage() {
                   Criar Agente
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Criar Novo Grupo</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Digite o nome do grupo e selecione os agentes que farão parte dele
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="groupName" className="text-[var(--text-primary)]">
+                  Nome do Grupo *
+                </Label>
+                <Input
+                  id="groupName"
+                  type="text"
+                  value={createGroupName}
+                  onChange={(e) => setCreateGroupName(e.target.value)}
+                  placeholder="Ex: Marketing, Vendas, Suporte..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[var(--text-primary)]">Selecione os Agentes *</Label>
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    {selectedAgentsForGroup.size} agente(s) selecionado(s)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto p-1">
+                  {agents
+                    .filter((a) => !inactiveAgents.has(a.id))
+                    .map((agent) => {
+                      const isSelected = selectedAgentsForGroup.has(agent.id)
+                      return (
+                        <div
+                          key={agent.id}
+                          onClick={() => handleToggleAgentForGroup(agent.id)}
+                          className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-purple-500 bg-purple-500/10"
+                              : "border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="h-5 w-5 rounded border-[var(--sidebar-border)] text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          />
+                          <div
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-xl flex-shrink-0"
+                            style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
+                          >
+                            {agent.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-[var(--text-primary)] truncate">{agent.name}</h3>
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
+                              {agent.group_name || "Sem grupo"}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-[var(--sidebar-border)]">
+                <Button
+                  onClick={() => {
+                    setShowCreateGroup(false)
+                    setCreateGroupName("")
+                    setSelectedAgentsForGroup(new Set())
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleCreateGroup}
+                  disabled={!createGroupName.trim() || selectedAgentsForGroup.size === 0}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Criar Grupo ({selectedAgentsForGroup.size})
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showMigrationModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-2xl w-full p-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/20">
+                <AlertCircle className="h-6 w-6 text-yellow-500" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+                  Atualização do Banco de Dados Necessária
+                </h2>
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Para usar o recurso de grupos, você precisa executar um script de migração que adiciona as colunas
+                  necessárias ao banco de dados.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-lg p-4 mb-4 border border-purple-500/30">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-2 flex items-center gap-2">
+                <span className="text-purple-500">✨</span>
+                Opção Automática (Recomendado)
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-3">
+                Clique no botão abaixo para executar a migração automaticamente. O sistema irá adicionar as colunas
+                necessárias ao banco de dados.
+              </p>
+              <Button
+                onClick={handleRunMigration}
+                disabled={isMigrating}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50"
+              >
+                {isMigrating ? (
+                  <>
+                    <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Executando migração...
+                  </>
+                ) : (
+                  <>Executar Migração Automaticamente</>
+                )}
+              </Button>
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[var(--sidebar-border)]"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-[var(--settings-bg)] text-[var(--text-secondary)]">
+                  ou execute manualmente
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-[var(--agent-bg)] rounded-lg p-4 mb-6 border border-[var(--sidebar-border)]">
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">Como executar manualmente:</h3>
+              <ol className="space-y-2 text-sm text-[var(--text-secondary)]">
+                <li className="flex gap-2">
+                  <span className="font-bold text-purple-500">1.</span>
+                  <span>
+                    Abra a pasta{" "}
+                    <code className="px-2 py-0.5 bg-[var(--input-bg)] rounded text-purple-400">scripts</code> no
+                    explorador de arquivos
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-purple-500">2.</span>
+                  <span>
+                    Localize o arquivo{" "}
+                    <code className="px-2 py-0.5 bg-[var(--input-bg)] rounded text-purple-400">
+                      022_add_agent_management_fields.sql
+                    </code>
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-purple-500">3.</span>
+                  <span>Clique no arquivo para abri-lo e execute o script SQL</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold text-purple-500">4.</span>
+                  <span>Após a execução bem-sucedida, recarregue esta página</span>
+                </li>
+              </ol>
+            </div>
+
+            <div className="bg-blue-500/10 rounded-lg p-4 mb-6 border border-blue-500/30">
+              <p className="text-sm text-blue-400">
+                <strong>O que este script faz:</strong> Adiciona as colunas{" "}
+                <code className="px-1 py-0.5 bg-blue-500/20 rounded">group_name</code>,{" "}
+                <code className="px-1 py-0.5 bg-blue-500/20 rounded">is_active</code> e{" "}
+                <code className="px-1 py-0.5 bg-blue-500/20 rounded">display_order</code> à tabela de agentes,
+                permitindo agrupar, desativar e reordenar agentes.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowMigrationModal(false)}
+                variant="outline"
+                className="flex-1"
+                disabled={isMigrating}
+              >
+                Fechar
+              </Button>
             </div>
           </div>
         </div>

@@ -18,6 +18,8 @@ import {
   Layers,
   Eye,
   EyeOff,
+  FolderOpen,
+  ChevronDown,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
@@ -81,6 +83,9 @@ export function ChatSidebar({
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [showAgentSettings, setShowAgentSettings] = useState(false)
 
+  const [viewMode, setViewMode] = useState<"sequential" | "grouped">("sequential")
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Geral"]))
+
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
@@ -89,17 +94,30 @@ export function ChatSidebar({
   const [localAgents, setLocalAgents] = useState<Agent[]>(agents)
 
   useEffect(() => {
-    setLocalAgents(agents)
+    const deduplicatedAgents = agents.reduce((acc, agent) => {
+      // Check if we already have an agent with this name
+      const isDuplicate = acc.some((a) => a.name === agent.name)
+      if (!isDuplicate) {
+        acc.push(agent)
+      } else {
+        console.log("[v0] 🔄 Removendo agente duplicado:", agent.name, agent.id)
+      }
+      return acc
+    }, [] as Agent[])
+
+    setLocalAgents(deduplicatedAgents)
     console.log(
       "[v0] 🎨 SIDEBAR: Agentes recebidos:",
-      agents.map((a) => ({
+      deduplicatedAgents.map((a) => ({
         name: a.name,
         id: a.id,
+        group_name: a.group_name,
         isCustom: (a as any).isCustomAgent,
         trigger: a.trigger_word,
       })),
     )
-    console.log("[v0] 🎨 SIDEBAR: Total de agentes na sidebar:", agents.length)
+    console.log("[v0] 🎨 SIDEBAR: Total de agentes na sidebar:", deduplicatedAgents.length)
+    console.log("[v0] 🎨 SIDEBAR: Agentes removidos por duplicação:", agents.length - deduplicatedAgents.length)
   }, [agents])
 
   useEffect(() => {
@@ -134,6 +152,13 @@ export function ChatSidebar({
     const savedExpanded = localStorage.getItem("sidebarExpanded")
     if (savedExpanded !== null) {
       setIsExpanded(savedExpanded === "true")
+    }
+  }, [])
+
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem("sidebarViewMode")
+    if (savedViewMode === "sequential" || savedViewMode === "grouped") {
+      setViewMode(savedViewMode)
     }
   }, [])
 
@@ -205,6 +230,112 @@ export function ChatSidebar({
     }
     setDraggedAgent(null)
     setDraggedOverAgent(null)
+  }
+
+  const toggleViewMode = (mode: "sequential" | "grouped") => {
+    setViewMode(mode)
+    localStorage.setItem("sidebarViewMode", mode)
+  }
+
+  const toggleGroup = (groupName: string) => {
+    const newExpanded = new Set(expandedGroups)
+    if (newExpanded.has(groupName)) {
+      newExpanded.delete(groupName)
+    } else {
+      newExpanded.add(groupName)
+    }
+    setExpandedGroups(newExpanded)
+  }
+
+  const groupedAgents = localAgents.reduce(
+    (acc, agent) => {
+      const groupName = agent.group_name || "Geral"
+      if (!acc[groupName]) {
+        acc[groupName] = []
+      }
+      acc[groupName].push(agent)
+      return acc
+    },
+    {} as Record<string, Agent[]>,
+  )
+
+  const renderAgentButton = (agent: Agent) => {
+    const isSelected = selectedAgents.includes(agent.id)
+    const isUsed = usedAgents.includes(agent.id)
+    const messageCount = agentHistories[agent.id]?.length || 0
+    const iconContent = getAgentIconComponent(agent)
+    const isDragging = draggedAgent === agent.id
+    const isDraggedOver = draggedOverAgent === agent.id
+    const isCustomAgent = (agent as any).isCustomAgent || false
+
+    return (
+      <button
+        key={agent.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, agent.id)}
+        onDragOver={(e) => handleDragOver(e, agent.id)}
+        onDragEnd={handleDragEnd}
+        onClick={() => onToggleAgent(agent.id)}
+        onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
+        onMouseLeave={handleMouseLeave}
+        className={cn(
+          "transition-all duration-300 relative group cursor-move",
+          isExpanded
+            ? "w-full px-4 py-3 rounded-xl flex items-center gap-3 justify-start bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-[1.02]"
+            : "w-12 h-12 rounded-xl flex items-center justify-center bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105",
+          isSelected && "border-2 border-solid shadow-lg",
+          isUsed && !isSelected && "border-2 border-dashed border-white/40",
+          isDragging && "animate-shake opacity-50 scale-110",
+          isDraggedOver && "scale-110 ring-2 ring-purple-500",
+        )}
+        style={{
+          ...(isSelected && { borderColor: agent.color }),
+        }}
+        title={isExpanded ? undefined : agent.name}
+      >
+        {isCustomAgent && (
+          <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
+            <Layers className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+
+        {typeof iconContent === "string" ? (
+          <span
+            className={cn("transition-all duration-300", isExpanded ? "text-xl" : "text-lg md:text-xl")}
+            style={{
+              filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+            }}
+          >
+            {iconContent}
+          </span>
+        ) : (
+          <div
+            className="transition-all duration-300"
+            style={{
+              filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+            }}
+          >
+            {iconContent}
+          </div>
+        )}
+
+        {isExpanded && (
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate flex-1 text-left">{agent.name}</span>
+        )}
+
+        {messageCount > 0 && (
+          <span
+            className={cn(
+              "rounded-full text-[9px] font-bold flex items-center justify-center text-white",
+              isExpanded ? "px-2 py-0.5 ml-auto" : "absolute -top-1 -right-1 w-4 h-4",
+            )}
+            style={{ backgroundColor: agent.color }}
+          >
+            {messageCount > 9 ? "9+" : messageCount}
+          </span>
+        )}
+      </button>
+    )
   }
 
   return (
@@ -312,99 +443,106 @@ export function ChatSidebar({
 
         <div className="w-full h-px bg-[var(--background)] mb-2" />
 
+        {isExpanded && (
+          <div className="w-full px-3 mb-3">
+            <div className="flex gap-1 p-1 bg-[var(--agent-bg)] rounded-lg">
+              <button
+                onClick={() => toggleViewMode("sequential")}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all duration-200",
+                  viewMode === "sequential"
+                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                )}
+              >
+                Sequencial
+              </button>
+              <button
+                onClick={() => toggleViewMode("grouped")}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all duration-200",
+                  viewMode === "grouped"
+                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                )}
+              >
+                Por Grupo
+              </button>
+            </div>
+          </div>
+        )}
+
         <div
           className={cn(
             "w-full px-2 md:px-3 gap-2 scrollbar-hide overflow-y-auto",
             isExpanded
-              ? "flex flex-col max-h-[calc(100vh-280px)]"
+              ? "flex flex-col max-h-[calc(100vh-320px)]"
               : "grid grid-cols-1 place-items-center max-h-[calc(100vh-280px)]",
           )}
         >
           {console.log("[v0] 🎨 SIDEBAR: Renderizando", localAgents.length, "agentes")}
-          {localAgents.map((agent) => {
-            const isSelected = selectedAgents.includes(agent.id)
-            const isUsed = usedAgents.includes(agent.id)
-            const messageCount = agentHistories[agent.id]?.length || 0
-            const iconContent = getAgentIconComponent(agent)
-            const isDragging = draggedAgent === agent.id
-            const isDraggedOver = draggedOverAgent === agent.id
-            const isCustomAgent = (agent as any).isCustomAgent || false
 
-            if (isCustomAgent) {
-              console.log("[v0] 🎨 SIDEBAR: Renderizando custom agent:", agent.name, "ID:", agent.id)
-            }
+          {viewMode === "sequential"
+            ? // Sequential view (existing flat list)
+              localAgents.map((agent) => renderAgentButton(agent))
+            : // Improved grouped view design with better visual hierarchy and styling
+              Object.entries(groupedAgents).map(([groupName, groupAgents]) => {
+                const isExpandedGroup = expandedGroups.has(groupName)
 
-            return (
-              <button
-                key={agent.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, agent.id)}
-                onDragOver={(e) => handleDragOver(e, agent.id)}
-                onDragEnd={handleDragEnd}
-                onClick={() => onToggleAgent(agent.id)}
-                onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
-                onMouseLeave={handleMouseLeave}
-                className={cn(
-                  "transition-all duration-300 relative group cursor-move",
-                  isExpanded
-                    ? "w-full px-4 py-3 rounded-xl flex items-center gap-3 justify-start bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-[1.02]"
-                    : "w-12 h-12 rounded-xl flex items-center justify-center bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105",
-                  isSelected && "border-2 border-solid shadow-lg",
-                  isUsed && !isSelected && "border-2 border-dashed border-white/40",
-                  isDragging && "animate-shake opacity-50 scale-110",
-                  isDraggedOver && "scale-110 ring-2 ring-purple-500",
-                )}
-                style={{
-                  ...(isSelected && { borderColor: agent.color }),
-                }}
-                title={isExpanded ? undefined : agent.name}
-              >
-                {isCustomAgent && (
-                  <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
-                    <Layers className="w-2.5 h-2.5 text-white" />
-                  </div>
-                )}
+                return (
+                  <div key={groupName} className="w-full mb-2">
+                    <button
+                      onClick={() => toggleGroup(groupName)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200",
+                        "bg-gradient-to-r from-purple-500/10 to-blue-500/10",
+                        "hover:from-purple-500/20 hover:to-blue-500/20",
+                        "border border-purple-500/20",
+                        "shadow-sm hover:shadow-md",
+                        "mb-2",
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                            "bg-gradient-to-br from-purple-500 to-blue-500",
+                            "shadow-sm",
+                          )}
+                        >
+                          <FolderOpen className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">{groupName}</span>
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            {groupAgents.length} {groupAgents.length === 1 ? "agente" : "agentes"}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className={cn(
+                          "w-6 h-6 rounded-md flex items-center justify-center",
+                          "bg-[var(--agent-bg)]",
+                          "transition-all duration-200",
+                        )}
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200",
+                            isExpandedGroup ? "rotate-180" : "",
+                          )}
+                        />
+                      </div>
+                    </button>
 
-                {typeof iconContent === "string" ? (
-                  <span
-                    className={cn("transition-all duration-300", isExpanded ? "text-xl" : "text-lg md:text-xl")}
-                    style={{
-                      filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
-                    }}
-                  >
-                    {iconContent}
-                  </span>
-                ) : (
-                  <div
-                    className="transition-all duration-300"
-                    style={{
-                      filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
-                    }}
-                  >
-                    {iconContent}
-                  </div>
-                )}
-
-                {isExpanded && (
-                  <span className="text-sm font-medium text-[var(--text-primary)] truncate flex-1 text-left">
-                    {agent.name}
-                  </span>
-                )}
-
-                {messageCount > 0 && (
-                  <span
-                    className={cn(
-                      "rounded-full text-[9px] font-bold flex items-center justify-center text-white",
-                      isExpanded ? "px-2 py-0.5 ml-auto" : "absolute -top-1 -right-1 w-4 h-4",
+                    {isExpandedGroup && (
+                      <div className="flex flex-col gap-2 pl-3 border-l-2 border-purple-500/20 ml-4">
+                        {groupAgents.map((agent) => renderAgentButton(agent))}
+                      </div>
                     )}
-                    style={{ backgroundColor: agent.color }}
-                  >
-                    {messageCount > 9 ? "9+" : messageCount}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+                  </div>
+                )
+              })}
         </div>
 
         <div className="flex-1" />
