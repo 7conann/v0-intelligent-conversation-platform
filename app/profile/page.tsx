@@ -107,12 +107,39 @@ export default function ProfilePage() {
   }
 
   const handleLogout = async () => {
+    console.log("[v0] Logout initiated")
     const supabase = createClient()
 
-    await supabase.auth.signOut()
+    sessionStorage.setItem("just_logged_out", "true")
 
-    sessionStorage.clear()
-    localStorage.clear()
+    try {
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error("[v0] Error during signOut:", error)
+      }
+
+      console.log("[v0] SignOut completed, clearing storage")
+    } catch (err) {
+      console.error("[v0] Exception during signOut:", err)
+    }
+
+    try {
+      // Clear Supabase auth tokens
+      localStorage.removeItem("supabase.auth.token")
+      localStorage.removeItem("sb-access-token")
+      localStorage.removeItem("sb-refresh-token")
+
+      // Clear all localStorage except the logout flag
+      const logoutFlag = sessionStorage.getItem("just_logged_out")
+      localStorage.clear()
+      sessionStorage.clear()
+      sessionStorage.setItem("just_logged_out", logoutFlag || "true")
+
+      console.log("[v0] Storage cleared")
+    } catch (err) {
+      console.error("[v0] Error clearing storage:", err)
+    }
 
     addToast({
       title: "Logout realizado",
@@ -120,7 +147,10 @@ export default function ProfilePage() {
       variant: "success",
     })
 
-    router.push("/login")
+    console.log("[v0] Redirecting to /login")
+    setTimeout(() => {
+      window.location.href = "/login"
+    }, 300)
   }
 
   if (loading) {

@@ -592,7 +592,6 @@ export default function WorkspacesPage() {
       })
       return
     }
-    
 
     if (selectedAgentsForGroup.size === 0) {
       addToast({

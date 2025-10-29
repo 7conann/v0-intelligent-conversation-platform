@@ -33,12 +33,24 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        const justLoggedOut = sessionStorage.getItem("just_logged_out")
+        console.log("[v0] Checking session, just_logged_out:", justLoggedOut)
+
+        if (justLoggedOut === "true") {
+          console.log("[v0] User just logged out, clearing flag and staying on login page")
+          sessionStorage.removeItem("just_logged_out")
+          setIsCheckingSession(false)
+          return
+        }
+
         const supabase = createClient()
         const {
           data: { session },
         } = await supabase.auth.getSession()
 
-        if (session && !sessionStorage.getItem("just_logged_out")) {
+        console.log("[v0] Session check result:", { hasSession: !!session })
+
+        if (session) {
           console.log("[v0] User already logged in, redirecting to /chat")
           addToast({
             title: "Bem-vindo de volta!",
@@ -46,9 +58,6 @@ export default function LoginPage() {
             variant: "success",
           })
           window.location.href = "/chat"
-        } else {
-          // Clear the logout flag if it exists
-          sessionStorage.removeItem("just_logged_out")
         }
       } catch (error) {
         console.error("[v0] Error checking session:", error)
