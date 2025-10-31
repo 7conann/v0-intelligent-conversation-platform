@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search } from "lucide-react"
+import { ChevronDown, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
 interface IconPickerProps {
@@ -97,6 +96,7 @@ const EMOJI_OPTIONS = [
   "💭",
   "🗨️",
   "🗯️",
+  "💬",
 
   // Money & Finance
   "💰",
@@ -511,72 +511,95 @@ const EMOJI_OPTIONS = [
 export function IconPicker({ value, onChange, className }: IconPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const filteredEmojis = searchQuery ? EMOJI_OPTIONS.filter((emoji) => emoji.includes(searchQuery)) : EMOJI_OPTIONS
+  const filteredEmojis = searchQuery
+    ? EMOJI_OPTIONS.filter((emoji) => {
+        // Simple filtering - you could enhance this with emoji names/descriptions
+        return emoji.includes(searchQuery)
+      })
+    : EMOJI_OPTIONS
 
-  const handleSelect = (emoji: string) => {
-    onChange(emoji)
-    setIsOpen(false)
-    setSearchQuery("")
-  }
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setSearchQuery("") // Reset search when closing
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen])
 
   return (
-    <>
+    <div className="relative" ref={dropdownRef}>
       <Button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
         variant="outline"
-        className={`w-full justify-center ${className}`}
+        className={`w-full justify-between ${className}`}
       >
         <span className="text-2xl">{value || "📁"}</span>
+        <ChevronDown className="h-4 w-4 opacity-50" />
       </Button>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl bg-[var(--settings-bg)] border-[var(--sidebar-border)]">
-          <DialogHeader>
-            <DialogTitle className="text-white">Escolher Ícone</DialogTitle>
-          </DialogHeader>
+      {isOpen && (
+        <div
+          className="absolute z-50 mt-2 w-full max-w-sm bg-[var(--settings-bg)] border border-[var(--sidebar-border)] rounded-lg shadow-lg p-3"
+          onClick={(e) => e.stopPropagation()} // Prevent clicks inside dropdown from bubbling
+        >
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Buscar emoji..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-[var(--agent-hover)] border-[var(--sidebar-border)] text-white placeholder:text-gray-400"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
 
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Buscar emoji..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-[var(--agent-hover)] border-[var(--sidebar-border)] text-white placeholder:text-gray-400"
-                autoFocus
-              />
-            </div>
-
-            <div className="max-h-96 overflow-y-auto">
-              <div className="grid grid-cols-10 gap-2">
-                {filteredEmojis.length > 0 ? (
-                  filteredEmojis.map((emoji, index) => (
-                    <button
-                      key={`${emoji}-${index}`}
-                      type="button"
-                      onClick={() => handleSelect(emoji)}
-                      className={`w-12 h-12 flex items-center justify-center text-2xl rounded-lg hover:bg-[var(--agent-hover)] transition-all ${
-                        value === emoji ? "bg-purple-500/20 ring-2 ring-purple-500" : ""
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))
-                ) : (
-                  <div className="col-span-10 text-center py-8 text-gray-400">Nenhum emoji encontrado</div>
-                )}
-              </div>
-            </div>
-
-            <div className="text-sm text-gray-400 text-center border-t border-[var(--sidebar-border)] pt-3">
-              {filteredEmojis.length} de {EMOJI_OPTIONS.length} emojis disponíveis
+          <div className="max-h-64 overflow-y-auto">
+            <div className="grid grid-cols-8 gap-2">
+              {filteredEmojis.length > 0 ? (
+                filteredEmojis.map((emoji, index) => (
+                  <button
+                    key={`${emoji}-${index}`}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onChange(emoji)
+                      setIsOpen(false)
+                      setSearchQuery("")
+                    }}
+                    className={`w-10 h-10 flex items-center justify-center text-2xl rounded-lg hover:bg-[var(--agent-hover)] transition-all ${
+                      value === emoji ? "bg-purple-500/20 ring-2 ring-purple-500" : ""
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))
+              ) : (
+                <div className="col-span-8 text-center py-4 text-gray-400">Nenhum emoji encontrado</div>
+              )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+
+          <div className="mt-2 text-xs text-gray-400 text-center">
+            {filteredEmojis.length} de {EMOJI_OPTIONS.length} emojis
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
