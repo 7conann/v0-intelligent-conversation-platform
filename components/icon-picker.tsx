@@ -554,7 +554,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
 
       {isOpen && (
         <div
-          className="absolute z-50 mt-2 w-full max-w-sm bg-[var(--settings-bg)] border border-[var(--sidebar-border)] rounded-lg shadow-lg p-3"
+className="absolute z-50 mt-2 w-max max-w-[90vw] bg-[var(--settings-bg)] border border-[var(--sidebar-border)] rounded-lg shadow-lg p-3"
           onClick={(e) => e.stopPropagation()} // Prevent clicks inside dropdown from bubbling
         >
           <div className="relative mb-3">

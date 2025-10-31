@@ -1711,35 +1711,50 @@ export default function WorkspacesPage() {
                       {isAuthorized && !isEditing && (
                         <GripVertical className="h-5 w-5 text-[var(--text-secondary)] flex-shrink-0" />
                       )}
-                      {isEditing ? (
-                        <div className="flex items-center gap-3 flex-1">
-                          <IconPicker
-                            value={editingGroup.icon}
-                            onChange={(emoji) => setEditingGroup({ ...editingGroup, icon: emoji })}
-                          />
-                          <Input
-                            type="text"
-                            value={editingGroup.name}
-                            onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
-                            onBlur={() => {
-                              if (editingGroup.name.trim()) {
-                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
-                              } else {
-                                setEditingGroup(null)
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && editingGroup.name.trim()) {
-                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
-                              } else if (e.key === "Escape") {
-                                setEditingGroup(null)
-                              }
-                            }}
-                            autoFocus
-                            className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                          />
-                        </div>
-                      ) : (
+                  {isEditing ? (
+  <div className="flex items-center gap-3 flex-1">
+    <IconPicker
+      value={editingGroup.icon}
+      onChange={(emoji) => setEditingGroup({ ...editingGroup, icon: emoji })}
+    />
+    <Input
+      type="text"
+      value={editingGroup.name}
+      onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && editingGroup.name.trim()) {
+          handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
+        } else if (e.key === "Escape") {
+          setEditingGroup(null)
+        }
+      }}
+      autoFocus
+      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+    />
+
+    {/* Ações explícitas (não fecham quando clicar no ícone) */}
+    <Button
+      size="sm"
+      className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+      variant="outline"
+      onClick={() => {
+        if (editingGroup.name.trim()) {
+          handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
+        }
+      }}
+    >
+      Salvar
+    </Button>
+    <Button
+      size="sm"
+      className="border-[var(--sidebar-border)]"
+      variant="outline"
+      onClick={() => setEditingGroup(null)}
+    >
+      Cancelar
+    </Button>
+  </div>
+) : (
                         <>
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 text-xl">
                             {group.icon}
