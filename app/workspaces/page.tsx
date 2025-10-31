@@ -591,6 +591,8 @@ export default function WorkspacesPage() {
       })
       return
     }
+    
+
 
     if (!createGroupName.trim()) {
       addToast({
