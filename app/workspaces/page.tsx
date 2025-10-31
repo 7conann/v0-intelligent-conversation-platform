@@ -16,6 +16,8 @@ import {
   GripVertical,
   Filter,
   AlertCircle,
+  FolderOpen,
+  Edit2,
 } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
@@ -50,6 +52,8 @@ export default function WorkspacesPage() {
   const [showCreateAgent, setShowCreateAgent] = useState(false)
   const [showManageAgents, setShowManageAgents] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [showManageGroups, setShowManageGroups] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<{ oldName: string; newName: string } | null>(null)
   const [createGroupName, setCreateGroupName] = useState("")
   const [selectedAgentsForGroup, setSelectedAgentsForGroup] = useState<Set<string>>(new Set())
   const [agentVisibility, setAgentVisibility] = useState<Record<string, boolean>>({})
@@ -200,6 +204,10 @@ export default function WorkspacesPage() {
           setCreateGroupName("")
           setSelectedAgentsForGroup(new Set())
         }
+        if (showManageGroups) {
+          setShowManageGroups(false)
+          setEditingGroup(null)
+        }
         if (showMigrationModal) {
           setShowMigrationModal(false)
         }
@@ -208,7 +216,7 @@ export default function WorkspacesPage() {
 
     window.addEventListener("keydown", handleEscape)
     return () => window.removeEventListener("keydown", handleEscape)
-  }, [showAgentConfig, showCreateAgent, showManageAgents, showCreateGroup, showMigrationModal])
+  }, [showAgentConfig, showCreateAgent, showManageAgents, showCreateGroup, showManageGroups, showMigrationModal])
 
   const handleDragStart = (agent: WorkspaceAgent) => {
     setDraggedAgent(agent)
@@ -592,7 +600,6 @@ export default function WorkspacesPage() {
       })
       return
     }
-    
 
     if (selectedAgentsForGroup.size === 0) {
       addToast({
@@ -701,6 +708,134 @@ export default function WorkspacesPage() {
     }
   }
 
+  const handleEditGroup = async (oldName: string, newName: string) => {
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para editar grupos",
+        variant: "error",
+      })
+      return
+    }
+
+    if (!newName.trim()) {
+      addToast({
+        title: "Nome obrigatório",
+        description: "Digite um nome para o grupo",
+        variant: "error",
+      })
+      return
+    }
+
+    if (newName.trim() === oldName) {
+      setEditingGroup(null)
+      return
+    }
+
+    const supabase = createClient()
+
+    // Update all agents with the old group name to the new group name
+    const agentsInGroup = agents.filter((a) => a.group_name === oldName)
+
+    const updates = agentsInGroup.map(async (agent) => {
+      return await supabase.from("agents").update({ group_name: newName.trim() }).eq("id", agent.id)
+    })
+
+    try {
+      const results = await Promise.all(updates)
+
+      const errors = results.filter((r) => r.error)
+      if (errors.length > 0) {
+        console.error("[v0] Errors updating group:", errors)
+        addToast({
+          title: "Erro ao editar grupo",
+          description: "Não foi possível atualizar o nome do grupo",
+          variant: "error",
+        })
+        return
+      }
+
+      setAgents((prev) =>
+        prev.map((agent) => (agent.group_name === oldName ? { ...agent, group_name: newName.trim() } : agent)),
+      )
+
+      addToast({
+        title: "Grupo atualizado",
+        description: `Grupo "${oldName}" renomeado para "${newName}"`,
+        variant: "success",
+      })
+
+      setEditingGroup(null)
+    } catch (error) {
+      console.error("[v0] Error editing group:", error)
+      addToast({
+        title: "Erro ao editar grupo",
+        description: "Ocorreu um erro ao atualizar o grupo",
+        variant: "error",
+      })
+    }
+  }
+
+  const handleDeleteGroup = async (groupName: string) => {
+    if (!isAuthorized) {
+      addToast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir grupos",
+        variant: "error",
+      })
+      return
+    }
+
+    const agentsInGroup = agents.filter((a) => a.group_name === groupName)
+
+    setConfirmDialog({
+      isOpen: true,
+      title: "Excluir grupo",
+      description: `Deseja excluir o grupo "${groupName}"?\n\n${agentsInGroup.length} agente(s) serão movidos para o grupo "Geral".`,
+      variant: "destructive",
+      onConfirm: async () => {
+        const supabase = createClient()
+
+        // Move all agents in this group to "Geral"
+        const updates = agentsInGroup.map(async (agent) => {
+          return await supabase.from("agents").update({ group_name: "Geral" }).eq("id", agent.id)
+        })
+
+        try {
+          const results = await Promise.all(updates)
+
+          const errors = results.filter((r) => r.error)
+          if (errors.length > 0) {
+            console.error("[v0] Errors deleting group:", errors)
+            addToast({
+              title: "Erro ao excluir grupo",
+              description: "Não foi possível excluir o grupo",
+              variant: "error",
+            })
+            return
+          }
+
+          setAgents((prev) =>
+            prev.map((agent) => (agent.group_name === groupName ? { ...agent, group_name: "Geral" } : agent)),
+          )
+
+          addToast({
+            title: "Grupo excluído",
+            description: `Grupo "${groupName}" foi excluído e ${agentsInGroup.length} agente(s) foram movidos para "Geral"`,
+            variant: "success",
+          })
+        } catch (error) {
+          console.error("[v0] Error deleting group:", error)
+          addToast({
+            title: "Erro ao excluir grupo",
+            description: "Ocorreu um erro ao excluir o grupo",
+            variant: "error",
+          })
+        }
+      },
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
@@ -741,6 +876,14 @@ export default function WorkspacesPage() {
             </Button>
             {isAuthorized && (
               <>
+                <Button
+                  onClick={() => setShowManageGroups(true)}
+                  variant="outline"
+                  className="border-[var(--sidebar-border)] text-blue-500 hover:text-blue-500 hover:bg-transparent"
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Gerenciar Grupos
+                </Button>
                 <Button
                   onClick={() => setShowCreateGroup(true)}
                   variant="outline"
@@ -1069,52 +1212,6 @@ export default function WorkspacesPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="editAgentGroup" className="text-[var(--text-primary)]">
-                  Grupo
-                </Label>
-                <select
-                  id="editAgentGroup"
-                  value={isCreatingNewGroup ? "__new__" : selectedAgent.group_name || "Geral"}
-                  onChange={(e) => {
-                    if (e.target.value === "__new__") {
-                      setIsCreatingNewGroup(true)
-                      setNewGroupName("")
-                    } else {
-                      setIsCreatingNewGroup(false)
-                      setSelectedAgent({ ...selectedAgent, group_name: e.target.value })
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                >
-                  {groups.map((group) => (
-                    <option key={group} value={group}>
-                      {group}
-                    </option>
-                  ))}
-                  <option value="__new__">+ Novo Grupo</option>
-                </select>
-                {isCreatingNewGroup && (
-                  <Input
-                    type="text"
-                    placeholder="Nome do novo grupo"
-                    value={newGroupName}
-                    onChange={(e) => {
-                      setNewGroupName(e.target.value)
-                      setSelectedAgent({ ...selectedAgent, group_name: e.target.value })
-                    }}
-                    onBlur={() => {
-                      if (!newGroupName.trim()) {
-                        setIsCreatingNewGroup(false)
-                        setSelectedAgent({ ...selectedAgent, group_name: "Geral" })
-                      }
-                    }}
-                    autoFocus
-                    className="mt-2 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                  />
-                )}
-              </div>
-
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -1388,6 +1485,104 @@ export default function WorkspacesPage() {
                   Criar Grupo ({selectedAgentsForGroup.size})
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showManageGroups && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Gerenciar Grupos</h2>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Edite ou exclua grupos existentes. Os agentes serão movidos para "Geral" ao excluir um grupo.
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {groups.map((group) => {
+                const agentsInGroup = agents.filter((a) => a.group_name === group)
+                const isEditing = editingGroup?.oldName === group
+
+                return (
+                  <div
+                    key={group}
+                    className="flex items-center justify-between p-4 rounded-lg border border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50 transition-all"
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                        <FolderOpen className="h-5 w-5 text-purple-400" />
+                      </div>
+                      <div className="flex-1">
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={editingGroup.newName}
+                            onChange={(e) => setEditingGroup({ ...editingGroup, newName: e.target.value })}
+                            onBlur={() => {
+                              if (editingGroup.newName.trim()) {
+                                handleEditGroup(editingGroup.oldName, editingGroup.newName)
+                              } else {
+                                setEditingGroup(null)
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editingGroup.newName.trim()) {
+                                handleEditGroup(editingGroup.oldName, editingGroup.newName)
+                              } else if (e.key === "Escape") {
+                                setEditingGroup(null)
+                              }
+                            }}
+                            autoFocus
+                            className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                          />
+                        ) : (
+                          <>
+                            <h3 className="font-semibold text-[var(--text-primary)]">{group}</h3>
+                            <p className="text-xs text-[var(--text-secondary)]">{agentsInGroup.length} agente(s)</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isEditing && (
+                        <>
+                          <Button
+                            onClick={() => setEditingGroup({ oldName: group, newName: group })}
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          {group !== "Geral" && (
+                            <Button
+                              onClick={() => handleDeleteGroup(group)}
+                              variant="outline"
+                              size="sm"
+                              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setShowManageGroups(false)
+                  setEditingGroup(null)
+                }}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
+              >
+                Fechar
+              </Button>
             </div>
           </div>
         </div>

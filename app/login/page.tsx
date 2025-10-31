@@ -27,6 +27,9 @@ export default function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [displayName, setDisplayName] = useState("")
   const [phone, setPhone] = useState("")
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -361,6 +364,67 @@ export default function LoginPage() {
     }
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!forgotPasswordEmail || !forgotPasswordEmail.includes("@")) {
+      addToast({
+        title: "Email inválido",
+        description: "Digite um email válido",
+        variant: "error",
+      })
+      return
+    }
+
+    setIsSendingResetEmail(true)
+
+    try {
+      const supabase = createClient()
+
+      const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost"
+      const productionUrl = "https://workspaceai.digital"
+      const redirectUrl = isLocalhost
+        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL?.replace("/chat", "/reset-password") ||
+          `${window.location.origin}/reset-password`
+        : `${productionUrl}/reset-password`
+
+      console.log("[v0] Sending password reset email to:", forgotPasswordEmail, "with redirect:", redirectUrl)
+
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: redirectUrl,
+      })
+
+      if (error) {
+        console.error("[v0] Error sending reset email:", error)
+        addToast({
+          title: "Erro ao enviar email",
+          description: error.message,
+          variant: "error",
+        })
+        return
+      }
+
+      console.log("[v0] Password reset email sent successfully")
+      addToast({
+        title: "Email enviado!",
+        description: "Verifique sua caixa de entrada para redefinir sua senha.",
+        variant: "success",
+      })
+
+      setShowForgotPassword(false)
+      setForgotPasswordEmail("")
+    } catch (err: any) {
+      console.error("[v0] Unexpected error sending reset email:", err)
+      addToast({
+        title: "Erro inesperado",
+        description: err.message || "Não foi possível enviar o email de recuperação.",
+        variant: "error",
+      })
+    } finally {
+      setIsSendingResetEmail(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Login Form */}
@@ -658,7 +722,11 @@ export default function LoginPage() {
             </form>
           )}
 
-          <button className="w-full text-center text-purple-400 hover:text-purple-300 mt-4 md:mt-6 text-xs md:text-sm cursor-pointer">
+          <button
+            onClick={() => setShowForgotPassword(true)}
+            type="button"
+            className="w-full text-center text-purple-400 hover:text-purple-300 mt-4 md:mt-6 text-xs md:text-sm cursor-pointer"
+          >
             Esqueci minha senha
           </button>
         </div>
@@ -737,6 +805,69 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0a0a0f] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl md:text-2xl font-bold text-white">Recuperar Senha</h2>
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false)
+                  setForgotPasswordEmail("")
+                }}
+                className="text-gray-400 hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-gray-400 text-sm mb-6">
+              Digite seu email e enviaremos um link para você redefinir sua senha.
+            </p>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <Label htmlFor="forgot-email" className="text-gray-300 mb-2 block text-sm font-medium">
+                  Email
+                </Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-purple-500 h-11"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false)
+                    setForgotPasswordEmail("")
+                  }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white h-11 cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSendingResetEmail}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white h-11 cursor-pointer shadow-lg shadow-purple-500/20"
+                >
+                  {isSendingResetEmail ? "Enviando..." : "Enviar Link"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

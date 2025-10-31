@@ -95,13 +95,35 @@ export function ChatSidebar({
 
   useEffect(() => {
     const deduplicatedAgents = agents.reduce((acc, agent) => {
-      // Check if we already have an agent with this name
-      const isDuplicate = acc.some((a) => a.name === agent.name)
-      if (!isDuplicate) {
-        acc.push(agent)
-      } else {
-        console.log("[v0] 🔄 Removendo agente duplicado:", agent.name, agent.id)
+      // Check if we already have an agent with this exact name
+      const exactMatch = acc.find((a) => a.name === agent.name)
+      if (exactMatch) {
+        console.log("[v0] 🔄 Removendo agente duplicado (nome exato):", agent.name, agent.id)
+        return acc
       }
+
+      // Check if we have an agent whose name contains this agent's name or vice versa
+      const partialMatch = acc.find((a) => {
+        const aNameLower = a.name.toLowerCase()
+        const agentNameLower = agent.name.toLowerCase()
+        return aNameLower.includes(agentNameLower) || agentNameLower.includes(aNameLower)
+      })
+
+      if (partialMatch) {
+        // Keep the agent with the longer name (more specific)
+        if (agent.name.length > partialMatch.name.length) {
+          // Replace the shorter name with the longer one
+          console.log("[v0] 🔄 Substituindo agente com nome mais curto:", partialMatch.name, "por:", agent.name)
+          const index = acc.indexOf(partialMatch)
+          acc[index] = agent
+        } else {
+          console.log("[v0] 🔄 Removendo agente duplicado (nome parcial):", agent.name, agent.id)
+        }
+        return acc
+      }
+
+      // No duplicate found, add the agent
+      acc.push(agent)
       return acc
     }, [] as Agent[])
 
@@ -291,7 +313,7 @@ export function ChatSidebar({
         style={{
           ...(isSelected && { borderColor: agent.color }),
         }}
-        title={isExpanded ? undefined : agent.name}
+        title={agent.name}
       >
         {isCustomAgent && (
           <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
@@ -494,7 +516,7 @@ export function ChatSidebar({
                     <button
                       onClick={() => toggleGroup(groupName)}
                       className={cn(
-                        "w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200",
+                        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200",
                         "bg-gradient-to-r from-purple-500/10 to-blue-500/10",
                         "hover:from-purple-500/20 hover:to-blue-500/20",
                         "border border-purple-500/20",
@@ -502,26 +524,27 @@ export function ChatSidebar({
                         "mb-2",
                       )}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
-                            "bg-gradient-to-br from-purple-500 to-blue-500",
-                            "shadow-sm",
-                          )}
-                        >
-                          <FolderOpen className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex flex-col items-start">
-                          <span className="text-sm font-semibold text-[var(--text-primary)]">{groupName}</span>
-                          <span className="text-xs text-[var(--text-secondary)]">
-                            {groupAgents.length} {groupAgents.length === 1 ? "agente" : "agentes"}
-                          </span>
-                        </div>
-                      </div>
                       <div
                         className={cn(
-                          "w-6 h-6 rounded-md flex items-center justify-center",
+                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0",
+                          "bg-gradient-to-br from-purple-500 to-blue-500",
+                          "shadow-sm",
+                        )}
+                      >
+                        <FolderOpen className="w-4 h-4 text-white" />
+                      </div>
+
+                      <span className="text-sm font-semibold text-[var(--text-primary)] flex-1 text-left truncate">
+                        {groupName}
+                      </span>
+
+                      <span className="rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-purple-500 to-blue-500 shadow-sm flex-shrink-0">
+                        {groupAgents.length}
+                      </span>
+
+                      <div
+                        className={cn(
+                          "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
                           "bg-[var(--agent-bg)]",
                           "transition-all duration-200",
                         )}
