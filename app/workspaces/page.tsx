@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { EmojiPicker } from "@/components/emoji-picker"
+import { IconPicker } from "@/components/icon-picker"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Agent } from "@/types/chat"
 import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
@@ -39,6 +40,14 @@ interface WorkspaceAgent extends Agent {
   display_order?: number
 }
 
+interface Group {
+  id: string
+  name: string
+  icon: string
+  display_order: number
+  created_at?: string
+}
+
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
 export default function WorkspacesPage() {
@@ -47,14 +56,16 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<WorkspaceAgent[]>([])
   const [filteredAgents, setFilteredAgents] = useState<WorkspaceAgent[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
   const [showCreateAgent, setShowCreateAgent] = useState(false)
   const [showManageAgents, setShowManageAgents] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showManageGroups, setShowManageGroups] = useState(false)
-  const [editingGroup, setEditingGroup] = useState<{ oldName: string; newName: string } | null>(null)
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string } | null>(null)
   const [createGroupName, setCreateGroupName] = useState("")
+  const [createGroupIcon, setCreateGroupIcon] = useState("📁")
   const [selectedAgentsForGroup, setSelectedAgentsForGroup] = useState<Set<string>>(new Set())
   const [agentVisibility, setAgentVisibility] = useState<Record<string, boolean>>({})
   const [userId, setUserId] = useState<string>("")
@@ -63,6 +74,8 @@ export default function WorkspacesPage() {
   const [filterGroup, setFilterGroup] = useState<string>("all")
   const [draggedAgent, setDraggedAgent] = useState<WorkspaceAgent | null>(null)
   const [dragOverAgent, setDragOverAgent] = useState<WorkspaceAgent | null>(null)
+  const [draggedGroup, setDraggedGroup] = useState<Group | null>(null)
+  const [dragOverGroup, setDragOverGroup] = useState<Group | null>(null)
   const [newAgent, setNewAgent] = useState({
     name: "",
     icon: "",
@@ -116,6 +129,21 @@ export default function WorkspacesPage() {
       const storedInactive = localStorage.getItem(`inactive_agents_${session.user.id}`)
       if (storedInactive) {
         setInactiveAgents(new Set(JSON.parse(storedInactive)))
+      }
+
+      const { data: groupsData, error: groupsError } = await supabase
+        .from("groups")
+        .select("*")
+        .order("display_order", { ascending: true })
+
+      if (groupsError) {
+        console.error("[v0] Error loading groups:", groupsError)
+        // If groups table doesn't exist, show migration modal
+        if (groupsError.message.includes("groups")) {
+          setShowMigrationModal(true)
+        }
+      } else if (groupsData) {
+        setGroups(groupsData as Group[])
       }
 
       const { data: agentsData, error: agentsError } = await supabase
@@ -176,7 +204,7 @@ export default function WorkspacesPage() {
     setFilteredAgents(filtered)
   }, [agents, filterStatus, filterGroup, inactiveAgents])
 
-  const groups = Array.from(new Set(agents.map((a) => a.group_name || "Geral")))
+  const groupNames = groups.map((g) => g.name)
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -202,6 +230,7 @@ export default function WorkspacesPage() {
         if (showCreateGroup) {
           setShowCreateGroup(false)
           setCreateGroupName("")
+          setCreateGroupIcon("📁")
           setSelectedAgentsForGroup(new Set())
         }
         if (showManageGroups) {
@@ -272,6 +301,67 @@ export default function WorkspacesPage() {
       description: "A ordem dos agentes foi atualizada na sidebar",
       variant: "success",
     })
+  }
+
+  const handleGroupDragStart = (group: Group) => {
+    setDraggedGroup(group)
+  }
+
+  const handleGroupDragOver = (e: React.DragEvent, group: Group) => {
+    e.preventDefault()
+    setDragOverGroup(group)
+  }
+
+  const handleGroupDragLeave = () => {
+    setDragOverGroup(null)
+  }
+
+  const handleGroupDrop = async (targetGroup: Group) => {
+    if (!draggedGroup || draggedGroup.id === targetGroup.id) {
+      setDragOverGroup(null)
+      return
+    }
+
+    const supabase = createClient()
+    const draggedIndex = groups.findIndex((g) => g.id === draggedGroup.id)
+    const targetIndex = groups.findIndex((g) => g.id === targetGroup.id)
+
+    // Reorder locally
+    const newGroups = [...groups]
+    newGroups.splice(draggedIndex, 1)
+    newGroups.splice(targetIndex, 0, draggedGroup)
+
+    const reorderedGroups = newGroups.map((group, index) => ({
+      ...group,
+      display_order: index,
+    }))
+
+    setGroups(reorderedGroups)
+
+    // Update in database
+    const updates = reorderedGroups.map((group) =>
+      supabase.from("groups").update({ display_order: group.display_order }).eq("id", group.id),
+    )
+
+    try {
+      await Promise.all(updates)
+
+      addToast({
+        title: "Ordem atualizada",
+        description: "A ordem dos grupos foi atualizada para todos os usuários",
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error updating group order:", error)
+      addToast({
+        title: "Erro",
+        description: "Não foi possível atualizar a ordem dos grupos",
+        variant: "error",
+      })
+    }
+
+    setDraggedGroup(null)
+    setDragOverGroup(null)
   }
 
   const handleToggleFavorite = async (agentId: string) => {
@@ -393,6 +483,7 @@ export default function WorkspacesPage() {
         color: selectedAgent.color,
         description: selectedAgent.description,
         trigger_word: selectedAgent.trigger_word,
+        group_name: selectedAgent.group_name || "Geral",
       })
       .eq("id", selectedAgent.id)
       .select()
@@ -456,6 +547,7 @@ export default function WorkspacesPage() {
         trigger_word: newAgent.trigger_word,
         is_system: false,
         order: maxOrder + 1,
+        group_name: newAgent.group_name || "Geral",
       })
       .select()
       .single()
@@ -480,7 +572,7 @@ export default function WorkspacesPage() {
       ...data,
       display_order: data.order,
       is_active: true,
-      group_name: newAgent.group_name,
+      group_name: newAgent.group_name || "Geral",
     }
 
     setAgents((prev) => [...prev, mappedAgent as WorkspaceAgent])
@@ -528,7 +620,7 @@ export default function WorkspacesPage() {
           linkedCustomAgents.forEach((ca) => newInactive.add(ca.id))
           newInactive.add(agentId)
           setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
 
           addToast({
             title: "Agente desativado",
@@ -571,7 +663,7 @@ export default function WorkspacesPage() {
         const newInactive = new Set(inactiveAgents)
         newInactive.delete(agentId)
         setInactiveAgents(newInactive)
-        localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+        localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
 
         addToast({
           title: "Agente restaurado",
@@ -591,6 +683,7 @@ export default function WorkspacesPage() {
       })
       return
     }
+
     if (!createGroupName.trim()) {
       addToast({
         title: "Nome obrigatório",
@@ -611,19 +704,31 @@ export default function WorkspacesPage() {
 
     const supabase = createClient()
 
-    const testAgentId = Array.from(selectedAgentsForGroup)[0]
-    const testResult = await supabase
-      .from("agents")
-      .update({ group_name: createGroupName.trim() })
-      .eq("id", testAgentId)
+    const { data: newGroup, error: groupError } = await supabase
+      .from("groups")
+      .insert({
+        name: createGroupName.trim(),
+        icon: createGroupIcon,
+        display_order: groups.length,
+      })
+      .select()
+      .single()
 
-    if (testResult.error && testResult.error.message.includes("group_name")) {
-      // Column doesn't exist, show migration modal
-      setShowMigrationModal(true)
+    if (groupError) {
+      console.error("[v0] Error creating group:", groupError)
+      if (groupError.message.includes("groups")) {
+        setShowMigrationModal(true)
+      } else {
+        addToast({
+          title: "Erro ao criar grupo",
+          description: groupError.message,
+          variant: "error",
+        })
+      }
       return
     }
 
-    // If test succeeded, update all agents
+    // Update agents with new group name
     const updates = Array.from(selectedAgentsForGroup).map(async (agentId) => {
       return await supabase.from("agents").update({ group_name: createGroupName.trim() }).eq("id", agentId)
     })
@@ -634,10 +739,15 @@ export default function WorkspacesPage() {
       const errors = results.filter((r) => r.error)
       if (errors.length > 0) {
         console.error("[v0] Errors updating agents:", errors)
-        setShowMigrationModal(true)
+        addToast({
+          title: "Erro ao atribuir agentes",
+          description: "Não foi possível atribuir os agentes ao grupo",
+          variant: "error",
+        })
         return
       }
 
+      setGroups((prev) => [...prev, newGroup as Group])
       setAgents((prev) =>
         prev.map((agent) =>
           selectedAgentsForGroup.has(agent.id) ? { ...agent, group_name: createGroupName.trim() } : agent,
@@ -652,10 +762,15 @@ export default function WorkspacesPage() {
 
       setShowCreateGroup(false)
       setCreateGroupName("")
+      setCreateGroupIcon("📁")
       setSelectedAgentsForGroup(new Set())
     } catch (error) {
       console.error("[v0] Error creating group:", error)
-      setShowMigrationModal(true)
+      addToast({
+        title: "Erro ao criar grupo",
+        description: "Ocorreu um erro ao criar o grupo",
+        variant: "error",
+      })
     }
   }
 
@@ -707,7 +822,7 @@ export default function WorkspacesPage() {
     }
   }
 
-  const handleEditGroup = async (oldName: string, newName: string) => {
+  const handleEditGroup = async (groupId: string, newName: string, newIcon: string) => {
     if (!isAuthorized) {
       addToast({
         title: "Acesso negado",
@@ -726,56 +841,81 @@ export default function WorkspacesPage() {
       return
     }
 
-    if (newName.trim() === oldName) {
+    const group = groups.find((g) => g.id === groupId)
+    if (!group) return
+
+    const oldName = group.name
+
+    if (newName.trim() === oldName && newIcon === group.icon) {
       setEditingGroup(null)
       return
     }
 
     const supabase = createClient()
 
+    const { error: groupError } = await supabase
+      .from("groups")
+      .update({ name: newName.trim(), icon: newIcon })
+      .eq("id", groupId)
+
+    if (groupError) {
+      console.error("[v0] Error updating group:", groupError)
+      addToast({
+        title: "Erro ao editar grupo",
+        description: groupError.message,
+        variant: "error",
+      })
+      return
+    }
+
     // Update all agents with the old group name to the new group name
-    const agentsInGroup = agents.filter((a) => a.group_name === oldName)
+    if (newName.trim() !== oldName) {
+      const agentsInGroup = agents.filter((a) => a.group_name === oldName)
 
-    const updates = agentsInGroup.map(async (agent) => {
-      return await supabase.from("agents").update({ group_name: newName.trim() }).eq("id", agent.id)
-    })
+      const updates = agentsInGroup.map(async (agent) => {
+        return await supabase.from("agents").update({ group_name: newName.trim() }).eq("id", agent.id)
+      })
 
-    try {
-      const results = await Promise.all(updates)
+      try {
+        const results = await Promise.all(updates)
 
-      const errors = results.filter((r) => r.error)
-      if (errors.length > 0) {
-        console.error("[v0] Errors updating group:", errors)
+        const errors = results.filter((r) => r.error)
+        if (errors.length > 0) {
+          console.error("[v0] Errors updating agents:", errors)
+          addToast({
+            title: "Erro ao editar grupo",
+            description: "Não foi possível atualizar os agentes do grupo",
+            variant: "error",
+          })
+          return
+        }
+
+        setAgents((prev) =>
+          prev.map((agent) => (agent.group_name === oldName ? { ...agent, group_name: newName.trim() } : agent)),
+        )
+      } catch (error) {
+        console.error("[v0] Error editing group:", error)
         addToast({
           title: "Erro ao editar grupo",
-          description: "Não foi possível atualizar o nome do grupo",
+          description: "Ocorreu um erro ao atualizar o grupo",
           variant: "error",
         })
         return
       }
-
-      setAgents((prev) =>
-        prev.map((agent) => (agent.group_name === oldName ? { ...agent, group_name: newName.trim() } : agent)),
-      )
-
-      addToast({
-        title: "Grupo atualizado",
-        description: `Grupo "${oldName}" renomeado para "${newName}"`,
-        variant: "success",
-      })
-
-      setEditingGroup(null)
-    } catch (error) {
-      console.error("[v0] Error editing group:", error)
-      addToast({
-        title: "Erro ao editar grupo",
-        description: "Ocorreu um erro ao atualizar o grupo",
-        variant: "error",
-      })
     }
+
+    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: newName.trim(), icon: newIcon } : g)))
+
+    addToast({
+      title: "Grupo atualizado",
+      description: `Grupo "${oldName}" foi atualizado com sucesso`,
+      variant: "success",
+    })
+
+    setEditingGroup(null)
   }
 
-  const handleDeleteGroup = async (groupName: string) => {
+  const handleDeleteGroup = async (groupId: string) => {
     if (!isAuthorized) {
       addToast({
         title: "Acesso negado",
@@ -785,12 +925,15 @@ export default function WorkspacesPage() {
       return
     }
 
-    const agentsInGroup = agents.filter((a) => a.group_name === groupName)
+    const group = groups.find((g) => g.id === groupId)
+    if (!group) return
+
+    const agentsInGroup = agents.filter((a) => a.group_name === group.name)
 
     setConfirmDialog({
       isOpen: true,
       title: "Excluir grupo",
-      description: `Deseja excluir o grupo "${groupName}"?\n\n${agentsInGroup.length} agente(s) serão movidos para o grupo "Geral".`,
+      description: `Deseja excluir o grupo "${group.name}"?\n\n${agentsInGroup.length} agente(s) serão movidos para o grupo "Geral".`,
       variant: "destructive",
       onConfirm: async () => {
         const supabase = createClient()
@@ -805,22 +948,35 @@ export default function WorkspacesPage() {
 
           const errors = results.filter((r) => r.error)
           if (errors.length > 0) {
-            console.error("[v0] Errors deleting group:", errors)
+            console.error("[v0] Errors moving agents:", errors)
             addToast({
               title: "Erro ao excluir grupo",
-              description: "Não foi possível excluir o grupo",
+              description: "Não foi possível mover os agentes para o grupo Geral",
               variant: "error",
             })
             return
           }
 
+          const { error: deleteError } = await supabase.from("groups").delete().eq("id", groupId)
+
+          if (deleteError) {
+            console.error("[v0] Error deleting group:", deleteError)
+            addToast({
+              title: "Erro ao excluir grupo",
+              description: deleteError.message,
+              variant: "error",
+            })
+            return
+          }
+
+          setGroups((prev) => prev.filter((g) => g.id !== groupId))
           setAgents((prev) =>
-            prev.map((agent) => (agent.group_name === groupName ? { ...agent, group_name: "Geral" } : agent)),
+            prev.map((agent) => (agent.group_name === group.name ? { ...agent, group_name: "Geral" } : agent)),
           )
 
           addToast({
             title: "Grupo excluído",
-            description: `Grupo "${groupName}" foi excluído e ${agentsInGroup.length} agente(s) foram movidos para "Geral"`,
+            description: `Grupo "${group.name}" foi excluído e ${agentsInGroup.length} agente(s) foram movidos para "Geral"`,
             variant: "success",
           })
         } catch (error) {
@@ -925,7 +1081,7 @@ export default function WorkspacesPage() {
             className="px-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)] text-sm"
           >
             <option value="all">Todos os grupos</option>
-            {groups.map((group) => (
+            {groupNames.map((group) => (
               <option key={group} value={group}>
                 {group}
               </option>
@@ -1211,6 +1367,25 @@ export default function WorkspacesPage() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="editAgentGroup" className="text-[var(--text-primary)]">
+                  Grupo
+                </Label>
+                <select
+                  id="editAgentGroup"
+                  value={selectedAgent.group_name || "Geral"}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, group_name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                >
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.name}>
+                      {group.icon} {group.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--text-secondary)]">Escolha o grupo ao qual este agente pertence</p>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   onClick={() => {
@@ -1335,8 +1510,8 @@ export default function WorkspacesPage() {
                   className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 >
                   {groups.map((group) => (
-                    <option key={group} value={group}>
-                      {group}
+                    <option key={group.id} value={group.name}>
+                      {group.name}
                     </option>
                   ))}
                   <option value="__new__">+ Novo Grupo</option>
@@ -1397,24 +1572,34 @@ export default function WorkspacesPage() {
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[var(--text-primary)]">Criar Novo Grupo</h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Digite o nome do grupo e selecione os agentes que farão parte dele
+                Digite o nome do grupo, escolha um ícone e selecione os agentes que farão parte dele
               </p>
             </div>
 
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="groupName" className="text-[var(--text-primary)]">
-                  Nome do Grupo *
-                </Label>
-                <Input
-                  id="groupName"
-                  type="text"
-                  value={createGroupName}
-                  onChange={(e) => setCreateGroupName(e.target.value)}
-                  placeholder="Ex: Marketing, Vendas, Suporte..."
-                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                  autoFocus
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="groupName" className="text-[var(--text-primary)]">
+                    Nome do Grupo *
+                  </Label>
+                  <Input
+                    id="groupName"
+                    type="text"
+                    value={createGroupName}
+                    onChange={(e) => setCreateGroupName(e.target.value)}
+                    placeholder="Ex: Marketing, Vendas, Suporte..."
+                    className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="groupIcon" className="text-[var(--text-primary)]">
+                    Ícone do Grupo *
+                  </Label>
+                  <IconPicker value={createGroupIcon} onChange={(emoji) => setCreateGroupIcon(emoji)} />
+                  <p className="text-xs text-[var(--text-secondary)]">Escolha um emoji para representar o grupo</p>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -1469,6 +1654,7 @@ export default function WorkspacesPage() {
                   onClick={() => {
                     setShowCreateGroup(false)
                     setCreateGroupName("")
+                    setCreateGroupIcon("📁")
                     setSelectedAgentsForGroup(new Set())
                   }}
                   variant="outline"
@@ -1488,82 +1674,102 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
+
+      {/* Manage Groups Modal */}
       {showManageGroups && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
               <h2 className="text-xl font-bold text-[var(--text-primary)]">Gerenciar Grupos</h2>
               <p className="text-sm text-[var(--text-secondary)]">
-                Edite ou exclua grupos existentes. Os agentes serão movidos para "Geral" ao excluir um grupo.
+                Edite ícones, nomes ou exclua grupos. Arraste para reordenar. As alterações afetam todos os usuários.
               </p>
             </div>
 
             <div className="space-y-3 mb-6">
               {groups.map((group) => {
-                const agentsInGroup = agents.filter((a) => a.group_name === group)
-                const isEditing = editingGroup?.oldName === group
+                const agentsInGroup = agents.filter((a) => a.group_name === group.name)
+                const isEditing = editingGroup?.id === group.id
 
                 return (
                   <div
-                    key={group}
-                    className="flex items-center justify-between p-4 rounded-lg border border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50 transition-all"
+                    key={group.id}
+                    draggable={isAuthorized && !isEditing}
+                    onDragStart={() => handleGroupDragStart(group)}
+                    onDragOver={(e) => handleGroupDragOver(e, group)}
+                    onDragLeave={handleGroupDragLeave}
+                    onDrop={() => handleGroupDrop(group)}
+                    className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
+                      isAuthorized && !isEditing ? "cursor-move" : ""
+                    } ${
+                      dragOverGroup?.id === group.id
+                        ? "border-purple-500 bg-purple-500/10 scale-105"
+                        : "border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50"
+                    } ${draggedGroup?.id === group.id ? "opacity-50" : ""}`}
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                        <FolderOpen className="h-5 w-5 text-purple-400" />
-                      </div>
-                      <div className="flex-1">
-                        {isEditing ? (
+                      {isAuthorized && !isEditing && (
+                        <GripVertical className="h-5 w-5 text-[var(--text-secondary)] flex-shrink-0" />
+                      )}
+                      {isEditing ? (
+                        <div className="flex items-center gap-3 flex-1">
+                          <IconPicker
+                            value={editingGroup.icon}
+                            onChange={(emoji) => setEditingGroup({ ...editingGroup, icon: emoji })}
+                          />
                           <Input
                             type="text"
-                            value={editingGroup.newName}
-                            onChange={(e) => setEditingGroup({ ...editingGroup, newName: e.target.value })}
+                            value={editingGroup.name}
+                            onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
                             onBlur={() => {
-                              if (editingGroup.newName.trim()) {
-                                handleEditGroup(editingGroup.oldName, editingGroup.newName)
+                              if (editingGroup.name.trim()) {
+                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
                               } else {
                                 setEditingGroup(null)
                               }
                             }}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter" && editingGroup.newName.trim()) {
-                                handleEditGroup(editingGroup.oldName, editingGroup.newName)
+                              if (e.key === "Enter" && editingGroup.name.trim()) {
+                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
                               } else if (e.key === "Escape") {
                                 setEditingGroup(null)
                               }
                             }}
                             autoFocus
-                            className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                            className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                           />
-                        ) : (
-                          <>
-                            <h3 className="font-semibold text-[var(--text-primary)]">{group}</h3>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 text-xl">
+                            {group.icon}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-[var(--text-primary)]">{group.name}</h3>
                             <p className="text-xs text-[var(--text-secondary)]">{agentsInGroup.length} agente(s)</p>
-                          </>
-                        )}
-                      </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {!isEditing && (
                         <>
                           <Button
-                            onClick={() => setEditingGroup({ oldName: group, newName: group })}
+                            onClick={() => setEditingGroup({ id: group.id, name: group.name, icon: group.icon })}
                             variant="outline"
                             size="sm"
                             className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          {group !== "Geral" && (
-                            <Button
-                              onClick={() => handleDeleteGroup(group)}
-                              variant="outline"
-                              size="sm"
-                              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button
+                            onClick={() => handleDeleteGroup(group.id)}
+                            variant="outline"
+                            size="sm"
+                            className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </>
                       )}
                     </div>

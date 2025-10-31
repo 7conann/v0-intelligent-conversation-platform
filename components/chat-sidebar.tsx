@@ -18,7 +18,6 @@ import {
   Layers,
   Eye,
   EyeOff,
-  FolderOpen,
   ChevronDown,
 } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -85,6 +84,7 @@ export function ChatSidebar({
 
   const [viewMode, setViewMode] = useState<"sequential" | "grouped">("sequential")
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Geral"]))
+  const [groupIcons, setGroupIcons] = useState<Record<string, string>>({})
 
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
@@ -164,6 +164,19 @@ export function ChatSidebar({
         } else {
           setUserName(session.user.email?.split("@")[0] || "Usuário")
         }
+      }
+
+      const { data: groupsData, error: groupsError } = await supabase.from("groups").select("name, icon")
+
+      if (!groupsError && groupsData) {
+        const icons: Record<string, string> = {}
+        groupsData.forEach((group: any) => {
+          icons[group.name] = group.icon
+        })
+        setGroupIcons(icons)
+        console.log("[v0] 🎨 SIDEBAR: Group icons loaded:", icons)
+      } else if (groupsError) {
+        console.error("[v0] ❌ SIDEBAR: Error loading group icons:", groupsError)
       }
     }
 
@@ -510,6 +523,7 @@ export function ChatSidebar({
             : // Improved grouped view design with better visual hierarchy and styling
               Object.entries(groupedAgents).map(([groupName, groupAgents]) => {
                 const isExpandedGroup = expandedGroups.has(groupName)
+                const groupIcon = groupIcons[groupName] || "📁"
 
                 return (
                   <div key={groupName} className="w-full mb-2">
@@ -531,7 +545,7 @@ export function ChatSidebar({
                           "shadow-sm",
                         )}
                       >
-                        <FolderOpen className="w-4 h-4 text-white" />
+                        <span className="text-lg">{groupIcon}</span>
                       </div>
 
                       <span className="text-sm font-semibold text-[var(--text-primary)] flex-1 text-left truncate">
