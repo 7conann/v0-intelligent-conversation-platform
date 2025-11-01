@@ -639,7 +639,7 @@ export default function WorkspacesPage() {
           const newInactive = new Set(inactiveAgents)
           newInactive.add(agentId)
           setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
 
           addToast({
             title: "Agente desativado",
@@ -1004,7 +1004,7 @@ export default function WorkspacesPage() {
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--text-primary)]">
       {/* Header */}
-      <div className="border-b border-[var(--sidebar-border)] bg-[var(--chat-header-bg)] px-6 py-4">
+      <div className="sticky top-0 z-50 border-b border-[var(--sidebar-border)] bg-[var(--chat-header-bg)] px-6 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -1060,7 +1060,7 @@ export default function WorkspacesPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl p-6 pb-4">
+      <div className="mx-auto max-w-6xl px-6 pb-6 pt-6">
         <div className="flex items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -1711,50 +1711,50 @@ export default function WorkspacesPage() {
                       {isAuthorized && !isEditing && (
                         <GripVertical className="h-5 w-5 text-[var(--text-secondary)] flex-shrink-0" />
                       )}
-                  {isEditing ? (
-  <div className="flex items-center gap-3 flex-1">
-    <IconPicker
-      value={editingGroup.icon}
-      onChange={(emoji) => setEditingGroup({ ...editingGroup, icon: emoji })}
-    />
-    <Input
-      type="text"
-      value={editingGroup.name}
-      onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && editingGroup.name.trim()) {
-          handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
-        } else if (e.key === "Escape") {
-          setEditingGroup(null)
-        }
-      }}
-      autoFocus
-      className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-    />
+                      {isEditing ? (
+                        <div className="flex items-center gap-3 flex-1">
+                          <IconPicker
+                            value={editingGroup.icon}
+                            onChange={(emoji) => setEditingGroup({ ...editingGroup, icon: emoji })}
+                          />
+                          <Input
+                            type="text"
+                            value={editingGroup.name}
+                            onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && editingGroup.name.trim()) {
+                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
+                              } else if (e.key === "Escape") {
+                                setEditingGroup(null)
+                              }
+                            }}
+                            autoFocus
+                            className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                          />
 
-    {/* Ações explícitas (não fecham quando clicar no ícone) */}
-    <Button
-      size="sm"
-      className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
-      variant="outline"
-      onClick={() => {
-        if (editingGroup.name.trim()) {
-          handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
-        }
-      }}
-    >
-      Salvar
-    </Button>
-    <Button
-      size="sm"
-      className="border-[var(--sidebar-border)]"
-      variant="outline"
-      onClick={() => setEditingGroup(null)}
-    >
-      Cancelar
-    </Button>
-  </div>
-) : (
+                          {/* Ações explícitas (não fecham quando clicar no ícone) */}
+                          <Button
+                            size="sm"
+                            className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10 bg-transparent"
+                            variant="outline"
+                            onClick={() => {
+                              if (editingGroup.name.trim()) {
+                                handleEditGroup(editingGroup.id, editingGroup.name, editingGroup.icon)
+                              }
+                            }}
+                          >
+                            Salvar
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="border-[var(--sidebar-border)] bg-transparent"
+                            variant="outline"
+                            onClick={() => setEditingGroup(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
                         <>
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 text-xl">
                             {group.icon}

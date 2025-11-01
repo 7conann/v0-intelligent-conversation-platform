@@ -181,7 +181,7 @@ export function ChatSidebar({
     }
 
     loadProfile()
-  }, [])
+  }, [agents])
 
   useEffect(() => {
     const savedExpanded = localStorage.getItem("sidebarExpanded")
@@ -289,6 +289,20 @@ export function ChatSidebar({
         acc[groupName] = []
       }
       acc[groupName].push(agent)
+      return acc
+    },
+    {} as Record<string, Agent[]>,
+  )
+
+  const activeGroupedAgents = Object.entries(groupedAgents).reduce(
+    (acc, [groupName, groupAgents]) => {
+      // Only include groups that exist in groupIcons (loaded from groups table)
+      // This filters out deleted/inactive groups
+      if (groupIcons[groupName]) {
+        acc[groupName] = groupAgents
+      } else {
+        console.log("[v0] 🚫 SIDEBAR: Filtering out inactive group:", groupName)
+      }
       return acc
     },
     {} as Record<string, Agent[]>,
@@ -520,8 +534,8 @@ export function ChatSidebar({
           {viewMode === "sequential"
             ? // Sequential view (existing flat list)
               localAgents.map((agent) => renderAgentButton(agent))
-            : // Improved grouped view design with better visual hierarchy and styling
-              Object.entries(groupedAgents).map(([groupName, groupAgents]) => {
+            : // Use activeGroupedAgents instead of groupedAgents to filter out inactive groups
+              Object.entries(activeGroupedAgents).map(([groupName, groupAgents]) => {
                 const isExpandedGroup = expandedGroups.has(groupName)
                 const groupIcon = groupIcons[groupName] || "📁"
 
