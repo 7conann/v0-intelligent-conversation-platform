@@ -269,8 +269,18 @@ export function ChatArea({
 
   const createNewChatWithSelected = () => {
     const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    onCreateChatWithMessages(selected)
+    const originConversationName = currentChat?.name || "Conversa sem nome"
+    const messagesWithOrigin = selected.map((msg) => ({
+      ...msg,
+      originConversation: originConversationName,
+    }))
+    onCreateChatWithMessages(messagesWithOrigin)
     setSelectedMessages([])
+    addToast({
+      title: "Nova conversa criada",
+      description: `${selected.length} mensagem(ns) movida(s) de "${originConversationName}"`,
+      variant: "success",
+    })
   }
 
   const copyAsMarkdown = async () => {
@@ -790,10 +800,15 @@ export function ChatArea({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-[var(--settings-text)]">Opções da Conversa</h3>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-[var(--settings-text)]">Opções da Conversa</h3>
+                <p className="text-sm text-[var(--settings-text-muted)] mt-1 truncate">
+                  {chats.find((c) => c.id === dialogChatId)?.name || "Conversa sem nome"}
+                </p>
+              </div>
               <button
                 onClick={() => setDialogChatId(null)}
-                className="text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-colors cursor-pointer"
+                className="text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-colors cursor-pointer ml-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1055,6 +1070,11 @@ export function ChatArea({
                   <span className="text-xs opacity-50">
                     {message.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
+                  {message.originConversation && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/40">
+                      De: {message.originConversation}
+                    </span>
+                  )}
                   {message.usedAgentIds && message.usedAgentIds.length > 0 && (
                     <div className="flex items-center gap-1 flex-wrap">
                       {message.usedAgentIds.map((agentId) => {

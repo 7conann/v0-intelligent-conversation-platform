@@ -300,14 +300,14 @@ export default function ChatPage() {
                     icon: agent.icon,
                     color: agent.color,
                     trigger_word: agent.trigger_word,
-                    group_name: "Geral", // Always set to "Geral" for custom agents
+                    group_name: agent.group_name || "Geral",
                     isCustomAgent: true,
                   }) as any,
               ),
             )
             console.log(
               "[v0] 📦 Custom agents com group_name:",
-              customAgentsData.map((a) => ({ name: a.name, group_name: "Geral" })),
+              customAgentsData.map((a) => ({ name: a.name, group_name: a.group_name || "Geral" })),
             )
           } else {
             console.log("[v0] ⚠️ Nenhum custom agent encontrado para este workspace")
@@ -510,7 +510,7 @@ export default function ChatPage() {
                   icon: agent.icon,
                   color: agent.color,
                   trigger_word: agent.trigger_word,
-                  group_name: "Geral", // Always set to "Geral" for custom agents
+                  group_name: agent.group_name || "Geral",
                   isCustomAgent: true,
                 }) as any,
             ),

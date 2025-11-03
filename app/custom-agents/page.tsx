@@ -20,6 +20,7 @@ export default function CustomAgentsPage() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [customAgents, setCustomAgents] = useState<any[]>([])
   const [availableAgents, setAvailableAgents] = useState<Agent[]>([])
+  const [groups, setGroups] = useState<any[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingAgent, setEditingAgent] = useState<any | null>(null)
@@ -28,6 +29,7 @@ export default function CustomAgentsPage() {
   const [newAgentIcon, setNewAgentIcon] = useState("👔")
   const [newAgentColor, setNewAgentColor] = useState("#8b5cf6")
   const [newAgentTriggerWord, setNewAgentTriggerWord] = useState("")
+  const [newAgentGroupName, setNewAgentGroupName] = useState("")
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([])
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
@@ -85,6 +87,11 @@ export default function CustomAgentsPage() {
         setWorkspaceId(workspace.id)
       }
 
+      const { data: groupsData } = await supabase.from("groups").select("*").order("display_order")
+      if (groupsData) {
+        setGroups(groupsData)
+      }
+
       const { data: agentsData } = await supabase.from("agents").select("*").order("order")
 
       if (agentsData) {
@@ -119,6 +126,7 @@ export default function CustomAgentsPage() {
           setNewAgentIcon("👔")
           setNewAgentColor("#8b5cf6")
           setNewAgentTriggerWord("")
+          setNewAgentGroupName("")
           setSelectedAgentIds([])
         }
         if (showEditModal) {
@@ -129,6 +137,7 @@ export default function CustomAgentsPage() {
           setNewAgentIcon("👔")
           setNewAgentColor("#8b5cf6")
           setNewAgentTriggerWord("")
+          setNewAgentGroupName("")
           setSelectedAgentIds([])
         }
       }
@@ -205,6 +214,7 @@ export default function CustomAgentsPage() {
         icon: newAgentIcon,
         color: newAgentColor,
         trigger_word: newAgentTriggerWord,
+        group_name: newAgentGroupName || null,
         user_id: session.user.id,
         workspace_id: workspaceId,
         agent_ids: selectedAgentIds,
@@ -236,6 +246,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon("👔")
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
+    setNewAgentGroupName("")
     setSelectedAgentIds([])
   }
 
@@ -246,6 +257,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon(agent.icon)
     setNewAgentColor(agent.color)
     setNewAgentTriggerWord(agent.trigger_word)
+    setNewAgentGroupName(agent.group_name || "")
     setSelectedAgentIds(agent.agent_ids || [])
     setShowEditModal(true)
   }
@@ -302,6 +314,7 @@ export default function CustomAgentsPage() {
         icon: newAgentIcon,
         color: newAgentColor,
         trigger_word: newAgentTriggerWord,
+        group_name: newAgentGroupName || null,
         agent_ids: selectedAgentIds,
         updated_at: new Date().toISOString(),
       })
@@ -333,6 +346,7 @@ export default function CustomAgentsPage() {
     setNewAgentIcon("👔")
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
+    setNewAgentGroupName("")
     setSelectedAgentIds([])
   }
 
@@ -458,6 +472,11 @@ export default function CustomAgentsPage() {
                     <div>
                       <h3 className="font-semibold text-lg">{customAgent.name}</h3>
                       <p className="text-xs text-muted-foreground">{customAgent.trigger_word}</p>
+                      {customAgent.group_name && (
+                        <p className="text-xs text-purple-400 mt-1">
+                          {groups.find((g) => g.name === customAgent.group_name)?.icon || "📁"} {customAgent.group_name}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -513,7 +532,7 @@ export default function CustomAgentsPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="agentName" className="text-[var(--text-primary)]">
-                  Nome do Agente
+                  Nome do Agente *
                 </Label>
                 <Input
                   id="agentName"
@@ -540,7 +559,7 @@ export default function CustomAgentsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
-                    Ícone (Emoji)
+                    Ícone (Emoji) *
                   </Label>
                   <EmojiPicker value={newAgentIcon} onChange={setNewAgentIcon} />
                 </div>
@@ -569,7 +588,7 @@ export default function CustomAgentsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="triggerWord" className="text-[var(--text-primary)]">
-                  Palavra-chave
+                  Palavra-chave *
                 </Label>
                 <Input
                   id="triggerWord"
@@ -581,6 +600,26 @@ export default function CustomAgentsPage() {
                 <p className="text-xs text-[var(--text-secondary)]">
                   Esta palavra-chave será adicionada automaticamente ao selecionar o agente no chat
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="groupName" className="text-[var(--text-primary)]">
+                  Grupo
+                </Label>
+                <select
+                  id="groupName"
+                  value={newAgentGroupName}
+                  onChange={(e) => setNewAgentGroupName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                >
+                  <option value="">Selecione um grupo (opcional)</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.name}>
+                      {group.icon} {group.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--text-secondary)]">Escolha o grupo ao qual este agente pertence</p>
               </div>
 
               <div className="space-y-2">
@@ -619,6 +658,7 @@ export default function CustomAgentsPage() {
                     setNewAgentIcon("👔")
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
+                    setNewAgentGroupName("")
                     setSelectedAgentIds([])
                   }}
                   variant="outline"
@@ -642,12 +682,13 @@ export default function CustomAgentsPage() {
       {showEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--settings-bg)] rounded-xl border border-[var(--sidebar-border)] max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">Editar Agente Customizado</h2>
+            <h2 className="text-2xl font-bold mb-6 text-[var(--text-primary)]">Editar {editingAgent?.name}</h2>
+            <p className="text-sm text-muted-foreground mb-6">Configure todos os dados do agente</p>
 
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="editAgentName" className="text-[var(--text-primary)]">
-                  Nome do Agente
+                  Nome do Agente *
                 </Label>
                 <Input
                   id="editAgentName"
@@ -660,7 +701,7 @@ export default function CustomAgentsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="editAgentDescription" className="text-[var(--text-primary)]">
-                  Descrição (opcional)
+                  Descrição
                 </Label>
                 <Input
                   id="editAgentDescription"
@@ -674,9 +715,10 @@ export default function CustomAgentsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
-                    Ícone (Emoji)
+                    Ícone (Emoji) *
                   </Label>
                   <EmojiPicker value={newAgentIcon} onChange={setNewAgentIcon} />
+                  <p className="text-xs text-muted-foreground">Use um emoji para representar o agente</p>
                 </div>
 
                 <div className="space-y-2">
@@ -703,7 +745,7 @@ export default function CustomAgentsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="editTriggerWord" className="text-[var(--text-primary)]">
-                  Palavra-chave
+                  Palavra-chave *
                 </Label>
                 <Input
                   id="editTriggerWord"
@@ -713,8 +755,28 @@ export default function CustomAgentsPage() {
                   className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 />
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Esta palavra-chave será adicionada automaticamente ao selecionar o agente no chat
+                  Palavra-chave que será usada para ativar este agente (ex: #vendas, #suporte)
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="editGroupName" className="text-[var(--text-primary)]">
+                  Grupo
+                </Label>
+                <select
+                  id="editGroupName"
+                  value={newAgentGroupName}
+                  onChange={(e) => setNewAgentGroupName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                >
+                  <option value="">Nenhum grupo</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.name}>
+                      {group.icon} {group.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--text-secondary)]">Escolha o grupo ao qual este agente pertence</p>
               </div>
 
               <div className="space-y-2">
@@ -754,6 +816,7 @@ export default function CustomAgentsPage() {
                     setNewAgentIcon("👔")
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
+                    setNewAgentGroupName("")
                     setSelectedAgentIds([])
                   }}
                   variant="outline"
@@ -765,7 +828,7 @@ export default function CustomAgentsPage() {
                   onClick={handleUpdateCustomAgent}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500"
                 >
-                  Salvar Alterações
+                  Salvar
                 </Button>
               </div>
             </div>

@@ -13,6 +13,7 @@ export interface Message {
   sender: "user" | "assistant"
   timestamp: Date
   usedAgentIds?: string[]
+  originConversation?: string
 }
 
 export interface Chat {
