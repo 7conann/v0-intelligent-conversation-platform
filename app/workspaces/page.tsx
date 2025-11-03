@@ -139,7 +139,7 @@ export default function WorkspacesPage() {
       if (groupsError) {
         console.error("[v0] Error loading groups:", groupsError)
         // If groups table doesn't exist, show migration modal
-        if (groupsError.message.includes("groups")) {
+        if (groupsError.message.includes('relation "public.groups" does not exist')) {
           setShowMigrationModal(true)
         }
       } else if (groupsData) {
@@ -704,6 +704,14 @@ export default function WorkspacesPage() {
 
     const supabase = createClient()
 
+    const { data: existingGroups, error: checkError } = await supabase.from("groups").select("id").limit(1)
+
+    if (checkError && checkError.message.includes('relation "public.groups" does not exist')) {
+      console.error("[v0] Groups table does not exist:", checkError)
+      setShowMigrationModal(true)
+      return
+    }
+
     const { data: newGroup, error: groupError } = await supabase
       .from("groups")
       .insert({
@@ -716,15 +724,11 @@ export default function WorkspacesPage() {
 
     if (groupError) {
       console.error("[v0] Error creating group:", groupError)
-      if (groupError.message.includes("groups")) {
-        setShowMigrationModal(true)
-      } else {
-        addToast({
-          title: "Erro ao criar grupo",
-          description: groupError.message,
-          variant: "error",
-        })
-      }
+      addToast({
+        title: "Erro ao criar grupo",
+        description: groupError.message || "Não foi possível criar o grupo",
+        variant: "error",
+      })
       return
     }
 
@@ -1632,7 +1636,7 @@ export default function WorkspacesPage() {
                             className="h-5 w-5 rounded border-[var(--sidebar-border)] text-purple-600 focus:ring-purple-500 cursor-pointer"
                           />
                           <div
-                            className="flex h-10 w-10 items-center justify-center rounded-lg text-xl flex-shrink-0"
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
                             style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
                           >
                             {agent.icon}

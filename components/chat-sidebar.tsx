@@ -99,9 +99,28 @@ export function ChatSidebar({
 
   useEffect(() => {
     const deduplicatedAgents = agents.reduce((acc, agent) => {
+      const isCustomAgent = (agent as any).isCustomAgent || false
+
       // Check if we already have an agent with this exact name
       const exactMatch = acc.find((a) => a.name === agent.name)
       if (exactMatch) {
+        const existingIsCustom = (exactMatch as any).isCustomAgent || false
+
+        // If the new agent is custom and existing is not, replace it
+        if (isCustomAgent && !existingIsCustom) {
+          console.log("[v0] 🔄 Substituindo agente normal por custom agent:", agent.name)
+          const index = acc.indexOf(exactMatch)
+          acc[index] = agent
+          return acc
+        }
+
+        // If existing is custom and new is not, keep existing
+        if (existingIsCustom && !isCustomAgent) {
+          console.log("[v0] 🔄 Mantendo custom agent, ignorando agente normal:", agent.name)
+          return acc
+        }
+
+        // Both are same type, remove duplicate
         console.log("[v0] 🔄 Removendo agente duplicado (nome exato):", agent.name, agent.id)
         return acc
       }
@@ -114,9 +133,24 @@ export function ChatSidebar({
       })
 
       if (partialMatch) {
-        // Keep the agent with the longer name (more specific)
+        const existingIsCustom = (partialMatch as any).isCustomAgent || false
+
+        // If the new agent is custom and existing is not, replace it
+        if (isCustomAgent && !existingIsCustom) {
+          console.log("[v0] 🔄 Substituindo agente normal por custom agent (parcial):", agent.name)
+          const index = acc.indexOf(partialMatch)
+          acc[index] = agent
+          return acc
+        }
+
+        // If existing is custom and new is not, keep existing
+        if (existingIsCustom && !isCustomAgent) {
+          console.log("[v0] 🔄 Mantendo custom agent, ignorando agente normal (parcial):", agent.name)
+          return acc
+        }
+
+        // Both are same type, keep the longer name (more specific)
         if (agent.name.length > partialMatch.name.length) {
-          // Replace the shorter name with the longer one
           console.log("[v0] 🔄 Substituindo agente com nome mais curto:", partialMatch.name, "por:", agent.name)
           const index = acc.indexOf(partialMatch)
           acc[index] = agent
@@ -137,7 +171,7 @@ export function ChatSidebar({
       deduplicatedAgents.map((a) => ({
         name: a.name,
         id: a.id,
-        description: a.description, // Added to verify description is loaded
+        description: a.description,
         group_name: a.group_name,
         isCustom: (a as any).isCustomAgent,
         trigger: a.trigger_word,
@@ -552,13 +586,16 @@ export function ChatSidebar({
 
         <button
           onClick={toggleExpanded}
-          className="hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full bg-[var(--agent-bg)] border border-[var(--sidebar-border)] items-center justify-center hover:bg-[var(--agent-hover)] transition-all z-10"
+          className={cn(
+            "hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer mb-2",
+            !isExpanded && "w-10 h-10",
+          )}
           title={isExpanded ? "Recolher sidebar" : "Expandir sidebar"}
         >
           {isExpanded ? (
-            <ChevronLeft className="w-4 h-4 text-[var(--text-primary)]" />
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
           ) : (
-            <ChevronRight className="w-4 h-4 text-[var(--text-primary)]" />
+            <ChevronRight className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
           )}
         </button>
 
