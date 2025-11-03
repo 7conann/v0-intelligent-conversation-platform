@@ -606,7 +606,6 @@ export default function WorkspacesPage() {
       .from("custom_agents")
       .select("id, name")
       .contains("agent_ids", [agentId])
-      
 
     if (linkedCustomAgents && linkedCustomAgents.length > 0) {
       const customAgentNames = linkedCustomAgents.map((ca) => ca.name).join(", ")

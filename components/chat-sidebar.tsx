@@ -5,7 +5,6 @@ import type React from "react"
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
 import {
-  User,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -19,6 +18,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
@@ -81,8 +81,9 @@ export function ChatSidebar({
   const [isExpanded, setIsExpanded] = useState(true)
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [showAgentSettings, setShowAgentSettings] = useState(false)
+  const [showBottomSection, setShowBottomSection] = useState(true)
 
-  const [viewMode, setViewMode] = useState<"sequential" | "grouped">("sequential")
+  const [viewMode, setViewMode] = useState<"sequential" | "grouped" | "icon">("sequential")
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Geral"]))
   const [groupIcons, setGroupIcons] = useState<Record<string, string>>({})
 
@@ -133,6 +134,7 @@ export function ChatSidebar({
       deduplicatedAgents.map((a) => ({
         name: a.name,
         id: a.id,
+        description: a.description, // Added to verify description is loaded
         group_name: a.group_name,
         isCustom: (a as any).isCustomAgent,
         trigger: a.trigger_word,
@@ -188,12 +190,9 @@ export function ChatSidebar({
     if (savedExpanded !== null) {
       setIsExpanded(savedExpanded === "true")
     }
-  }, [])
-
-  useEffect(() => {
-    const savedViewMode = localStorage.getItem("sidebarViewMode")
-    if (savedViewMode === "sequential" || savedViewMode === "grouped") {
-      setViewMode(savedViewMode)
+    const savedBottomSection = localStorage.getItem("sidebarBottomSection")
+    if (savedBottomSection !== null) {
+      setShowBottomSection(savedBottomSection === "true")
     }
   }, [])
 
@@ -203,12 +202,21 @@ export function ChatSidebar({
     localStorage.setItem("sidebarExpanded", String(newState))
   }
 
-  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agentId: string, name: string) => {
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agent: Agent) => {
     if (isExpanded) return
 
     const rect = e.currentTarget.getBoundingClientRect()
-    const messageCount = agentHistories[agentId]?.length || 0
-    const tooltipText = messageCount > 0 ? `${name} (${messageCount} mensagens)` : name
+    const messageCount = agentHistories[agent.id]?.length || 0
+
+    // Build tooltip with name, description, and message count
+    let tooltipText = agent.name
+    if (agent.description) {
+      tooltipText += `\n${agent.description}`
+    }
+    if (messageCount > 0) {
+      tooltipText += `\n(${messageCount} mensagens)`
+    }
+
     setHoveredAgent(tooltipText)
     setCoords({
       top: rect.top + rect.height / 2,
@@ -267,7 +275,7 @@ export function ChatSidebar({
     setDraggedOverAgent(null)
   }
 
-  const toggleViewMode = (mode: "sequential" | "grouped") => {
+  const toggleViewMode = (mode: "sequential" | "grouped" | "icon") => {
     setViewMode(mode)
     localStorage.setItem("sidebarViewMode", mode)
   }
@@ -280,6 +288,12 @@ export function ChatSidebar({
       newExpanded.add(groupName)
     }
     setExpandedGroups(newExpanded)
+  }
+
+  const toggleBottomSection = () => {
+    const newState = !showBottomSection
+    setShowBottomSection(newState)
+    localStorage.setItem("sidebarBottomSection", String(newState))
   }
 
   const groupedAgents = localAgents.reduce(
@@ -325,7 +339,7 @@ export function ChatSidebar({
         onDragOver={(e) => handleDragOver(e, agent.id)}
         onDragEnd={handleDragEnd}
         onClick={() => onToggleAgent(agent.id)}
-        onMouseEnter={(e) => handleMouseEnter(e, agent.id, agent.name)}
+        onMouseEnter={(e) => handleMouseEnter(e, agent)}
         onMouseLeave={handleMouseLeave}
         className={cn(
           "transition-all duration-300 relative group cursor-move",
@@ -378,6 +392,67 @@ export function ChatSidebar({
               "rounded-full text-[9px] font-bold flex items-center justify-center text-white",
               isExpanded ? "px-2 py-0.5 ml-auto" : "absolute -top-1 -right-1 w-4 h-4",
             )}
+            style={{ backgroundColor: agent.color }}
+          >
+            {messageCount > 9 ? "9+" : messageCount}
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  const renderIconButton = (agent: Agent) => {
+    const isSelected = selectedAgents.includes(agent.id)
+    const isUsed = usedAgents.includes(agent.id)
+    const messageCount = agentHistories[agent.id]?.length || 0
+    const iconContent = getAgentIconComponent(agent)
+    const isCustomAgent = (agent as any).isCustomAgent || false
+
+    return (
+      <button
+        key={agent.id}
+        onClick={() => onToggleAgent(agent.id)}
+        onMouseEnter={(e) => handleMouseEnter(e, agent)}
+        onMouseLeave={handleMouseLeave}
+        className={cn(
+          "w-14 h-14 rounded-xl flex items-center justify-center bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all relative",
+          isSelected && "border-2 border-solid shadow-lg",
+          isUsed && !isSelected && "border-2 border-dashed border-white/40",
+        )}
+        style={{
+          ...(isSelected && { borderColor: agent.color }),
+        }}
+        title={agent.name}
+      >
+        {isCustomAgent && (
+          <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
+            <Layers className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+
+        {typeof iconContent === "string" ? (
+          <span
+            className="text-2xl transition-all duration-300"
+            style={{
+              filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+            }}
+          >
+            {iconContent}
+          </span>
+        ) : (
+          <div
+            className="transition-all duration-300"
+            style={{
+              filter: isSelected || isUsed ? "none" : "grayscale(50%) opacity(0.7)",
+            }}
+          >
+            {iconContent}
+          </div>
+        )}
+
+        {messageCount > 0 && (
+          <span
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
             style={{ backgroundColor: agent.color }}
           >
             {messageCount > 9 ? "9+" : messageCount}
@@ -467,30 +542,26 @@ export function ChatSidebar({
           )}
         </button>
 
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <button
-            onClick={() => router.push("/profile")}
-            className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
-            title={!isExpanded ? userName : undefined}
-          >
-            {avatarUrl ? (
-              <img
-                src={avatarUrl || "/placeholder.svg"}
-                alt={userName || "User avatar"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User className="w-5 h-5 md:w-6 md:h-6 text-white" />
-            )}
-          </button>
-          {isExpanded && (
-            <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[200px] px-2">
-              {userName}
-            </span>
-          )}
-        </div>
+        {showBottomSection && (
+          <>
+            <div className="flex flex-col items-center gap-2 mb-2">
+              <button
+                onClick={() => router.push("/profile")}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
+                title={!isExpanded ? userName : undefined}
+              >
+                <img src="/iredondo.png" alt={userName || "User avatar"} className="w-full h-full object-cover" />
+              </button>
+              {isExpanded && (
+                <span className="text-xs text-[var(--text-secondary)] font-medium truncate max-w-[200px] px-2">
+                  {userName}
+                </span>
+              )}
+            </div>
 
-        <div className="w-full h-px bg-[var(--background)] mb-2" />
+            <div className="w-full h-px bg-[var(--background)] mb-2" />
+          </>
+        )}
 
         {isExpanded && (
           <div className="w-full px-3 mb-3">
@@ -515,7 +586,18 @@ export function ChatSidebar({
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                 )}
               >
-                Por Grupo
+                Grupo
+              </button>
+              <button
+                onClick={() => toggleViewMode("icon")}
+                className={cn(
+                  "flex-1 px-3 py-2 rounded-md text-xs font-medium transition-all duration-200",
+                  viewMode === "icon"
+                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                )}
+              >
+                Ícones
               </button>
             </div>
           </div>
@@ -523,111 +605,142 @@ export function ChatSidebar({
 
         <div
           className={cn(
-            "w-full px-2 md:px-3 gap-2 scrollbar-hide overflow-y-auto",
-            isExpanded
-              ? "flex flex-col max-h-[calc(100vh-320px)]"
-              : "grid grid-cols-1 place-items-center max-h-[calc(100vh-280px)]",
+            "w-full px-2 md:px-3 scrollbar-hide overflow-y-auto",
+            viewMode === "icon"
+              ? localAgents.length > 12
+                ? "grid grid-cols-3 gap-2 max-h-[calc(100vh-320px)]"
+                : "grid grid-cols-2 gap-2 max-h-[calc(100vh-320px)]"
+              : isExpanded
+                ? "flex flex-col gap-2 max-h-[calc(100vh-320px)]"
+                : "grid grid-cols-1 place-items-center gap-2 max-h-[calc(100vh-280px)]",
+            !showBottomSection &&
+              (viewMode === "icon"
+                ? localAgents.length > 12
+                  ? "max-h-[calc(100vh-180px)]"
+                  : "max-h-[calc(100vh-180px)]"
+                : isExpanded
+                  ? "max-h-[calc(100vh-180px)]"
+                  : "max-h-[calc(100vh-140px)]"),
           )}
         >
           {console.log("[v0] 🎨 SIDEBAR: Renderizando", localAgents.length, "agentes")}
 
-          {viewMode === "sequential"
-            ? // Sequential view (existing flat list)
-              localAgents.map((agent) => renderAgentButton(agent))
-            : // Use activeGroupedAgents instead of groupedAgents to filter out inactive groups
-              Object.entries(activeGroupedAgents).map(([groupName, groupAgents]) => {
-                const isExpandedGroup = expandedGroups.has(groupName)
-                const groupIcon = groupIcons[groupName] || "📁"
+          {viewMode === "icon"
+            ? localAgents.map((agent) => renderIconButton(agent))
+            : viewMode === "sequential"
+              ? localAgents.map((agent) => renderAgentButton(agent))
+              : Object.entries(activeGroupedAgents).map(([groupName, groupAgents]) => {
+                  const isExpandedGroup = expandedGroups.has(groupName)
+                  const groupIcon = groupIcons[groupName] || "📁"
 
-                return (
-                  <div key={groupName} className="w-full mb-2">
-                    <button
-                      onClick={() => toggleGroup(groupName)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200",
-                        "bg-gradient-to-r from-purple-500/10 to-blue-500/10",
-                        "hover:from-purple-500/20 hover:to-blue-500/20",
-                        "border border-purple-500/20",
-                        "shadow-sm hover:shadow-md",
-                        "mb-2",
-                      )}
-                    >
-                      <div
+                  return (
+                    <div key={groupName} className="w-full mb-2">
+                      <button
+                        onClick={() => toggleGroup(groupName)}
                         className={cn(
-                          "w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0",
-                          "bg-gradient-to-br from-purple-500 to-blue-500",
-                          "shadow-sm",
+                          "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200",
+                          "bg-gradient-to-r from-purple-500/10 to-blue-500/10",
+                          "hover:from-purple-500/20 hover:to-blue-500/20",
+                          "border border-purple-500/20",
+                          "shadow-sm hover:shadow-md",
+                          "mb-2",
                         )}
                       >
-                        <span className="text-lg">{groupIcon}</span>
-                      </div>
-
-                      <span className="text-sm font-semibold text-[var(--text-primary)] flex-1 text-left truncate">
-                        {groupName}
-                      </span>
-
-                      <span className="rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-purple-500 to-blue-500 shadow-sm flex-shrink-0">
-                        {groupAgents.length}
-                      </span>
-
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
-                          "bg-[var(--agent-bg)]",
-                          "transition-all duration-200",
-                        )}
-                      >
-                        <ChevronDown
+                        <div
                           className={cn(
-                            "w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200",
-                            isExpandedGroup ? "rotate-180" : "",
+                            "w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0",
+                            "bg-gradient-to-br from-purple-500 to-blue-600",
+                            "shadow-sm",
                           )}
-                        />
-                      </div>
-                    </button>
+                        >
+                          <span className="text-lg">{groupIcon}</span>
+                        </div>
 
-                    {isExpandedGroup && (
-                      <div className="flex flex-col gap-2 pl-3 border-l-2 border-purple-500/20 ml-4">
-                        {groupAgents.map((agent) => renderAgentButton(agent))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                        <span className="text-sm font-semibold text-[var(--text-primary)] flex-1 text-left truncate">
+                          {groupName}
+                        </span>
+
+                        <span className="rounded-full w-6 h-6 flex items-center justify-center text-[10px] font-bold text-white bg-gradient-to-br from-purple-500 to-blue-600 shadow-sm flex-shrink-0">
+                          {groupAgents.length}
+                        </span>
+
+                        <div
+                          className={cn(
+                            "w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0",
+                            "bg-[var(--agent-bg)]",
+                            "transition-all duration-200",
+                          )}
+                        >
+                          <ChevronDown
+                            className={cn(
+                              "w-4 h-4 text-[var(--text-secondary)] transition-transform duration-200",
+                              isExpandedGroup ? "rotate-180" : "",
+                            )}
+                          />
+                        </div>
+                      </button>
+
+                      {isExpandedGroup && (
+                        <div className="flex flex-col gap-2 pl-3 border-l-2 border-purple-500/20 ml-4">
+                          {groupAgents.map((agent) => renderAgentButton(agent))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
         </div>
 
         <div className="flex-1" />
 
-        <div className="w-full h-px bg-[var(--background)] mt-2" />
-
-        <div
+        <button
+          onClick={toggleBottomSection}
           className={cn(
-            "flex gap-2 px-2",
-            isExpanded ? "flex-row items-center justify-center" : "flex-col items-center",
+            "w-10 h-10 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer mb-2",
+            !isExpanded && "w-10 h-10",
           )}
+          title={showBottomSection ? "Ocultar configurações" : "Mostrar configurações"}
         >
-          <button
-            onClick={() => router.push("/workspaces")}
-            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-            title="Workspace"
-          >
-            <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-          </button>
+          {showBottomSection ? (
+            <ChevronDown className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+          ) : (
+            <ChevronUp className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+          )}
+        </button>
 
-          <button
-            onClick={() => router.push("/profile")}
-            className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
-            title="Configurações"
-          >
-            <Settings className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
-          </button>
-        </div>
+        {showBottomSection && (
+          <>
+            <div className="w-full h-px bg-[var(--background)] mt-2" />
+
+            <div
+              className={cn(
+                "flex gap-2 px-2",
+                isExpanded ? "flex-row items-center justify-center" : "flex-col items-center",
+              )}
+            >
+              <button
+                onClick={() => router.push("/workspaces")}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+                title="Workspace"
+              >
+                <Briefcase className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+              </button>
+
+              <button
+                onClick={() => router.push("/profile")}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer"
+                title="Configurações"
+              >
+                <Settings className="w-4 h-4 md:w-5 md:h-5 text-[var(--agent-icon)]" />
+              </button>
+            </div>
+          </>
+        )}
 
         {hoveredAgent &&
           coords &&
           createPortal(
             <div
-              className="fixed px-2 py-1 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded shadow-lg whitespace-nowrap transition-opacity opacity-100"
+              className="fixed px-3 py-2 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded-lg shadow-lg whitespace-pre-line transition-opacity opacity-100 max-w-xs"
               style={{
                 top: coords.top,
                 left: coords.left,

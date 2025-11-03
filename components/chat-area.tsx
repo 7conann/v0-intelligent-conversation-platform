@@ -24,10 +24,10 @@ import {
   Menu,
   Pencil,
   Check,
+  Copy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import { AgentTagInput } from "@/components/agent-tag-input"
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -271,6 +271,123 @@ export function ChatArea({
     const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
     onCreateChatWithMessages(selected)
     setSelectedMessages([])
+  }
+
+  const copyAsMarkdown = async () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    const markdown = selected
+      .map((m) => {
+        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
+        const timestamp = m.timestamp.toLocaleString("pt-BR")
+        const agents = m.usedAgentIds
+          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          : ""
+        const agentInfo = agents ? ` (${agents})` : ""
+        return `${sender}${agentInfo} - ${timestamp}\n\n${m.content}\n\n---`
+      })
+      .join("\n\n")
+
+    await navigator.clipboard.writeText(markdown)
+    addToast({
+      title: "Copiado como Markdown",
+      description: `${selected.length} mensagem(ns) copiada(s) em formato Markdown`,
+      variant: "success",
+    })
+  }
+
+  const copyAsWord = async () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: 'Calibri', sans-serif; font-size: 11pt; line-height: 1.5; }
+            .message { margin-bottom: 20px; page-break-inside: avoid; }
+            .sender { font-weight: bold; color: #2E5090; }
+            .timestamp { color: #666; font-size: 9pt; }
+            .agents { color: #8B5CF6; font-size: 9pt; font-style: italic; }
+            .content { margin-top: 8px; }
+            hr { border: none; border-top: 1px solid #ddd; margin: 15px 0; }
+          </style>
+        </head>
+        <body>
+          ${selected
+            .map((m) => {
+              const sender = m.sender === "user" ? "Você" : "Assistente"
+              const timestamp = m.timestamp.toLocaleString("pt-BR")
+              const agentNames = m.usedAgentIds
+                ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+                : ""
+              const agentInfo = agentNames ? `<div class="agents">Agentes: ${agentNames}</div>` : ""
+              return `
+                <div class="message">
+                  <div class="sender">${sender}</div>
+                  <div class="timestamp">${timestamp}</div>
+                  ${agentInfo}
+                  <div class="content">${m.content.replace(/\n/g, "<br>")}</div>
+                </div>
+                <hr>
+              `
+            })
+            .join("")}
+        </body>
+      </html>
+    `
+
+    const blob = new Blob([html], { type: "text/html" })
+    const clipboardItem = new ClipboardItem({ "text/html": blob })
+    await navigator.clipboard.write([clipboardItem])
+    addToast({
+      title: "Copiado para Word",
+      description: `${selected.length} mensagem(ns) copiada(s) em formato Word (HTML)`,
+      variant: "success",
+    })
+  }
+
+  const copyAsPowerPoint = async () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    const text = selected
+      .map((m, index) => {
+        const sender = m.sender === "user" ? "Você" : "Assistente"
+        const timestamp = m.timestamp.toLocaleString("pt-BR")
+        const agents = m.usedAgentIds
+          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          : ""
+        const agentInfo = agents ? ` (${agents})` : ""
+        return `${index + 1}. ${sender}${agentInfo} - ${timestamp}\n   ${m.content.replace(/\n/g, "\n   ")}`
+      })
+      .join("\n\n")
+
+    await navigator.clipboard.writeText(text)
+    addToast({
+      title: "Copiado para PowerPoint",
+      description: `${selected.length} mensagem(ns) copiada(s) em formato de lista`,
+      variant: "success",
+    })
+  }
+
+  const copyAsExcel = async () => {
+    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
+    const csv = [
+      ["Data/Hora", "Remetente", "Mensagem", "Agentes"].join("\t"),
+      ...selected.map((m) => {
+        const timestamp = m.timestamp.toLocaleString("pt-BR")
+        const sender = m.sender === "user" ? "Você" : "Assistente"
+        const content = m.content.replace(/\t/g, " ").replace(/\n/g, " ")
+        const agents = m.usedAgentIds
+          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          : ""
+        return [timestamp, sender, content, agents].join("\t")
+      }),
+    ].join("\n")
+
+    await navigator.clipboard.writeText(csv)
+    addToast({
+      title: "Copiado para Excel",
+      description: `${selected.length} mensagem(ns) copiada(s) em formato Excel (TSV)`,
+      variant: "success",
+    })
   }
 
   const handleDragStart = (e: React.DragEvent, chatId: string) => {
@@ -554,7 +671,7 @@ export function ChatArea({
 
   return (
     <div className={cn("flex flex-col h-full bg-[var(--chat-bg)] min-w-0", className)}>
-      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto scrollbar-hide shrink-0">
+      <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto shrink-0 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-gray-900/30 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-purple-500 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-purple-400">
         <button
           onClick={onOpenMobileSidebar}
           className="md:hidden w-8 h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0 mr-1"
@@ -788,19 +905,51 @@ export function ChatArea({
               {selectedMessages.length > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              onClick={copyAsMarkdown}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              title="Copiar como Markdown"
+            >
+              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Markdown</span>
+            </Button>
+            <Button
+              onClick={copyAsWord}
+              className="bg-blue-700 hover:bg-blue-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              title="Copiar para Word"
+            >
+              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Word</span>
+            </Button>
+            <Button
+              onClick={copyAsPowerPoint}
+              className="bg-orange-600 hover:bg-orange-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              title="Copiar para PowerPoint"
+            >
+              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">PPT</span>
+            </Button>
+            <Button
+              onClick={copyAsExcel}
+              className="bg-green-700 hover:bg-green-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              title="Copiar para Excel"
+            >
+              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden md:inline">Excel</span>
+            </Button>
             <Button
               onClick={createNewChatWithSelected}
-              className="bg-green-600 hover:bg-green-500 text-white text-sm flex items-center gap-2 cursor-pointer"
+              className="bg-green-600 hover:bg-green-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
             >
-              <MessageSquarePlus className="w-4 h-4" />
-              Novo Chat
+              <MessageSquarePlus className="w-3 h-3 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">Novo Chat</span>
             </Button>
             <Button
               onClick={useSelectedMessages}
-              className="bg-purple-600 hover:bg-purple-500 text-white text-sm cursor-pointer"
+              className="bg-purple-600 hover:bg-purple-500 text-white text-xs md:text-sm cursor-pointer px-2 md:px-3 h-8 md:h-9"
             >
-              Usar Mensagens
+              Usar
             </Button>
             <button onClick={() => setSelectedMessages([])} className="text-gray-400 hover:text-white cursor-pointer">
               <X className="w-4 h-4" />
@@ -996,10 +1145,7 @@ export function ChatArea({
         )}
 
         <div className="flex flex-col gap-2">
-          {/* Agent tags displayed above the input */}
-          <AgentTagInput selectedAgents={selectedAgentObjects} onRemoveAgent={handleRemoveAgentTag} />
-
-          {/* Input controls below the tags */}
+          {/* Input controls with tags inside */}
           <div className="flex gap-2 md:gap-3 items-end">
             <input
               ref={attachmentInputRef}
@@ -1019,19 +1165,52 @@ export function ChatArea({
               <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
             </Button>
 
-            <Textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
-              placeholder="Digite sua mensagem..."
-              className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
-              disabled={selectedAgents.length === 0}
-            />
+            <div className="flex-1 relative">
+              <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)] z-10 pointer-events-none">
+                {selectedAgentObjects.map((agent) => {
+                  const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
+                  return (
+                    <div
+                      key={agent.id}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
+                      style={{
+                        backgroundColor: `${agentColor}15`,
+                        borderColor: `${agentColor}60`,
+                        borderWidth: "1px",
+                        borderStyle: "solid",
+                        color: agentColor,
+                      }}
+                    >
+                      <span className="text-sm">{agent.icon}</span>
+                      <span className="text-[10px] font-semibold">{agent.trigger_word}</span>
+                      <button
+                        onClick={() => handleRemoveAgentTag(agent.id)}
+                        className="ml-0.5 hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                        title={`Remover ${agent.name}`}
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    sendMessage()
+                  }
+                }}
+                placeholder="Digite sua mensagem..."
+                className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
+                style={{
+                  paddingTop: selectedAgentObjects.length > 0 ? "2rem" : "0.75rem",
+                }}
+                disabled={selectedAgents.length === 0}
+              />
+            </div>
             <Button
               onClick={sendMessage}
               disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
