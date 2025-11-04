@@ -188,6 +188,11 @@ export default function ChatPage() {
   const [chats, setChats] = useState<Chat[]>([])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
 
+  const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<{
+    chatId: string
+    messageIds: string[]
+  } | null>(null)
+
   useEffect(() => {
     const loadUserAndConversations = async () => {
       const supabase = createClient()
@@ -281,7 +286,8 @@ export default function ChatPage() {
                 icon: agent.icon,
                 color: agent.color,
                 trigger_word: agent.trigger_word,
-                group_name: agent.group_name || "Geral",
+                group_id: agent.group_id,
+                group: agent.group,
               })),
             )
           }
@@ -300,14 +306,15 @@ export default function ChatPage() {
                     icon: agent.icon,
                     color: agent.color,
                     trigger_word: agent.trigger_word,
-                    group_name: agent.group_name || "Geral",
+                    group_id: agent.group_id,
+                    group: agent.group,
                     isCustomAgent: true,
                   }) as any,
               ),
             )
             console.log(
-              "[v0] 📦 Custom agents com group_name:",
-              customAgentsData.map((a) => ({ name: a.name, group_name: a.group_name || "Geral" })),
+              "[v0] 📦 Custom agents com group:",
+              customAgentsData.map((a) => ({ name: a.name, group: a.group?.name })),
             )
           } else {
             console.log("[v0] ⚠️ Nenhum custom agent encontrado para este workspace")
@@ -491,7 +498,8 @@ export default function ChatPage() {
               icon: agent.icon,
               color: agent.color,
               trigger_word: agent.trigger_word,
-              group_name: agent.group_name || "Geral",
+              group_id: agent.group_id,
+              group: agent.group,
             })),
           )
         }
@@ -510,7 +518,8 @@ export default function ChatPage() {
                   icon: agent.icon,
                   color: agent.color,
                   trigger_word: agent.trigger_word,
-                  group_name: agent.group_name || "Geral",
+                  group_id: agent.group_id,
+                  group: agent.group,
                   isCustomAgent: true,
                 }) as any,
             ),
@@ -1018,6 +1027,8 @@ export default function ChatPage() {
         onExternalApiResponse={handleExternalApiResponse}
         onToggleAgent={toggleAgent}
         className="flex-1 w-full"
+        selectedMessagesGlobal={selectedMessagesGlobal}
+        onSelectedMessagesGlobalChange={setSelectedMessagesGlobal}
       />
     </div>
   )

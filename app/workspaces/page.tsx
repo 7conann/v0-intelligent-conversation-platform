@@ -36,7 +36,13 @@ interface WorkspaceAgent extends Agent {
   is_favorite?: boolean
   is_visible?: boolean
   is_active?: boolean
-  group_name?: string
+  group?: {
+    id: string
+    name: string
+    icon: string
+    display_order: number
+  }
+  group_id?: string
   display_order?: number
 }
 
@@ -82,7 +88,7 @@ export default function WorkspacesPage() {
     color: "#8B5CF6",
     description: "",
     trigger_word: "",
-    group_name: "Geral",
+    group_name: "", // Initialize as empty, will be set by group selection logic
   })
   const [newGroupName, setNewGroupName] = useState("")
   const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false)
@@ -148,7 +154,15 @@ export default function WorkspacesPage() {
 
       const { data: agentsData, error: agentsError } = await supabase
         .from("agents")
-        .select("*")
+        .select(`
+          *,
+          group:groups!group_id (
+            id,
+            name,
+            icon,
+            display_order
+          )
+        `)
         .order("order", { ascending: true })
 
       if (agentsError) {
@@ -158,7 +172,6 @@ export default function WorkspacesPage() {
           ...agent,
           display_order: agent.display_order ?? agent.order ?? 0,
           is_active: agent.is_active ?? true,
-          group_name: agent.group_name ?? "Geral",
         }))
         setAgents(mappedAgents as WorkspaceAgent[])
       }
@@ -196,9 +209,8 @@ export default function WorkspacesPage() {
       filtered = filtered.filter((a) => inactiveAgents.has(a.id))
     }
 
-    // Filter by group
     if (filterGroup !== "all") {
-      filtered = filtered.filter((a) => a.group_name === filterGroup)
+      filtered = filtered.filter((a) => a.group?.name === filterGroup)
     }
 
     setFilteredAgents(filtered)
@@ -221,7 +233,7 @@ export default function WorkspacesPage() {
             color: "#8B5CF6",
             description: "",
             trigger_word: "",
-            group_name: "Geral",
+            group_name: "", // Reset to empty
           })
         }
         if (showManageAgents) {
@@ -482,11 +494,18 @@ export default function WorkspacesPage() {
         icon: selectedAgent.icon,
         color: selectedAgent.color,
         description: selectedAgent.description,
-        trigger_word: selectedAgent.trigger_word,
-        group_name: selectedAgent.group_name || "Geral",
+        group_id: selectedAgent.group_id,
       })
       .eq("id", selectedAgent.id)
-      .select()
+      .select(`
+        *,
+        group:groups!group_id (
+          id,
+          name,
+          icon,
+          display_order
+        )
+      `)
 
     if (error) {
       addToast({
@@ -503,7 +522,7 @@ export default function WorkspacesPage() {
       variant: "success",
     })
 
-    setAgents((prev) => prev.map((a) => (a.id === selectedAgent.id ? selectedAgent : a)))
+    setAgents((prev) => prev.map((a) => (a.id === selectedAgent.id ? (data[0] as WorkspaceAgent) : a)))
     setShowAgentConfig(false)
     setSelectedAgent(null)
   }
@@ -547,9 +566,17 @@ export default function WorkspacesPage() {
         trigger_word: newAgent.trigger_word,
         is_system: false,
         order: maxOrder + 1,
-        group_name: newAgent.group_name || "Geral",
+        group_id: newAgent.group_name, // This will be the group_id now
       })
-      .select()
+      .select(`
+        *,
+        group:groups!group_id (
+          id,
+          name,
+          icon,
+          display_order
+        )
+      `)
       .single()
 
     if (error) {
@@ -572,7 +599,6 @@ export default function WorkspacesPage() {
       ...data,
       display_order: data.order,
       is_active: true,
-      group_name: newAgent.group_name || "Geral",
     }
 
     setAgents((prev) => [...prev, mappedAgent as WorkspaceAgent])
@@ -583,7 +609,7 @@ export default function WorkspacesPage() {
       color: "#8B5CF6",
       description: "",
       trigger_word: "",
-      group_name: "Geral",
+      group_name: "", // Reset to empty
     })
   }
 
@@ -732,9 +758,8 @@ export default function WorkspacesPage() {
       return
     }
 
-    // Update agents with new group name
     const updates = Array.from(selectedAgentsForGroup).map(async (agentId) => {
-      return await supabase.from("agents").update({ group_name: createGroupName.trim() }).eq("id", agentId)
+      return await supabase.from("agents").update({ group_id: newGroup.id }).eq("id", agentId)
     })
 
     try {
@@ -752,9 +777,21 @@ export default function WorkspacesPage() {
       }
 
       setGroups((prev) => [...prev, newGroup as Group])
+
       setAgents((prev) =>
         prev.map((agent) =>
-          selectedAgentsForGroup.has(agent.id) ? { ...agent, group_name: createGroupName.trim() } : agent,
+          selectedAgentsForGroup.has(agent.id)
+            ? {
+                ...agent,
+                group_id: newGroup.id,
+                group: {
+                  id: newGroup.id,
+                  name: newGroup.name,
+                  icon: newGroup.icon,
+                  display_order: newGroup.display_order,
+                },
+              }
+            : agent,
         ),
       )
 
@@ -872,43 +909,23 @@ export default function WorkspacesPage() {
       return
     }
 
-    // Update all agents with the old group name to the new group name
-    if (newName.trim() !== oldName) {
-      const agentsInGroup = agents.filter((a) => a.group_name === oldName)
-
-      const updates = agentsInGroup.map(async (agent) => {
-        return await supabase.from("agents").update({ group_name: newName.trim() }).eq("id", agent.id)
-      })
-
-      try {
-        const results = await Promise.all(updates)
-
-        const errors = results.filter((r) => r.error)
-        if (errors.length > 0) {
-          console.error("[v0] Errors updating agents:", errors)
-          addToast({
-            title: "Erro ao editar grupo",
-            description: "Não foi possível atualizar os agentes do grupo",
-            variant: "error",
-          })
-          return
-        }
-
-        setAgents((prev) =>
-          prev.map((agent) => (agent.group_name === oldName ? { ...agent, group_name: newName.trim() } : agent)),
-        )
-      } catch (error) {
-        console.error("[v0] Error editing group:", error)
-        addToast({
-          title: "Erro ao editar grupo",
-          description: "Ocorreu um erro ao atualizar o grupo",
-          variant: "error",
-        })
-        return
-      }
-    }
-
     setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: newName.trim(), icon: newIcon } : g)))
+
+    setAgents((prev) =>
+      prev.map((agent) =>
+        agent.group_id === groupId
+          ? {
+              ...agent,
+              group: {
+                id: groupId,
+                name: newName.trim(),
+                icon: newIcon,
+                display_order: group.display_order,
+              },
+            }
+          : agent,
+      ),
+    )
 
     addToast({
       title: "Grupo atualizado",
@@ -932,65 +949,42 @@ export default function WorkspacesPage() {
     const group = groups.find((g) => g.id === groupId)
     if (!group) return
 
-    const agentsInGroup = agents.filter((a) => a.group_name === group.name)
+    const agentsInGroup = agents.filter((a) => a.group_id === groupId)
 
     setConfirmDialog({
       isOpen: true,
       title: "Excluir grupo",
-      description: `Deseja excluir o grupo "${group.name}"?\n\n${agentsInGroup.length} agente(s) serão movidos para o grupo "Geral".`,
+      description: `Deseja excluir o grupo "${group.name}"?\n\n${agentsInGroup.length} agente(s) terão seus grupos removidos automaticamente.`,
       variant: "destructive",
       onConfirm: async () => {
         const supabase = createClient()
 
-        // Move all agents in this group to "Geral"
-        const updates = agentsInGroup.map(async (agent) => {
-          return await supabase.from("agents").update({ group_name: "Geral" }).eq("id", agent.id)
-        })
+        // The foreign key constraint will automatically set group_id to NULL for all agents in this group
 
-        try {
-          const results = await Promise.all(updates)
+        const { error: deleteError } = await supabase.from("groups").delete().eq("id", groupId)
 
-          const errors = results.filter((r) => r.error)
-          if (errors.length > 0) {
-            console.error("[v0] Errors moving agents:", errors)
-            addToast({
-              title: "Erro ao excluir grupo",
-              description: "Não foi possível mover os agentes para o grupo Geral",
-              variant: "error",
-            })
-            return
-          }
-
-          const { error: deleteError } = await supabase.from("groups").delete().eq("id", groupId)
-
-          if (deleteError) {
-            console.error("[v0] Error deleting group:", deleteError)
-            addToast({
-              title: "Erro ao excluir grupo",
-              description: deleteError.message,
-              variant: "error",
-            })
-            return
-          }
-
-          setGroups((prev) => prev.filter((g) => g.id !== groupId))
-          setAgents((prev) =>
-            prev.map((agent) => (agent.group_name === group.name ? { ...agent, group_name: "Geral" } : agent)),
-          )
-
-          addToast({
-            title: "Grupo excluído",
-            description: `Grupo "${group.name}" foi excluído e ${agentsInGroup.length} agente(s) foram movidos para "Geral"`,
-            variant: "success",
-          })
-        } catch (error) {
-          console.error("[v0] Error deleting group:", error)
+        if (deleteError) {
+          console.error("[v0] Error deleting group:", deleteError)
           addToast({
             title: "Erro ao excluir grupo",
-            description: "Ocorreu um erro ao excluir o grupo",
+            description: deleteError.message,
             variant: "error",
           })
+          return
         }
+
+        setGroups((prev) => prev.filter((g) => g.id !== groupId))
+        setAgents((prev) =>
+          prev.map((agent) =>
+            agent.group_id === groupId ? { ...agent, group_id: undefined, group: undefined } : agent,
+          ),
+        )
+
+        addToast({
+          title: "Grupo excluído",
+          description: `Grupo "${group.name}" foi excluído e ${agentsInGroup.length} agente(s) tiveram seus grupos removidos`,
+          variant: "success",
+        })
       },
     })
   }
@@ -1136,7 +1130,9 @@ export default function WorkspacesPage() {
                         {agent.name}
                       </h3>
                       <div className="flex items-center gap-2">
-                        <p className="text-xs text-[var(--text-secondary)] truncate">{agent.group_name || "Geral"}</p>
+                        <p className="text-xs text-[var(--text-secondary)] truncate">
+                          {agent.group?.name || "Sem grupo"}
+                        </p>
                         {isInactive && (
                           <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-500 whitespace-nowrap">
                             Inativo
@@ -1377,12 +1373,13 @@ export default function WorkspacesPage() {
                 </Label>
                 <select
                   id="editAgentGroup"
-                  value={selectedAgent.group_name || "Geral"}
-                  onChange={(e) => setSelectedAgent({ ...selectedAgent, group_name: e.target.value })}
+                  value={selectedAgent.group_id || ""}
+                  onChange={(e) => setSelectedAgent({ ...selectedAgent, group_id: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 >
+                  <option value="">📁 Sem grupo</option>
                   {groups.map((group) => (
-                    <option key={group.id} value={group.name}>
+                    <option key={group.id} value={group.id}>
                       {group.icon} {group.name}
                     </option>
                   ))}
@@ -1513,9 +1510,10 @@ export default function WorkspacesPage() {
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 >
+                  <option value="">📁 Sem grupo</option>
                   {groups.map((group) => (
-                    <option key={group.id} value={group.name}>
-                      {group.name}
+                    <option key={group.id} value={group.id}>
+                      {group.icon} {group.name}
                     </option>
                   ))}
                   <option value="__new__">+ Novo Grupo</option>
@@ -1532,7 +1530,7 @@ export default function WorkspacesPage() {
                     onBlur={() => {
                       if (!newGroupName.trim()) {
                         setIsCreatingNewGroup(false)
-                        setNewAgent({ ...newAgent, group_name: "Geral" })
+                        setNewAgent({ ...newAgent, group_name: "" }) // Reset to empty
                       }
                     }}
                     autoFocus
@@ -1551,7 +1549,7 @@ export default function WorkspacesPage() {
                       color: "#8B5CF6",
                       description: "",
                       trigger_word: "",
-                      group_name: "Geral",
+                      group_name: "", // Reset to empty
                     })
                   }}
                   variant="outline"
@@ -1644,7 +1642,7 @@ export default function WorkspacesPage() {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-medium text-[var(--text-primary)] truncate">{agent.name}</h3>
                             <p className="text-xs text-[var(--text-secondary)] truncate">
-                              {agent.group_name || "Sem grupo"}
+                              {agent.group?.name || "Sem grupo"}
                             </p>
                           </div>
                         </div>
@@ -1692,7 +1690,7 @@ export default function WorkspacesPage() {
 
             <div className="space-y-3 mb-6">
               {groups.map((group) => {
-                const agentsInGroup = agents.filter((a) => a.group_name === group.name)
+                const agentsInGroup = agents.filter((a) => a.group_id === group.id)
                 const isEditing = editingGroup?.id === group.id
 
                 return (
@@ -1899,7 +1897,7 @@ export default function WorkspacesPage() {
             <div className="bg-blue-500/10 rounded-lg p-4 mb-6 border border-blue-500/30">
               <p className="text-sm text-blue-400">
                 <strong>O que este script faz:</strong> Adiciona as colunas{" "}
-                <code className="px-1 py-0.5 bg-blue-500/20 rounded">group_name</code>,{" "}
+                <code className="px-1 py-0.5 bg-blue-500/20 rounded">group_id</code>,{" "}
                 <code className="px-1 py-0.5 bg-blue-500/20 rounded">is_active</code> e{" "}
                 <code className="px-1 py-0.5 bg-blue-500/20 rounded">display_order</code> à tabela de agentes,
                 permitindo agrupar, desativar e reordenar agentes.

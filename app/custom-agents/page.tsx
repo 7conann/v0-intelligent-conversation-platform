@@ -30,6 +30,7 @@ export default function CustomAgentsPage() {
   const [newAgentColor, setNewAgentColor] = useState("#8b5cf6")
   const [newAgentTriggerWord, setNewAgentTriggerWord] = useState("")
   const [newAgentGroupName, setNewAgentGroupName] = useState("")
+  const [newAgentGroupId, setNewAgentGroupId] = useState<string | null>(null)
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([])
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
@@ -101,7 +102,7 @@ export default function CustomAgentsPage() {
       const { data: customAgentsData } = workspace
         ? await supabase
             .from("custom_agents")
-            .select("*")
+            .select("*, group:groups(id, name, icon, display_order)")
             .eq("workspace_id", workspace.id)
             .order("created_at", { ascending: false })
         : { data: null }
@@ -127,6 +128,7 @@ export default function CustomAgentsPage() {
           setNewAgentColor("#8b5cf6")
           setNewAgentTriggerWord("")
           setNewAgentGroupName("")
+          setNewAgentGroupId(null)
           setSelectedAgentIds([])
         }
         if (showEditModal) {
@@ -138,6 +140,7 @@ export default function CustomAgentsPage() {
           setNewAgentColor("#8b5cf6")
           setNewAgentTriggerWord("")
           setNewAgentGroupName("")
+          setNewAgentGroupId(null)
           setSelectedAgentIds([])
         }
       }
@@ -214,12 +217,12 @@ export default function CustomAgentsPage() {
         icon: newAgentIcon,
         color: newAgentColor,
         trigger_word: newAgentTriggerWord,
-        group_name: newAgentGroupName || null,
+        group_id: newAgentGroupId || null,
         user_id: session.user.id,
         workspace_id: workspaceId,
         agent_ids: selectedAgentIds,
       })
-      .select()
+      .select("*, group:groups(id, name, icon, display_order)")
       .single()
 
     if (error) {
@@ -247,6 +250,7 @@ export default function CustomAgentsPage() {
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
     setNewAgentGroupName("")
+    setNewAgentGroupId(null)
     setSelectedAgentIds([])
   }
 
@@ -257,7 +261,8 @@ export default function CustomAgentsPage() {
     setNewAgentIcon(agent.icon)
     setNewAgentColor(agent.color)
     setNewAgentTriggerWord(agent.trigger_word)
-    setNewAgentGroupName(agent.group_name || "")
+    setNewAgentGroupId(agent.group_id || null)
+    setNewAgentGroupName(agent.group?.name || "")
     setSelectedAgentIds(agent.agent_ids || [])
     setShowEditModal(true)
   }
@@ -314,12 +319,12 @@ export default function CustomAgentsPage() {
         icon: newAgentIcon,
         color: newAgentColor,
         trigger_word: newAgentTriggerWord,
-        group_name: newAgentGroupName || null,
+        group_id: newAgentGroupId || null,
         agent_ids: selectedAgentIds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", editingAgent.id)
-      .select()
+      .select("*, group:groups(id, name, icon, display_order)")
       .single()
 
     if (error) {
@@ -347,6 +352,7 @@ export default function CustomAgentsPage() {
     setNewAgentColor("#8b5cf6")
     setNewAgentTriggerWord("")
     setNewAgentGroupName("")
+    setNewAgentGroupId(null)
     setSelectedAgentIds([])
   }
 
@@ -472,9 +478,9 @@ export default function CustomAgentsPage() {
                     <div>
                       <h3 className="font-semibold text-lg">{customAgent.name}</h3>
                       <p className="text-xs text-muted-foreground">{customAgent.trigger_word}</p>
-                      {customAgent.group_name && (
+                      {customAgent.group && (
                         <p className="text-xs text-purple-400 mt-1">
-                          {groups.find((g) => g.name === customAgent.group_name)?.icon || "📁"} {customAgent.group_name}
+                          {customAgent.group.icon} {customAgent.group.name}
                         </p>
                       )}
                     </div>
@@ -608,13 +614,17 @@ export default function CustomAgentsPage() {
                 </Label>
                 <select
                   id="groupName"
-                  value={newAgentGroupName}
-                  onChange={(e) => setNewAgentGroupName(e.target.value)}
+                  value={newAgentGroupId || ""}
+                  onChange={(e) => {
+                    setNewAgentGroupId(e.target.value || null)
+                    const selectedGroup = groups.find((g) => g.id === e.target.value)
+                    setNewAgentGroupName(selectedGroup?.name || "")
+                  }}
                   className="w-full h-10 px-3 rounded-md bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 >
                   <option value="">Selecione um grupo (opcional)</option>
                   {groups.map((group) => (
-                    <option key={group.id} value={group.name}>
+                    <option key={group.id} value={group.id}>
                       {group.icon} {group.name}
                     </option>
                   ))}
@@ -659,6 +669,7 @@ export default function CustomAgentsPage() {
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
                     setNewAgentGroupName("")
+                    setNewAgentGroupId(null)
                     setSelectedAgentIds([])
                   }}
                   variant="outline"
@@ -765,13 +776,17 @@ export default function CustomAgentsPage() {
                 </Label>
                 <select
                   id="editGroupName"
-                  value={newAgentGroupName}
-                  onChange={(e) => setNewAgentGroupName(e.target.value)}
+                  value={newAgentGroupId || ""}
+                  onChange={(e) => {
+                    setNewAgentGroupId(e.target.value || null)
+                    const selectedGroup = groups.find((g) => g.id === e.target.value)
+                    setNewAgentGroupName(selectedGroup?.name || "")
+                  }}
                   className="w-full h-10 px-3 rounded-md bg-[var(--input-bg)] border border-[var(--sidebar-border)] text-[var(--text-primary)]"
                 >
                   <option value="">Nenhum grupo</option>
                   {groups.map((group) => (
-                    <option key={group.id} value={group.name}>
+                    <option key={group.id} value={group.id}>
                       {group.icon} {group.name}
                     </option>
                   ))}
@@ -817,6 +832,7 @@ export default function CustomAgentsPage() {
                     setNewAgentColor("#8b5cf6")
                     setNewAgentTriggerWord("")
                     setNewAgentGroupName("")
+                    setNewAgentGroupId(null)
                     setSelectedAgentIds([])
                   }}
                   variant="outline"

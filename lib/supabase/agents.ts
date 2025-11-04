@@ -7,7 +7,10 @@ export async function getAgents() {
     // Try querying with workspace_id column
     const { data, error } = await supabase
       .from("agents")
-      .select("*")
+      .select(`
+        *,
+        group:groups(id, name, icon, display_order)
+      `)
       .or("is_system.eq.true,workspace_id.is.null")
       .order("order")
 
@@ -19,7 +22,10 @@ export async function getAgents() {
       console.log("[v0] workspace_id column not found, using fallback query")
       const { data, error: fallbackError } = await supabase
         .from("agents")
-        .select("*")
+        .select(`
+          *,
+          group:groups(id, name, icon, display_order)
+        `)
         .order("order", { ascending: true, nullsFirst: false })
 
       if (fallbackError) throw fallbackError
@@ -71,7 +77,10 @@ export async function getCustomAgents(userId: string, workspaceId: string) {
     // Try querying agents table with workspace_id
     const { data, error } = await supabase
       .from("agents")
-      .select("*")
+      .select(`
+        *,
+        group:groups(id, name, icon, display_order)
+      `)
       .eq("workspace_id", workspaceId)
       .eq("is_system", false)
       .order("created_at", { ascending: false })
@@ -145,7 +154,10 @@ export async function getAllAgentsForWorkspace(workspaceId: string) {
     // Try querying with workspace_id column
     const { data, error } = await supabase
       .from("agents")
-      .select("*")
+      .select(`
+        *,
+        group:groups(id, name, icon, display_order)
+      `)
       .or(`is_system.eq.true,workspace_id.eq.${workspaceId}`)
       .order("order")
 
@@ -158,7 +170,10 @@ export async function getAllAgentsForWorkspace(workspaceId: string) {
 
       const { data: allAgents, error: agentsError } = await supabase
         .from("agents")
-        .select("*")
+        .select(`
+          *,
+          group:groups(id, name, icon, display_order)
+        `)
         .order("order", { ascending: true, nullsFirst: false })
 
       if (agentsError) throw agentsError

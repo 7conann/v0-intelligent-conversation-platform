@@ -4,7 +4,13 @@ export interface Agent {
   icon: string
   color: string
   trigger_word?: string
-  group_name?: string
+  group_id?: string
+  group?: {
+    id: string
+    name: string
+    icon: string
+    display_order: number
+  }
 }
 
 export interface Message {

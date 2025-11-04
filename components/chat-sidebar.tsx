@@ -347,7 +347,7 @@ export function ChatSidebar({
 
   const groupedAgents = localAgents.reduce(
     (acc, agent) => {
-      const groupName = agent.group_name || "Geral"
+      const groupName = agent.group?.name || "Sem Grupo"
       if (!acc[groupName]) {
         acc[groupName] = []
       }
@@ -368,11 +368,11 @@ export function ChatSidebar({
 
   // Also include any groups that have agents but aren't in the groups table
   Object.entries(groupedAgents).forEach(([groupName, groupAgents]) => {
-    if (!groupIcons[groupName] && groupName !== "Geral") {
+    if (!groupIcons[groupName] && groupName !== "Sem Grupo") {
       console.log("[v0] ⚠️ SIDEBAR: Group has agents but not in groups table:", groupName)
       activeGroupedAgents[groupName] = groupAgents
-    } else if (groupName === "Geral") {
-      console.log("[v0] 🚫 SIDEBAR: Filtering out inactive group:", groupName)
+    } else if (groupName === "Sem Grupo") {
+      console.log("[v0] 🚫 SIDEBAR: Filtering out agents without group:", groupName)
     }
   })
 

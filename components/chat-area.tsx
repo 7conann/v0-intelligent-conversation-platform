@@ -24,7 +24,6 @@ import {
   Menu,
   Pencil,
   Check,
-  Copy,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
@@ -49,6 +48,8 @@ interface ChatAreaProps {
   className?: string
   onExternalApiResponse?: (payload: any, opts?: { decorate?: boolean }) => Promise<void>
   onToggleAgent?: (agentId: string) => void
+  selectedMessagesGlobal?: { chatId: string; messageIds: string[] } | null
+  onSelectedMessagesGlobalChange?: (selection: { chatId: string; messageIds: string[] } | null) => void
 }
 
 export function ChatArea({
@@ -71,6 +72,8 @@ export function ChatArea({
   onExternalApiResponse,
   onToggleAgent,
   className,
+  selectedMessagesGlobal,
+  onSelectedMessagesGlobalChange,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
   const [selectedMessages, setSelectedMessages] = useState<string[]>([])
@@ -110,6 +113,22 @@ export function ChatArea({
   useEffect(() => {
     setInput("")
   }, [currentChatId])
+
+  useEffect(() => {
+    if (selectedMessagesGlobal?.chatId === currentChatId) {
+      setSelectedMessages(selectedMessagesGlobal.messageIds)
+    } else {
+      setSelectedMessages([])
+    }
+  }, [currentChatId, selectedMessagesGlobal])
+
+  useEffect(() => {
+    if (selectedMessages.length > 0) {
+      onSelectedMessagesGlobalChange?.({ chatId: currentChatId, messageIds: selectedMessages })
+    } else if (selectedMessagesGlobal?.chatId === currentChatId) {
+      onSelectedMessagesGlobalChange?.(null)
+    }
+  }, [selectedMessages, currentChatId])
 
   const sendMessage = async () => {
     if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
@@ -267,6 +286,37 @@ export function ChatArea({
     setSelectedMessages([])
   }
 
+  const addSelectedMessagesToCurrentChat = () => {
+    if (!selectedMessagesGlobal) return
+
+    const sourceChat = chats.find((c) => c.id === selectedMessagesGlobal.chatId)
+    const sourceMessages = messages[selectedMessagesGlobal.chatId] || []
+    const selected = sourceMessages.filter((m) => selectedMessagesGlobal.messageIds.includes(m.id))
+
+    const originConversationName = sourceChat?.name || "Conversa sem nome"
+
+    // Add each selected message to the current chat with origin info
+    selected.forEach((msg) => {
+      const newMessage: Message = {
+        ...msg,
+        id: `transferred-${Date.now()}-${Math.random()}`,
+        timestamp: new Date(),
+        originConversation: originConversationName,
+      }
+      onAddMessage(currentChatId, newMessage)
+    })
+
+    // Clear selection
+    onSelectedMessagesGlobalChange?.(null)
+    setSelectedMessages([])
+
+    addToast({
+      title: "Mensagens adicionadas",
+      description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) a este chat`,
+      variant: "success",
+    })
+  }
+
   const createNewChatWithSelected = () => {
     const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
     const originConversationName = currentChat?.name || "Conversa sem nome"
@@ -289,18 +339,27 @@ export function ChatArea({
       .map((m) => {
         const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
         const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const agents = m.usedAgentIds
+        const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
-        const agentInfo = agents ? ` (${agents})` : ""
+        const agentInfo = agentNames ? ` (${agentNames})` : ""
         return `${sender}${agentInfo} - ${timestamp}\n\n${m.content}\n\n---`
       })
       .join("\n\n")
 
-    await navigator.clipboard.writeText(markdown)
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     addToast({
-      title: "Copiado como Markdown",
-      description: `${selected.length} mensagem(ns) copiada(s) em formato Markdown`,
+      title: "Markdown exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em formato Markdown`,
       variant: "success",
     })
   }
@@ -345,12 +404,19 @@ export function ChatArea({
       </html>
     `
 
-    const blob = new Blob([html], { type: "text/html" })
-    const clipboardItem = new ClipboardItem({ "text/html": blob })
-    await navigator.clipboard.write([clipboardItem])
+    const blob = new Blob([html], { type: "text/html;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     addToast({
-      title: "Copiado para Word",
-      description: `${selected.length} mensagem(ns) copiada(s) em formato Word (HTML)`,
+      title: "Word exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em formato Word (HTML)`,
       variant: "success",
     })
   }
@@ -361,18 +427,27 @@ export function ChatArea({
       .map((m, index) => {
         const sender = m.sender === "user" ? "Você" : "Assistente"
         const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const agents = m.usedAgentIds
+        const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
-        const agentInfo = agents ? ` (${agents})` : ""
+        const agentInfo = agentNames ? ` (${agentNames})` : ""
         return `${index + 1}. ${sender}${agentInfo} - ${timestamp}\n   ${m.content.replace(/\n/g, "\n   ")}`
       })
       .join("\n\n")
 
-    await navigator.clipboard.writeText(text)
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     addToast({
-      title: "Copiado para PowerPoint",
-      description: `${selected.length} mensagem(ns) copiada(s) em formato de lista`,
+      title: "PowerPoint exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em formato de lista`,
       variant: "success",
     })
   }
@@ -385,17 +460,26 @@ export function ChatArea({
         const timestamp = m.timestamp.toLocaleString("pt-BR")
         const sender = m.sender === "user" ? "Você" : "Assistente"
         const content = m.content.replace(/\t/g, " ").replace(/\n/g, " ")
-        const agents = m.usedAgentIds
+        const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
-        return [timestamp, sender, content, agents].join("\t")
+        return [timestamp, sender, content, agentNames].join("\t")
       }),
     ].join("\n")
 
-    await navigator.clipboard.writeText(csv)
+    const blob = new Blob([csv], { type: "text/tab-separated-values;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.tsv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
     addToast({
-      title: "Copiado para Excel",
-      description: `${selected.length} mensagem(ns) copiada(s) em formato Excel (TSV)`,
+      title: "Excel exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em formato Excel (TSV)`,
       variant: "success",
     })
   }
@@ -911,7 +995,44 @@ export function ChatArea({
         </div>
       )}
 
-      {selectedMessages.length > 0 && (
+      {selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId && (
+        <div className="bg-blue-900/20 border-b border-blue-500/30 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquarePlus className="w-4 h-4 text-blue-400" />
+            <span className="text-blue-300 text-sm">
+              {selectedMessagesGlobal.messageIds.length} mensagem(ns) selecionada(s) de "
+              {chats.find((c) => c.id === selectedMessagesGlobal.chatId)?.name || "outro chat"}"
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={addSelectedMessagesToCurrentChat}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm flex items-center gap-2 cursor-pointer px-3 h-8 md:h-9"
+            >
+              <Plus className="w-3 h-3 md:w-4 md:h-4" />
+              Adicionar aqui
+            </Button>
+            <Button
+              onClick={createNewChatWithSelected}
+              className="bg-green-600 hover:bg-green-500 text-white text-xs md:text-sm flex items-center gap-2 cursor-pointer px-3 h-8 md:h-9"
+            >
+              <MessageSquarePlus className="w-3 h-3 md:w-4 md:h-4" />
+              Novo Chat
+            </Button>
+            <button
+              onClick={() => {
+                onSelectedMessagesGlobalChange?.(null)
+                setSelectedMessages([])
+              }}
+              className="text-gray-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedMessages.length > 0 && selectedMessagesGlobal?.chatId === currentChatId && (
         <div className="bg-purple-900/20 border-b border-purple-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-purple-400" />
@@ -924,33 +1045,33 @@ export function ChatArea({
             <Button
               onClick={copyAsMarkdown}
               className="bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
-              title="Copiar como Markdown"
+              title="Exportar como Markdown"
             >
-              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Markdown</span>
             </Button>
             <Button
               onClick={copyAsWord}
               className="bg-blue-700 hover:bg-blue-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
-              title="Copiar para Word"
+              title="Exportar para Word"
             >
-              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Word</span>
             </Button>
             <Button
               onClick={copyAsPowerPoint}
               className="bg-orange-600 hover:bg-orange-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
-              title="Copiar para PowerPoint"
+              title="Exportar para PowerPoint"
             >
-              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">PPT</span>
             </Button>
             <Button
               onClick={copyAsExcel}
               className="bg-green-700 hover:bg-green-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
-              title="Copiar para Excel"
+              title="Exportar para Excel"
             >
-              <Copy className="w-3 h-3 md:w-4 md:h-4" />
+              <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Excel</span>
             </Button>
             <Button
