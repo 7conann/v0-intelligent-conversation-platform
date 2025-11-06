@@ -97,6 +97,8 @@ export function ChatSidebar({
   const [draggedOverAgent, setDraggedOverAgent] = useState<string | null>(null)
   const [localAgents, setLocalAgents] = useState<Agent[]>(agents)
 
+  const [searchQuery, setSearchQuery] = useState("")
+
   useEffect(() => {
     const deduplicatedAgents = agents.reduce((acc, agent) => {
       const isCustomAgent = (agent as any).isCustomAgent || false
@@ -237,6 +239,10 @@ export function ChatSidebar({
     if (savedBottomSection !== null) {
       setShowBottomSection(savedBottomSection === "true")
     }
+    const savedViewMode = localStorage.getItem("sidebarViewMode")
+    if (savedViewMode && (savedViewMode === "sequential" || savedViewMode === "grouped" || savedViewMode === "icon")) {
+      setViewMode(savedViewMode)
+    }
   }, [])
 
   const toggleExpanded = () => {
@@ -345,7 +351,17 @@ export function ChatSidebar({
     localStorage.setItem("sidebarBottomSection", String(newState))
   }
 
-  const groupedAgents = localAgents.reduce(
+  const filteredAgents = localAgents.filter((agent) => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      agent.name.toLowerCase().includes(query) ||
+      agent.description?.toLowerCase().includes(query) ||
+      agent.trigger_word?.toLowerCase().includes(query)
+    )
+  })
+
+  const groupedAgents = filteredAgents.reduce(
     (acc, agent) => {
       const groupName = agent.group?.name || "Sem Grupo"
       if (!acc[groupName]) {
@@ -359,8 +375,18 @@ export function ChatSidebar({
 
   const activeGroupedAgents = Object.keys(groupIcons).reduce(
     (acc, groupName) => {
-      // Include all groups that exist in groupIcons (loaded from groups table)
-      acc[groupName] = groupedAgents[groupName] || []
+      const agentsInGroup = groupedAgents[groupName] || []
+
+      // If there's a search query, only include groups with agents
+      // If no search query, include all groups (even empty ones)
+      if (searchQuery.trim()) {
+        if (agentsInGroup.length > 0) {
+          acc[groupName] = agentsInGroup
+        }
+      } else {
+        acc[groupName] = agentsInGroup
+      }
+
       return acc
     },
     {} as Record<string, Agent[]>,
@@ -368,7 +394,7 @@ export function ChatSidebar({
 
   // Also include any groups that have agents but aren't in the groups table
   Object.entries(groupedAgents).forEach(([groupName, groupAgents]) => {
-    if (!groupIcons[groupName] && groupName !== "Sem Grupo") {
+    if (!groupIcons[groupName] && groupName !== "Sem Grupo" && groupAgents.length > 0) {
       console.log("[v0] ⚠️ SIDEBAR: Group has agents but not in groups table:", groupName)
       activeGroupedAgents[groupName] = groupAgents
     } else if (groupName === "Sem Grupo") {
@@ -587,7 +613,7 @@ export function ChatSidebar({
         <button
           onClick={toggleExpanded}
           className={cn(
-            "hidden md:flex absolute -right-3 top-6 w-6 h-6 rounded-full bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer mb-2",
+            "hidden md:flex absolute -right-3 top-3 w-6 h-6 rounded-full bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center transition-all cursor-pointer mb-2",
             !isExpanded && "w-10 h-10",
           )}
           title={isExpanded ? "Recolher sidebar" : "Expandir sidebar"}
@@ -636,6 +662,41 @@ export function ChatSidebar({
         </button>
 
         {isExpanded && (
+          <div className="w-full px-3 mb-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar agentes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3 py-2 pl-9 bg-[var(--agent-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
+              />
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[var(--agent-hover)] hover:bg-[var(--sidebar-border)] flex items-center justify-center transition-all"
+                >
+                  <X className="w-3 h-3 text-[var(--text-secondary)]" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isExpanded && (
           <div className="w-full px-3 mb-3">
             <div className="flex gap-1 p-1 bg-[var(--agent-bg)] rounded-lg">
               <button
@@ -677,32 +738,43 @@ export function ChatSidebar({
 
         <div
           className={cn(
-            "w-full px-2 md:px-3 scrollbar-hide overflow-y-auto",
+            "w-full px-2 md:px-3 overflow-y-auto",
+            "scrollbar-thin scrollbar-thumb-purple-500/50 scrollbar-track-transparent hover:scrollbar-thumb-purple-500/70",
             viewMode === "icon" && isExpanded
-              ? localAgents.length > 12
-                ? "grid grid-cols-3 gap-2 max-h-[calc(100vh-320px)]"
-                : "grid grid-cols-2 gap-2 max-h-[calc(100vh-320px)]"
+              ? filteredAgents.length > 12
+                ? "grid grid-cols-3 gap-2 max-h-[calc(100vh-380px)]"
+                : "grid grid-cols-2 gap-2 max-h-[calc(100vh-380px)]"
               : isExpanded
-                ? "flex flex-col gap-2 max-h-[calc(100vh-320px)]"
-                : "grid grid-cols-1 place-items-center gap-2 max-h-[calc(100vh-280px)]",
+                ? "flex flex-col gap-2 max-h-[calc(100vh-380px)]"
+                : "grid grid-cols-1 place-items-center gap-2 max-h-[calc(100vh-340px)]",
             !showBottomSection &&
               !showTopSection &&
               (viewMode === "icon" && isExpanded
-                ? localAgents.length > 12
-                  ? "max-h-[calc(100vh-100px)]"
-                  : "max-h-[calc(100vh-100px)]"
+                ? filteredAgents.length > 12
+                  ? "max-h-[calc(100vh-160px)]"
+                  : "max-h-[calc(100vh-160px)]"
                 : isExpanded
-                  ? "max-h-[calc(100vh-100px)]"
-                  : "max-h-[calc(100vh-80px)]"),
+                  ? "max-h-[calc(100vh-160px)]"
+                  : "max-h-[calc(100vh-140px)]"),
           )}
         >
-          {console.log("[v0] 🎨 SIDEBAR: Renderizando", localAgents.length, "agentes")}
+          {console.log("[v0] 🎨 SIDEBAR: Renderizando", filteredAgents.length, "agentes")}
 
           {viewMode === "icon"
-            ? localAgents.map((agent) => renderIconButton(agent))
+            ? filteredAgents.map((agent) => renderIconButton(agent))
             : viewMode === "sequential"
-              ? localAgents.map((agent) => renderAgentButton(agent))
+              ? filteredAgents.map((agent) => renderAgentButton(agent))
               : groupsWithOrder
+                  .filter(({ name: groupName }) => {
+                    const groupAgents = activeGroupedAgents[groupName]
+
+                    // If there's a search query, only show groups with agents
+                    // If no search query, show all groups
+                    if (searchQuery.trim()) {
+                      return groupAgents && groupAgents.length > 0
+                    }
+                    return true
+                  })
                   .sort((a, b) => a.display_order - b.display_order)
                   .map(({ name: groupName }) => {
                     const groupAgents = activeGroupedAgents[groupName] || []

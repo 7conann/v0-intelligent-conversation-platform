@@ -382,10 +382,9 @@ export default function LoginPage() {
       const supabase = createClient()
 
       const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost"
-      const productionUrl = "https://workspaceai.digital"
+      const productionUrl = "https://www.workspaceai.digital"
       const redirectUrl = isLocalhost
-        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL?.replace("/chat", "/reset-password") ||
-          `${window.location.origin}/reset-password`
+        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/reset-password`
         : `${productionUrl}/reset-password`
 
       console.log("[v0] Sending password reset email to:", forgotPasswordEmail, "with redirect:", redirectUrl)
