@@ -117,7 +117,8 @@ export function ChatArea({
   useEffect(() => {
     if (selectedMessagesGlobal?.chatId === currentChatId) {
       setSelectedMessages(selectedMessagesGlobal.messageIds)
-    } else {
+    } else if (!selectedMessagesGlobal) {
+      // Only clear if there's no global selection at all
       setSelectedMessages([])
     }
   }, [currentChatId, selectedMessagesGlobal])
@@ -295,15 +296,23 @@ export function ChatArea({
 
     const originConversationName = sourceChat?.name || "Conversa sem nome"
 
-    // Add each selected message to the current chat with origin info
-    selected.forEach((msg) => {
-      const newMessage: Message = {
-        ...msg,
-        id: `transferred-${Date.now()}-${Math.random()}`,
-        timestamp: new Date(),
-        originConversation: originConversationName,
+    const contextText = selected
+      .map((msg, index) => {
+        const sender = msg.sender === "user" ? "Usuário" : "Assistente"
+        const agentNames = msg.usedAgentIds
+          ? msg.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          : ""
+        const agentInfo = agentNames ? ` (${agentNames})` : ""
+        return `[Mensagem ${index + 1} de "${originConversationName}" - ${sender}${agentInfo}]:\n${msg.content}`
+      })
+      .join("\n\n---\n\n")
+
+    // Set the input with the context text
+    setInput((prev) => {
+      if (prev.trim()) {
+        return `${contextText}\n\n---\n\nMinha mensagem:\n${prev}`
       }
-      onAddMessage(currentChatId, newMessage)
+      return `${contextText}\n\n---\n\nMinha mensagem:\n`
     })
 
     // Clear selection
@@ -311,8 +320,8 @@ export function ChatArea({
     setSelectedMessages([])
 
     addToast({
-      title: "Mensagens adicionadas",
-      description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) a este chat`,
+      title: "Mensagens adicionadas ao campo",
+      description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) ao campo de texto`,
       variant: "success",
     })
   }
@@ -325,6 +334,7 @@ export function ChatArea({
       originConversation: originConversationName,
     }))
     onCreateChatWithMessages(messagesWithOrigin)
+    onSelectedMessagesGlobalChange?.(null)
     setSelectedMessages([])
     addToast({
       title: "Nova conversa criada",
@@ -1220,16 +1230,24 @@ export function ChatArea({
                   )}
                 </div>
                 {(() => {
-                  // verifica se o conteúdo é HTML (salvo pelo handleExternalApiResponse)
                   const isHtml =
-                    (message as any).asHtml ||
+                    message.asHtml === true ||
                     /<\/?(?:h1|h2|h3|p|strong|em|code|pre|blockquote|a|hr|ul|ol|li)\b/i.test(message.content)
 
                   if (isHtml) {
                     return (
                       <div
                         className="prose prose-invert max-w-none text-sm leading-relaxed break-words
-                                   prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-3 prose-hr:border-purple-700/40"
+                                   prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 prose-hr:my-3 prose-hr:border-purple-700/40
+                                   prose-h1:text-xl prose-h1:font-bold prose-h1:mt-4 prose-h1:mb-2
+                                   prose-h2:text-lg prose-h2:font-bold prose-h2:mt-3 prose-h2:mb-2
+                                   prose-h3:text-base prose-h3:font-semibold prose-h3:mt-2 prose-h3:mb-1
+                                   prose-strong:text-purple-300 prose-strong:font-semibold
+                                   prose-em:text-purple-200 prose-em:italic
+                                   prose-code:text-purple-300 prose-code:bg-purple-900/30 prose-code:px-1 prose-code:py-0.5 prose-code:rounded
+                                   prose-pre:bg-gray-900/50 prose-pre:border prose-pre:border-purple-700/40 prose-pre:p-3 prose-pre:rounded-lg
+                                   prose-blockquote:border-l-4 prose-blockquote:border-purple-500 prose-blockquote:pl-4 prose-blockquote:italic
+                                   prose-a:text-blue-400 prose-a:underline hover:prose-a:text-blue-300"
                         dangerouslySetInnerHTML={{ __html: message.content }}
                       />
                     )

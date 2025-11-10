@@ -551,7 +551,6 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
         <span className="text-2xl">{value || "📁"}</span>
         <ChevronDown className="h-4 w-4 opacity-50" />
       </Button>
-      
 
       {isOpen && (
         <div

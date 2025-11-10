@@ -20,6 +20,7 @@ export interface Message {
   timestamp: Date
   usedAgentIds?: string[]
   originConversation?: string
+  asHtml?: boolean // Added flag to indicate content should be rendered as HTML
 }
 
 export interface Chat {

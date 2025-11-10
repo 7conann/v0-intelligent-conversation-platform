@@ -916,7 +916,7 @@ export default function ChatPage() {
               timestamp: new Date(),
               usedAgentIds: agentIds,
               asHtml: true, // será renderizado via dangerouslySetInnerHTML
-            } as any)
+            })
           }
         }
       } catch (err) {

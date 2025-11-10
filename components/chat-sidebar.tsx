@@ -99,6 +99,10 @@ export function ChatSidebar({
 
   const [searchQuery, setSearchQuery] = useState("")
 
+  const [hoveredGroup, setHoveredGroup] = useState<{ name: string; count: number } | null>(null)
+  const [groupCoords, setGroupCoords] = useState<{ top: number; left: number } | null>(null)
+  const [groupHoverTimeout, setGroupHoverTimeout] = useState<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     const deduplicatedAgents = agents.reduce((acc, agent) => {
       const isCustomAgent = (agent as any).isCustomAgent || false
@@ -278,19 +282,66 @@ export function ChatSidebar({
     setCoords(null)
   }
 
+  const handleGroupMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, groupName: string, agentCount: number) => {
+    console.log("[v0] 🎯 Group hover started:", groupName)
+
+    const rect = e.currentTarget.getBoundingClientRect()
+
+    // Clear any existing timeout
+    if (groupHoverTimeout) {
+      clearTimeout(groupHoverTimeout)
+    }
+
+    const timeout = setTimeout(() => {
+      console.log("[v0] ⏱️ Group hover timeout reached:", groupName)
+
+      setHoveredGroup({ name: groupName, count: agentCount })
+      setGroupCoords({
+        top: rect.top - 8, // Position above the group
+        left: rect.left + rect.width / 2, // Center horizontally
+      })
+    }, 800)
+
+    setGroupHoverTimeout(timeout)
+  }
+
+  const handleGroupMouseLeave = () => {
+    console.log("[v0] 🚪 Group hover ended")
+    // Clear the timeout if mouse leaves before 1500ms
+    if (groupHoverTimeout) {
+      clearTimeout(groupHoverTimeout)
+      setGroupHoverTimeout(null)
+    }
+    setHoveredGroup(null)
+    setGroupCoords(null)
+  }
+
   const handleDragStart = (e: React.DragEvent, agentId: string) => {
+    if (!isAuthorized) {
+      e.preventDefault()
+      return
+    }
     setDraggedAgent(agentId)
     e.dataTransfer.effectAllowed = "move"
   }
 
   const handleDragOver = (e: React.DragEvent, agentId: string) => {
     e.preventDefault()
+    if (!isAuthorized) {
+      return
+    }
     if (draggedAgent && draggedAgent !== agentId) {
       setDraggedOverAgent(agentId)
     }
   }
 
   const handleDragEnd = async () => {
+    if (!isAuthorized) {
+      setDraggedAgent(null)
+      setDraggedOverAgent(null)
+      return
+    }
+
     if (draggedAgent && draggedOverAgent) {
       const draggedIndex = localAgents.findIndex((a) => a.id === draggedAgent)
       const targetIndex = localAgents.findIndex((a) => a.id === draggedOverAgent)
@@ -414,7 +465,7 @@ export function ChatSidebar({
     return (
       <button
         key={agent.id}
-        draggable
+        draggable={isAuthorized}
         onDragStart={(e) => handleDragStart(e, agent.id)}
         onDragOver={(e) => handleDragOver(e, agent.id)}
         onDragEnd={handleDragEnd}
@@ -422,7 +473,9 @@ export function ChatSidebar({
         onMouseEnter={(e) => handleMouseEnter(e, agent)}
         onMouseLeave={handleMouseLeave}
         className={cn(
-          "transition-all duration-300 relative group cursor-move",
+          "transition-all duration-300 relative group",
+          isAuthorized && "cursor-move",
+          !isAuthorized && "cursor-pointer",
           isExpanded
             ? "w-full px-4 py-3 rounded-xl flex items-center gap-3 justify-start bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-[1.02]"
             : "w-12 h-12 rounded-xl flex items-center justify-center bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] hover:scale-105",
@@ -785,6 +838,8 @@ export function ChatSidebar({
                       <div key={groupName} className="w-full mb-1">
                         <button
                           onClick={() => toggleGroup(groupName)}
+                          onMouseEnter={(e) => handleGroupMouseEnter(e, groupName, groupAgents.length)}
+                          onMouseLeave={handleGroupMouseLeave}
                           className={cn(
                             "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200",
                             "bg-gradient-to-r from-purple-500/10 to-blue-500/10",
@@ -898,6 +953,27 @@ export function ChatSidebar({
               }}
             >
               {hoveredAgent}
+            </div>,
+            document.getElementById("tooltip-root")!,
+          )}
+
+        {hoveredGroup &&
+          groupCoords &&
+          createPortal(
+            <div
+              className="fixed px-4 py-3 bg-gray-800 text-white text-xs rounded-md shadow-lg transition-opacity opacity-100 max-w-xs border border-gray-700"
+              style={{
+                top: groupCoords.top,
+                left: groupCoords.left,
+                transform: "translate(-50%, -100%)", // Center horizontally and position above
+                zIndex: 999999999,
+                pointerEvents: "none",
+              }}
+            >
+              <div className="font-medium">{hoveredGroup.name}</div>
+              <div className="text-[10px] text-gray-300 mt-0.5">
+                {hoveredGroup.count} {hoveredGroup.count === 1 ? "agente" : "agentes"}
+              </div>
             </div>,
             document.getElementById("tooltip-root")!,
           )}
