@@ -3,37 +3,21 @@ import { createClient } from "./client"
 export async function getAgents() {
   const supabase = createClient()
 
-  try {
-    // Try querying with workspace_id column
-    const { data, error } = await supabase
-      .from("agents")
-      .select(`
-        *,
-        group:groups(id, name, icon, display_order)
-      `)
-      .or("is_system.eq.true,workspace_id.is.null")
-      .order("order")
+  const { data, error } = await supabase
+    .from("agents")
+    .select(`
+      *,
+      group:groups(id, name, icon, display_order)
+    `)
+    .order("order", { ascending: true, nullsFirst: false })
 
-    if (error) throw error
-    return data
-  } catch (error: any) {
-    // If workspace_id column doesn't exist, fall back to simple query
-    if (error?.message?.includes("workspace_id")) {
-      console.log("[v0] workspace_id column not found, using fallback query")
-      const { data, error: fallbackError } = await supabase
-        .from("agents")
-        .select(`
-          *,
-          group:groups(id, name, icon, display_order)
-        `)
-        .order("order", { ascending: true, nullsFirst: false })
-
-      if (fallbackError) throw fallbackError
-      console.log(`[v0] 📦 Loaded ${data?.length || 0} agents from agents table`)
-      return data
-    }
+  if (error) {
+    console.error("[v0] Error loading agents:", error)
     throw error
   }
+
+  console.log(`[v0] 📦 Loaded ${data?.length || 0} agents from agents table`)
+  return data
 }
 
 export async function toggleAgentFavorite(userId: string, agentId: string, isFavorite: boolean) {

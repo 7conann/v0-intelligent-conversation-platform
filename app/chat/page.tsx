@@ -191,7 +191,25 @@ export default function ChatPage() {
   const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<{
     chatId: string
     messageIds: string[]
-  } | null>(null)
+  } | null>(() => {
+    if (typeof window === "undefined") return null
+    try {
+      const stored = localStorage.getItem("selectedMessagesGlobal")
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+
+  useEffect(() => {
+    if (selectedMessagesGlobal) {
+      localStorage.setItem("selectedMessagesGlobal", JSON.stringify(selectedMessagesGlobal))
+      console.log("[v0] 💾 Saved selectedMessagesGlobal to localStorage:", selectedMessagesGlobal)
+    } else {
+      localStorage.removeItem("selectedMessagesGlobal")
+      console.log("[v0] 🗑️ Removed selectedMessagesGlobal from localStorage")
+    }
+  }, [selectedMessagesGlobal])
 
   useEffect(() => {
     const loadUserAndConversations = async () => {

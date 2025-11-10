@@ -115,21 +115,31 @@ export function ChatArea({
   }, [currentChatId])
 
   useEffect(() => {
+    console.log("[v0] 🔍 Chat changed to:", currentChatId)
+    console.log("[v0] 🔍 selectedMessagesGlobal:", selectedMessagesGlobal)
+    console.log(
+      "[v0] 🔍 Should show banner?",
+      selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId,
+    )
+
     if (selectedMessagesGlobal?.chatId === currentChatId) {
+      console.log("[v0] ✅ Setting local selection from global")
       setSelectedMessages(selectedMessagesGlobal.messageIds)
-    } else if (!selectedMessagesGlobal) {
-      // Only clear if there's no global selection at all
+    } else {
+      console.log("[v0] 🎯 Clearing local selection (different chat)")
       setSelectedMessages([])
     }
   }, [currentChatId, selectedMessagesGlobal])
 
   useEffect(() => {
     if (selectedMessages.length > 0) {
+      console.log("[v0] 📤 Updating global from local selection")
       onSelectedMessagesGlobalChange?.({ chatId: currentChatId, messageIds: selectedMessages })
-    } else if (selectedMessagesGlobal?.chatId === currentChatId) {
+    } else if (selectedMessagesGlobal?.chatId === currentChatId && selectedMessages.length === 0) {
+      console.log("[v0] 🧹 Clearing global (local selection cleared in current chat)")
       onSelectedMessagesGlobalChange?.(null)
     }
-  }, [selectedMessages, currentChatId])
+  }, [selectedMessages])
 
   const sendMessage = async () => {
     if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
@@ -282,48 +292,59 @@ export function ChatArea({
 
   const useSelectedMessages = () => {
     const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const combinedText = selected.map((m) => m.content).join("\n\n")
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
+    const combinedText = selected.map((m) => stripHtml(m.content)).join("\n\n")
     setInput(combinedText)
     setSelectedMessages([])
+
+    onSelectedMessagesGlobalChange?.(null)
+    console.log("[v0] 🗑️ Cleared selection after use")
   }
 
   const addSelectedMessagesToCurrentChat = () => {
-    if (!selectedMessagesGlobal) return
+    console.log("[v0] 🎯 addSelectedMessagesToCurrentChat called")
+    console.log("[v0] 🎯 selectedMessagesGlobal:", selectedMessagesGlobal)
+
+    if (!selectedMessagesGlobal) {
+      console.log("[v0] ❌ No selectedMessagesGlobal")
+      return
+    }
 
     const sourceChat = chats.find((c) => c.id === selectedMessagesGlobal.chatId)
     const sourceMessages = messages[selectedMessagesGlobal.chatId] || []
     const selected = sourceMessages.filter((m) => selectedMessagesGlobal.messageIds.includes(m.id))
 
+    console.log("[v0] 📋 Source chat:", sourceChat?.name)
+    console.log("[v0] 📋 Selected messages count:", selected.length)
+
     const originConversationName = sourceChat?.name || "Conversa sem nome"
 
-    const contextText = selected
-      .map((msg, index) => {
-        const sender = msg.sender === "user" ? "Usuário" : "Assistente"
-        const agentNames = msg.usedAgentIds
-          ? msg.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-          : ""
-        const agentInfo = agentNames ? ` (${agentNames})` : ""
-        return `[Mensagem ${index + 1} de "${originConversationName}" - ${sender}${agentInfo}]:\n${msg.content}`
-      })
-      .join("\n\n---\n\n")
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
 
-    // Set the input with the context text
-    setInput((prev) => {
-      if (prev.trim()) {
-        return `${contextText}\n\n---\n\nMinha mensagem:\n${prev}`
-      }
-      return `${contextText}\n\n---\n\nMinha mensagem:\n`
-    })
+    const combinedText = selected.map((m) => stripHtml(m.content)).join("\n\n")
+
+    // Set the text to the input field
+    setInput(combinedText)
 
     // Clear selection
     onSelectedMessagesGlobalChange?.(null)
     setSelectedMessages([])
 
     addToast({
-      title: "Mensagens adicionadas ao campo",
+      title: "Mensagens adicionadas",
       description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) ao campo de texto`,
       variant: "success",
     })
+
+    console.log("[v0] 🗑️ Cleared selection after adding to input field")
   }
 
   const createNewChatWithSelected = () => {
@@ -334,13 +355,17 @@ export function ChatArea({
       originConversation: originConversationName,
     }))
     onCreateChatWithMessages(messagesWithOrigin)
+
     onSelectedMessagesGlobalChange?.(null)
     setSelectedMessages([])
+
     addToast({
       title: "Nova conversa criada",
       description: `${selected.length} mensagem(ns) movida(s) de "${originConversationName}"`,
       variant: "success",
     })
+
+    console.log("[v0] 🗑️ Cleared selection after creating new chat")
   }
 
   const copyAsMarkdown = async () => {
