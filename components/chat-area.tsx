@@ -1354,6 +1354,7 @@ export function ChatArea({
                 {selectedAgentObjects.map((agent) => {
                   const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
                   return (
+                    
                     <div
                       key={agent.id}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
