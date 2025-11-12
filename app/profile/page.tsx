@@ -9,14 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
@@ -458,18 +451,18 @@ export default function ProfilePage() {
               </div>
               <DialogTitle className="text-xl">Resetar Dados</DialogTitle>
             </div>
-            <DialogDescription className="text-base leading-relaxed pt-2">
-              Esta ação irá:
-              <ul className="list-disc list-inside mt-3 space-y-2 text-orange-400/90">
-                <li>Apagar todo o localStorage</li>
-                <li>Apagar todo o sessionStorage</li>
-                <li>Limpar todos os cookies</li>
-                <li>Limpar o cache do navegador</li>
-                <li>Deslogar você da conta</li>
-              </ul>
-              <p className="mt-4 font-semibold text-orange-400">Esta ação não pode ser desfeita!</p>
-            </DialogDescription>
           </DialogHeader>
+          <div className="text-muted-foreground text-base leading-relaxed pt-2 px-6">
+            <p className="mb-3">Esta ação irá:</p>
+            <ul className="list-disc list-inside space-y-2 text-orange-400/90">
+              <li>Apagar todo o localStorage</li>
+              <li>Apagar todo o sessionStorage</li>
+              <li>Limpar todos os cookies</li>
+              <li>Limpar o cache do navegador</li>
+              <li>Deslogar você da conta</li>
+            </ul>
+            <p className="mt-4 font-semibold text-orange-400">Esta ação não pode ser desfeita!</p>
+          </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
