@@ -247,7 +247,7 @@ export default function UserDetailsPage() {
                 <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : selectedConversation ? (
-              <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+              <div className="space-y-3 max-h-[calc(100vh-0px)] overflow-y-auto">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
