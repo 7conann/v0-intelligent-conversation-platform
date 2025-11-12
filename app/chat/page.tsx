@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
@@ -188,21 +188,46 @@ export default function ChatPage() {
   const [chats, setChats] = useState<Chat[]>([])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
 
-  const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<{
-    chatId: string
-    messageIds: string[]
-  } | null>(() => {
-    if (typeof window === "undefined") return null
+  const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<Array<{ chatId: string; messageIds: string[] }>>(
+    [],
+  )
+
+  const isInitialMount = useRef(true)
+  const isLoadingFromStorage = useRef(false)
+
+  // Load from localStorage on mount only
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
     try {
       const stored = localStorage.getItem("selectedMessagesGlobal")
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
+      if (stored) {
+        isLoadingFromStorage.current = true
+        setSelectedMessagesGlobal(JSON.parse(stored))
+        console.log("[v0] 📥 Loaded selectedMessagesGlobal from localStorage")
+      }
+    } catch (error) {
+      console.error("[v0] ❌ Error loading from localStorage:", error)
     }
-  })
+  }, [])
 
+  // Save to localStorage only when changed by user action
   useEffect(() => {
-    if (selectedMessagesGlobal) {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+
+    // Skip if we're loading from storage
+    if (isLoadingFromStorage.current) {
+      isLoadingFromStorage.current = false
+      console.log("[v0] ⏭️ Skipping save - loaded from storage")
+      return
+    }
+
+    // Save to localStorage
+    if (selectedMessagesGlobal.length > 0) {
       localStorage.setItem("selectedMessagesGlobal", JSON.stringify(selectedMessagesGlobal))
       console.log("[v0] 💾 Saved selectedMessagesGlobal to localStorage:", selectedMessagesGlobal)
     } else {

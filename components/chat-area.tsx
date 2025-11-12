@@ -27,6 +27,9 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import * as XLSX from "xlsx"
+import { Document, Paragraph, TextRun, Packer } from "docx"
+import PptxGenJS from "pptxgenjs"
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -48,8 +51,8 @@ interface ChatAreaProps {
   className?: string
   onExternalApiResponse?: (payload: any, opts?: { decorate?: boolean }) => Promise<void>
   onToggleAgent?: (agentId: string) => void
-  selectedMessagesGlobal?: { chatId: string; messageIds: string[] } | null
-  onSelectedMessagesGlobalChange?: (selection: { chatId: string; messageIds: string[] } | null) => void
+  selectedMessagesGlobal?: Array<{ chatId: string; messageIds: string[] }>
+  onSelectedMessagesGlobalChange?: (selection: Array<{ chatId: string; messageIds: string[] }>) => void
 }
 
 export function ChatArea({
@@ -72,7 +75,7 @@ export function ChatArea({
   onExternalApiResponse,
   onToggleAgent,
   className,
-  selectedMessagesGlobal,
+  selectedMessagesGlobal = [],
   onSelectedMessagesGlobalChange,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
@@ -85,15 +88,18 @@ export function ChatArea({
   const [isUploading, setIsUploading] = useState(false)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingChatName, setEditingChatName] = useState("")
+  const [userDisplayName, setUserDisplayName] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
-  const editInputRef = useRef<HTMLInputElement>(null) // Ref for editing input
+  const editInputRef = useRef<HTMLInputElement>(null)
   const { addToast } = useToast()
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState<"markdown" | "word" | "powerpoint" | "excel" | null>(null)
 
   interface Attachment {
     name: string
-    data: string // base64 encoded file data
+    data: string
     type: string
     size: number
   }
@@ -115,31 +121,350 @@ export function ChatArea({
   }, [currentChatId])
 
   useEffect(() => {
+    const loadUserProfile = async () => {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profile?.display_name) {
+          setUserDisplayName(profile.display_name)
+          console.log("[v0] 👤 User display name loaded:", profile.display_name)
+        } else {
+          const fallbackName = session.user.email?.split("@")[0] || "Usuário"
+          setUserDisplayName(fallbackName)
+          console.log("[v0] 👤 Using fallback name:", fallbackName)
+        }
+      }
+    }
+
+    loadUserProfile()
+  }, [])
+
+  // Load local selection from global when chat changes
+  useEffect(() => {
     console.log("[v0] 🔍 Chat changed to:", currentChatId)
     console.log("[v0] 🔍 selectedMessagesGlobal:", selectedMessagesGlobal)
-    console.log(
-      "[v0] 🔍 Should show banner?",
-      selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId,
-    )
 
-    if (selectedMessagesGlobal?.chatId === currentChatId) {
+    const currentChatSelection = selectedMessagesGlobal.find((sel) => sel.chatId === currentChatId)
+
+    if (currentChatSelection) {
       console.log("[v0] ✅ Setting local selection from global")
-      setSelectedMessages(selectedMessagesGlobal.messageIds)
+      setSelectedMessages(currentChatSelection.messageIds)
     } else {
-      console.log("[v0] 🎯 Clearing local selection (different chat)")
+      console.log("[v0] 🎯 Clearing local selection (no selection for this chat)")
       setSelectedMessages([])
     }
-  }, [currentChatId, selectedMessagesGlobal])
+  }, [currentChatId]) // Remove selectedMessagesGlobal from dependencies to prevent loop
+
+  // Update global when local changes (but use a ref to track if we're loading)
+  const isLoadingFromGlobal = useRef(false)
 
   useEffect(() => {
+    // Skip if we just loaded from global
+    if (isLoadingFromGlobal.current) {
+      isLoadingFromGlobal.current = false
+      return
+    }
+
+    if (!onSelectedMessagesGlobalChange) return
+
     if (selectedMessages.length > 0) {
       console.log("[v0] 📤 Updating global from local selection")
-      onSelectedMessagesGlobalChange?.({ chatId: currentChatId, messageIds: selectedMessages })
-    } else if (selectedMessagesGlobal?.chatId === currentChatId && selectedMessages.length === 0) {
-      console.log("[v0] 🧹 Clearing global (local selection cleared in current chat)")
-      onSelectedMessagesGlobalChange?.(null)
+      const newGlobal = selectedMessagesGlobal.filter((sel) => sel.chatId !== currentChatId)
+      newGlobal.push({ chatId: currentChatId, messageIds: selectedMessages })
+      onSelectedMessagesGlobalChange(newGlobal)
+      localStorage.setItem("selectedMessages", JSON.stringify(newGlobal))
+      console.log("[v0] 💾 Saved selection to localStorage")
+    } else {
+      const hasCurrentSelection = selectedMessagesGlobal.some((sel) => sel.chatId === currentChatId)
+      if (hasCurrentSelection) {
+        console.log("[v0] 🧹 Clearing global for current chat")
+        const newGlobal = selectedMessagesGlobal.filter((sel) => sel.chatId !== currentChatId)
+        onSelectedMessagesGlobalChange(newGlobal)
+        localStorage.setItem("selectedMessages", JSON.stringify(newGlobal))
+        console.log("[v0] 💾 Cleared selection from localStorage")
+      }
     }
   }, [selectedMessages])
+
+  const stripHtml = (html: string) => {
+    const tmp = document.createElement("div")
+    tmp.innerHTML = html
+    return tmp.textContent || tmp.innerText || ""
+  }
+
+  const handleExportClick = (format: "markdown" | "word" | "powerpoint" | "excel") => {
+    setExportFormat(format)
+    setExportDialogOpen(true)
+  }
+
+  const closeExportDialog = () => {
+    setExportDialogOpen(false)
+    setExportFormat(null)
+    // Clear selections and localStorage
+    if (onSelectedMessagesGlobalChange) {
+      onSelectedMessagesGlobalChange([])
+      localStorage.removeItem("selectedMessages")
+      console.log("[v0] 🗑️ Cleared selections and localStorage on dialog close")
+    }
+    setSelectedMessages([])
+  }
+
+  const executeExport = async (includeAgents: boolean) => {
+    let allSelectedMessages: Message[] = []
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const chatMessages = messages[selection.chatId] || []
+      const selected = chatMessages.filter((m) => selection.messageIds.includes(m.id))
+      allSelectedMessages = [...allSelectedMessages, ...selected]
+    })
+
+    console.log("[v0] 📤 Total messages to export:", allSelectedMessages.length)
+
+    switch (exportFormat) {
+      case "markdown":
+        await exportMarkdown(allSelectedMessages, includeAgents)
+        break
+      case "word":
+        await exportWord(allSelectedMessages, includeAgents)
+        break
+      case "powerpoint":
+        await exportPowerPoint(allSelectedMessages, includeAgents)
+        break
+      case "excel":
+        await exportExcel(allSelectedMessages, includeAgents)
+        break
+    }
+
+    closeExportDialog() // Use the new function to close dialog and clear selections
+  }
+
+  const exportMarkdown = async (selected: Message[], includeAgents: boolean) => {
+    const markdown = selected
+      .map((m) => {
+        const content = stripHtml(m.content)
+
+        let agentInfo = ""
+        if (includeAgents && m.usedAgentIds && m.usedAgentIds.length > 0) {
+          const agentNames = m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          agentInfo = `**Agentes:** ${agentNames}\n\n`
+        }
+
+        return `${agentInfo}${content}\n\n---`
+      })
+      .join("\n\n")
+
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    addToast({
+      title: "Markdown exportado",
+      description: `${selected.length} mensagem(ns) exportada(s)`,
+      variant: "success",
+    })
+  }
+
+  const exportWord = async (selected: Message[], includeAgents: boolean) => {
+    const doc = new Document({
+      sections: [
+        {
+          children: selected.flatMap((m) => {
+            const content = stripHtml(m.content)
+
+            const paragraphs: Paragraph[] = []
+
+            if (includeAgents && m.usedAgentIds && m.usedAgentIds.length > 0) {
+              const agentNames = m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+              paragraphs.push(
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: `Agentes: ${agentNames}`,
+                      size: 20,
+                      color: "8B5CF6",
+                      italics: true,
+                      bold: true,
+                    }),
+                  ],
+                  spacing: { after: 200 },
+                }),
+              )
+            }
+
+            paragraphs.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: content,
+                    size: 22,
+                  }),
+                ],
+                spacing: { after: 400 },
+              }),
+            )
+
+            return paragraphs
+          }),
+        },
+      ],
+    })
+
+    const blob = await Packer.toBlob(doc)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.docx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    addToast({
+      title: "Word exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em .docx`,
+      variant: "success",
+    })
+  }
+
+  const exportPowerPoint = async (selected: Message[], includeAgents: boolean) => {
+    const pptx = new PptxGenJS()
+
+    selected.forEach((m, index) => {
+      const slide = pptx.addSlide()
+      const content = stripHtml(m.content)
+
+      // Content starts at top
+      let contentY = 0.5
+
+      // Agents (if included)
+      if (includeAgents && m.usedAgentIds && m.usedAgentIds.length > 0) {
+        const agentNames = m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+        slide.addText(`Agentes: ${agentNames}`, {
+          x: 0.5,
+          y: contentY,
+          w: 9,
+          h: 0.4,
+          fontSize: 14,
+          bold: true,
+          italic: true,
+          color: "8B5CF6",
+        })
+        contentY = 1.0
+      }
+
+      // Content
+      slide.addText(content, {
+        x: 0.5,
+        y: contentY,
+        w: 9,
+        h: 6.5 - contentY,
+        fontSize: 18,
+        valign: "top",
+        breakLine: true,
+      })
+    })
+
+    const blob = await pptx.write({ outputType: "blob" })
+    const url = URL.createObjectURL(blob as Blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.pptx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    addToast({
+      title: "PowerPoint exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em .pptx`,
+      variant: "success",
+    })
+  }
+
+  const exportExcel = async (selected: Message[], includeAgents: boolean) => {
+    console.log("[v0] 📊 Exporting to Excel, includeAgents:", includeAgents)
+    console.log("[v0] 📊 Selected messages:", selected.length)
+
+    const headers = includeAgents ? ["Mensagem", "Agentes"] : ["Mensagem"]
+
+    const rows = selected.map((m) => {
+      const content = stripHtml(m.content)
+
+      const row: any = {
+        Mensagem: content,
+      }
+
+      if (includeAgents) {
+        const agentNames =
+          m.usedAgentIds && m.usedAgentIds.length > 0
+            ? m.usedAgentIds
+                .map((id) => {
+                  const agent = agents.find((a) => a.id === id)
+                  console.log("[v0] 🔍 Finding agent:", id, "Found:", agent?.name)
+                  return agent?.name || id
+                })
+                .join(", ")
+            : "Nenhum"
+        row.Agentes = agentNames
+        console.log("[v0] 📝 Message agents:", agentNames)
+      }
+
+      return row
+    })
+
+    console.log("[v0] 📋 Excel rows:", rows)
+
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Mensagens")
+
+    // Auto-size columns
+    const maxWidths: { [key: string]: number } = {}
+    headers.forEach((h) => {
+      maxWidths[h] = h.length
+    })
+    rows.forEach((row) => {
+      Object.keys(row).forEach((key) => {
+        const value = String(row[key])
+        maxWidths[key] = Math.max(maxWidths[key] || 0, Math.min(value.length, 100))
+      })
+    })
+    worksheet["!cols"] = headers.map((h) => ({ wch: maxWidths[h] + 2 }))
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.xlsx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    addToast({
+      title: "Excel exportado",
+      description: `${selected.length} mensagem(ns) exportada(s) em .xlsx ${includeAgents ? "com agentes" : "sem agentes"}`,
+      variant: "success",
+    })
+  }
 
   const sendMessage = async () => {
     if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
@@ -181,7 +506,12 @@ export function ChatArea({
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${messageToSend}`
       }
 
+      const userNamePrefix = userDisplayName ? `[Usuário: ${userDisplayName}]\n` : ""
+      messageToSend = userNamePrefix + messageToSend
+
       let payload: any
+
+      const contactName = userDisplayName || `Chat ${currentChatId}`
 
       if (attachmentsToSend.length > 0) {
         const attachment = attachmentsToSend[0]
@@ -194,7 +524,7 @@ export function ChatArea({
           },
           type: "IMAGE",
           contactIdentifier: currentChatId,
-          contactName: `Chat ${currentChatId}`,
+          contactName: contactName,
         }
       } else {
         payload = {
@@ -205,11 +535,13 @@ export function ChatArea({
           },
           type: "TEXT",
           contactIdentifier: currentChatId,
-          contactName: `Chat ${currentChatId}`,
+          contactName: contactName,
         }
       }
 
       console.log("[v0] 🚀 Payload enviado para /api/send-message:", payload)
+      console.log("[v0] 👤 Enviando mensagem como:", contactName)
+      console.log("[v0] 📝 Conteúdo com nome do usuário:", messageToSend.substring(0, 100))
 
       const response = await fetch("/api/send-message", {
         method: "POST",
@@ -226,24 +558,15 @@ export function ChatArea({
       const data = await response.json()
       console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
 
-      // 🔧 DEBUG para confirmar se o handler de formatação está chegando como prop
-      // Obs: certifique-se de que ChatAreaProps tenha onExternalApiResponse e que ChatPage o passe.
-      // @ts-ignore - caso o tipo ainda não tenha sido atualizado
       const hasFormatter = typeof onExternalApiResponse === "function"
-      // @ts-ignore
       console.log("[v0] 🔧 onExternalApiResponse disponível?", hasFormatter)
 
-      // Se houver handler, delega a formatação (máscara -> HTML) pra ele
-      // @ts-ignore
       if (hasFormatter) {
-        // @ts-ignore
         console.log("[v0] 🔧 Encaminhando payload para onExternalApiResponse (com máscara/decorate=true)")
-        // @ts-ignore
         await onExternalApiResponse(data, { decorate: true })
         return
       }
 
-      // Fallback (sem o handler): mantém o fluxo antigo (texto puro sem máscara)
       console.warn("[v0] ⚠️ Sem onExternalApiResponse — usando fallback SEM formatação.")
       if (data.success && data.aiMessages && data.aiMessages.length > 0) {
         const texts = data.aiMessages.map((m: any) => m?.content?.text?.body).filter(Boolean)
@@ -290,38 +613,43 @@ export function ChatArea({
     )
   }
 
-  const useSelectedMessages = () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const stripHtml = (html: string) => {
-      const tmp = document.createElement("div")
-      tmp.innerHTML = html
-      return tmp.textContent || tmp.innerText || ""
-    }
-    const combinedText = selected.map((m) => stripHtml(m.content)).join("\n\n")
-    setInput(combinedText)
-    setSelectedMessages([])
+  // Removendo função duplicada "useSelectedMessages"
+  // const useSelectedMessages = () => {
+  //   if (!onSelectedMessagesGlobalChange) return
 
-    onSelectedMessagesGlobalChange?.(null)
-    console.log("[v0] 🗑️ Cleared selection after use")
-  }
+  //   const stripHtml = (html: string) => {
+  //     const tmp = document.createElement("div")
+  //     tmp.innerHTML = html
+  //     return tmp.textContent || tmp.innerText || ""
+  //   }
+
+  //   let allText = ""
+
+  //   selectedMessagesGlobal.forEach((selection) => {
+  //     const chatMessages = messages[selection.chatId] || []
+  //     const selected = chatMessages.filter((m) => selection.messageIds.includes(m.id))
+  //     const chatName = chats.find((c) => c.id === selection.chatId)?.name || "Conversa"
+
+  //     allText += `\n--- De: ${chatName} ---\n`
+  //     allText += selected.map((m) => stripHtml(m.content)).join("\n\n")
+  //     allText += "\n"
+  //   })
+
+  //   setInput(allText.trim())
+  //   setSelectedMessages([])
+  //   onSelectedMessagesGlobalChange([])
+
+  //   console.log("[v0] 🗑️ Cleared all selections after use")
+  // }
 
   const addSelectedMessagesToCurrentChat = () => {
     console.log("[v0] 🎯 addSelectedMessagesToCurrentChat called")
     console.log("[v0] 🎯 selectedMessagesGlobal:", selectedMessagesGlobal)
 
-    if (!selectedMessagesGlobal) {
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0 || !onSelectedMessagesGlobalChange) {
       console.log("[v0] ❌ No selectedMessagesGlobal")
       return
     }
-
-    const sourceChat = chats.find((c) => c.id === selectedMessagesGlobal.chatId)
-    const sourceMessages = messages[selectedMessagesGlobal.chatId] || []
-    const selected = sourceMessages.filter((m) => selectedMessagesGlobal.messageIds.includes(m.id))
-
-    console.log("[v0] 📋 Source chat:", sourceChat?.name)
-    console.log("[v0] 📋 Selected messages count:", selected.length)
-
-    const originConversationName = sourceChat?.name || "Conversa sem nome"
 
     const stripHtml = (html: string) => {
       const tmp = document.createElement("div")
@@ -329,18 +657,24 @@ export function ChatArea({
       return tmp.textContent || tmp.innerText || ""
     }
 
-    const combinedText = selected.map((m) => stripHtml(m.content)).join("\n\n")
+    let allText = ""
 
-    // Set the text to the input field
-    setInput(combinedText)
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
-    // Clear selection
-    onSelectedMessagesGlobalChange?.(null)
+      selected.forEach((m) => {
+        allText += stripHtml(m.content) + "\n\n"
+      })
+    })
+
+    setInput(allText.trim())
+    onSelectedMessagesGlobalChange([])
     setSelectedMessages([])
 
     addToast({
-      title: "Mensagens adicionadas",
-      description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) ao campo de texto`,
+      title: "Texto adicionado",
+      description: `Texto puro das mensagens selecionadas foi adicionado ao campo`,
       variant: "success",
     })
 
@@ -348,20 +682,31 @@ export function ChatArea({
   }
 
   const createNewChatWithSelected = () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const originConversationName = currentChat?.name || "Conversa sem nome"
-    const messagesWithOrigin = selected.map((msg) => ({
-      ...msg,
-      originConversation: originConversationName,
-    }))
-    onCreateChatWithMessages(messagesWithOrigin)
+    if (!onSelectedMessagesGlobalChange) return
 
-    onSelectedMessagesGlobalChange?.(null)
+    let allMessages: Message[] = []
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceChat = chats.find((c) => c.id === selection.chatId)
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      const chatName = sourceChat?.name || "Conversa sem nome"
+      const messagesWithOrigin = selected.map((msg) => ({
+        ...msg,
+        originConversation: chatName,
+      }))
+
+      allMessages = [...allMessages, ...messagesWithOrigin]
+    })
+
+    onCreateChatWithMessages(allMessages)
+    onSelectedMessagesGlobalChange([])
     setSelectedMessages([])
 
     addToast({
       title: "Nova conversa criada",
-      description: `${selected.length} mensagem(ns) movida(s) de "${originConversationName}"`,
+      description: `${allMessages.length} mensagem(ns) de ${selectedMessagesGlobal.length} conversa(s) movida(s)`,
       variant: "success",
     })
 
@@ -798,6 +1143,13 @@ export function ChatArea({
     }
   }
 
+  const totalSelectedMessages = Array.isArray(selectedMessagesGlobal)
+    ? selectedMessagesGlobal.reduce((sum, sel) => sum + sel.messageIds.length, 0)
+    : 0
+  const chatsWithSelections = Array.isArray(selectedMessagesGlobal)
+    ? selectedMessagesGlobal.filter((sel) => sel.chatId !== currentChatId)
+    : []
+
   return (
     <div className={cn("flex flex-col h-full bg-[var(--chat-bg)] min-w-0", className)}>
       <div className="bg-[var(--chat-header-bg)] border-b border-[var(--chat-border)] px-2 md:px-4 py-2 flex items-center gap-1 md:gap-2 overflow-x-auto shrink-0 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-gray-900/30 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-purple-500 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-purple-400">
@@ -860,6 +1212,22 @@ export function ChatArea({
                     draggedChatId === chat.id && "opacity-50",
                   )}
                 >
+                  {/* Green dot: Active chat */}
+                  {currentChatId === chat.id && (
+                    <span
+                      className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-green-500 rounded-full border border-gray-900 shadow-sm"
+                      title="Conversa ativa"
+                    />
+                  )}
+
+                  {/* Yellow dot: Chat has selected messages */}
+                  {selectedMessagesGlobal.some((sel) => sel.chatId === chat.id) && (
+                    <span
+                      className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-500 rounded-full border border-gray-900 shadow-sm"
+                      title="Mensagens selecionadas"
+                    />
+                  )}
+
                   {chat.isFavorite && (
                     <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
                   )}
@@ -1030,13 +1398,12 @@ export function ChatArea({
         </div>
       )}
 
-      {selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId && (
+      {chatsWithSelections.length > 0 && (
         <div className="bg-blue-900/20 border-b border-blue-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquarePlus className="w-4 h-4 text-blue-400" />
             <span className="text-blue-300 text-sm">
-              {selectedMessagesGlobal.messageIds.length} mensagem(ns) selecionada(s) de "
-              {chats.find((c) => c.id === selectedMessagesGlobal.chatId)?.name || "outro chat"}"
+              {totalSelectedMessages} mensagem(ns) selecionada(s) de {selectedMessagesGlobal.length} conversa(s)
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -1056,10 +1423,20 @@ export function ChatArea({
             </Button>
             <button
               onClick={() => {
-                onSelectedMessagesGlobalChange?.(null)
+                console.log("[v0] 🗑️ X button clicked on blue banner")
+                console.log("[v0] 🗑️ Before clear - selectedMessagesGlobal:", selectedMessagesGlobal)
+                console.log("[v0] 🗑️ Before clear - localStorage:", localStorage.getItem("selectedMessages"))
+
+                if (onSelectedMessagesGlobalChange) {
+                  onSelectedMessagesGlobalChange([])
+                  localStorage.removeItem("selectedMessages")
+                  console.log("[v0] ✅ Cleared selectedMessagesGlobal and localStorage")
+                  console.log("[v0] ✅ After clear - localStorage:", localStorage.getItem("selectedMessages"))
+                }
                 setSelectedMessages([])
               }}
               className="text-gray-400 hover:text-white cursor-pointer"
+              title="Limpar seleção"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1067,7 +1444,7 @@ export function ChatArea({
         </div>
       )}
 
-      {selectedMessages.length > 0 && selectedMessagesGlobal?.chatId === currentChatId && (
+      {selectedMessages.length > 0 && selectedMessagesGlobal.some((sel) => sel.chatId === currentChatId) && (
         <div className="bg-purple-900/20 border-b border-purple-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-purple-400" />
@@ -1078,23 +1455,30 @@ export function ChatArea({
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button
-              onClick={copyAsMarkdown}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              onClick={addSelectedMessagesToCurrentChat}
+              className="bg-purple-600 hover:bg-purple-500 text-white text-xs md:text-sm flex items-center gap-2 cursor-pointer px-3 h-8 md:h-9"
+            >
+              <Sparkles className="w-3 h-3 md:w-4 md:h-4" />
+              Usar
+            </Button>
+            <Button
+              onClick={() => handleExportClick("markdown")}
+              className="bg-blue-700 hover:bg-blue-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
               title="Exportar como Markdown"
             >
               <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Markdown</span>
             </Button>
             <Button
-              onClick={copyAsWord}
-              className="bg-blue-700 hover:bg-blue-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+              onClick={() => handleExportClick("word")}
+              className="bg-blue-800 hover:bg-blue-700 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
               title="Exportar para Word"
             >
               <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Word</span>
             </Button>
             <Button
-              onClick={copyAsPowerPoint}
+              onClick={() => handleExportClick("powerpoint")}
               className="bg-orange-600 hover:bg-orange-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
               title="Exportar para PowerPoint"
             >
@@ -1102,27 +1486,27 @@ export function ChatArea({
               <span className="hidden md:inline">PPT</span>
             </Button>
             <Button
-              onClick={copyAsExcel}
+              onClick={() => handleExportClick("excel")}
               className="bg-green-700 hover:bg-green-600 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
               title="Exportar para Excel"
             >
               <Download className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden md:inline">Excel</span>
             </Button>
-            <Button
-              onClick={createNewChatWithSelected}
-              className="bg-green-600 hover:bg-green-500 text-white text-xs md:text-sm flex items-center gap-1 md:gap-2 cursor-pointer px-2 md:px-3 h-8 md:h-9"
+            <button
+              onClick={() => {
+                setSelectedMessages([])
+                if (onSelectedMessagesGlobalChange) {
+                  // Remove apenas a seleção do chat atual
+                  const newGlobal = selectedMessagesGlobal.filter((sel) => sel.chatId !== currentChatId)
+                  onSelectedMessagesGlobalChange(newGlobal)
+                  localStorage.setItem("selectedMessages", JSON.stringify(newGlobal))
+                  console.log("[v0] 🗑️ Cleared current chat selection from localStorage")
+                }
+              }}
+              className="text-gray-400 hover:text-white cursor-pointer"
+              title="Limpar seleção"
             >
-              <MessageSquarePlus className="w-3 h-3 md:w-4 md:h-4" />
-              <span className="hidden sm:inline">Novo Chat</span>
-            </Button>
-            <Button
-              onClick={useSelectedMessages}
-              className="bg-purple-600 hover:bg-purple-500 text-white text-xs md:text-sm cursor-pointer px-2 md:px-3 h-8 md:h-9"
-            >
-              Usar
-            </Button>
-            <button onClick={() => setSelectedMessages([])} className="text-gray-400 hover:text-white cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -1354,7 +1738,6 @@ export function ChatArea({
                 {selectedAgentObjects.map((agent) => {
                   const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
                   return (
-                    
                     <div
                       key={agent.id}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
@@ -1413,6 +1796,42 @@ export function ChatArea({
           </div>
         )}
       </div>
+      {exportDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={closeExportDialog}>
+          <div
+            className="bg-[var(--card-bg)] border border-[var(--chat-border)] rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-[var(--settings-text)] mb-2">Exportar mensagens</h3>
+              <p className="text-[var(--settings-text-muted)] text-sm">
+                Deseja incluir os agentes utilizados nas mensagens?
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => executeExport(true)}
+                className="w-full px-4 py-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-all cursor-pointer"
+              >
+                Com agentes
+              </button>
+              <button
+                onClick={() => executeExport(false)}
+                className="w-full px-4 py-3 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all cursor-pointer"
+              >
+                Somente respostas
+              </button>
+              <button
+                onClick={closeExportDialog}
+                className="w-full px-4 py-2 rounded-lg text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

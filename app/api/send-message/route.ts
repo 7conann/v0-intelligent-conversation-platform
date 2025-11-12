@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] [API ROUTE] Enviando para BluBash API...")
     console.log("[v0] [API ROUTE] URL:", BLUBASH_API_URL)
-    
 
     const response = await fetch(BLUBASH_API_URL, {
       method: "POST",

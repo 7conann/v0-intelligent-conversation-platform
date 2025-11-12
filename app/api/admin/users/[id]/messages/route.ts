@@ -56,9 +56,27 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
     }
 
-    console.log("[v0] [API] Messages found:", messagesData?.length || 0)
+    const agentIds = messagesData?.filter((m) => m.agent_id).map((m) => m.agent_id) || []
+    const uniqueAgentIds = [...new Set(agentIds)]
 
-    return NextResponse.json({ messages: messagesData || [] })
+    let agentsMap: Record<string, { id: string; name: string; color: string }> = {}
+
+    if (uniqueAgentIds.length > 0) {
+      const { data: agentsData } = await adminClient.from("agents").select("id, name, color").in("id", uniqueAgentIds)
+
+      if (agentsData) {
+        agentsMap = Object.fromEntries(agentsData.map((agent) => [agent.id, agent]))
+      }
+    }
+
+    const messagesWithAgents = messagesData?.map((msg) => ({
+      ...msg,
+      agents: msg.agent_id ? agentsMap[msg.agent_id] : null,
+    }))
+
+    console.log("[v0] [API] Messages found:", messagesWithAgents?.length || 0)
+
+    return NextResponse.json({ messages: messagesWithAgents || [] })
   } catch (error) {
     console.error("[v0] [API] Error in messages:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
