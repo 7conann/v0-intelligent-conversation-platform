@@ -27,9 +27,12 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import * as XLSX from "xlsx"
-import { Document, Paragraph, TextRun, Packer } from "docx"
-import PptxGenJS from "pptxgenjs"
+// Word export imports
+// import { Document, Packer, Paragraph, TextRun } from "docx" // REMOVED: Not client-side compatible
+// PowerPoint export imports
+// import PptxGenJS from "pptxgenjs" // REMOVED: Not client-side compatible
+// Excel export imports
+// import * as XLSX from "xlsx" // REMOVED: Not client-side compatible
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -280,190 +283,141 @@ export function ChatArea({
   }
 
   const exportWord = async (selected: Message[], includeAgents: boolean) => {
-    const doc = new Document({
-      sections: [
-        {
-          children: selected.flatMap((m) => {
-            const content = stripHtml(m.content)
+    try {
+      const messagesData = selected.map((m) => ({
+        content: stripHtml(m.content),
+        agents:
+          includeAgents && m.usedAgentIds
+            ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).filter(Boolean)
+            : [],
+      }))
 
-            const paragraphs: Paragraph[] = []
+      const response = await fetch("/api/export/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: messagesData, includeAgents }),
+      })
 
-            if (includeAgents && m.usedAgentIds && m.usedAgentIds.length > 0) {
-              const agentNames = m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-              paragraphs.push(
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Agentes: ${agentNames}`,
-                      size: 20,
-                      color: "8B5CF6",
-                      italics: true,
-                      bold: true,
-                    }),
-                  ],
-                  spacing: { after: 200 },
-                }),
-              )
-            }
+      if (!response.ok) throw new Error("Failed to generate Word document")
 
-            paragraphs.push(
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: content,
-                    size: 22,
-                  }),
-                ],
-                spacing: { after: 400 },
-              }),
-            )
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
-            return paragraphs
-          }),
-        },
-      ],
-    })
-
-    const blob = await Packer.toBlob(doc)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.docx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-
-    addToast({
-      title: "Word exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em .docx`,
-      variant: "success",
-    })
+      addToast({
+        title: "Word exportado",
+        description: `${selected.length} mensagem(ns) exportada(s) em .docx`,
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error exporting to Word:", error)
+      addToast({
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar para Word",
+        variant: "error",
+      })
+    }
   }
 
   const exportPowerPoint = async (selected: Message[], includeAgents: boolean) => {
-    const pptx = new PptxGenJS()
+    try {
+      const messagesData = selected.map((m) => ({
+        content: stripHtml(m.content),
+        agents:
+          includeAgents && m.usedAgentIds
+            ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).filter(Boolean)
+            : [],
+      }))
 
-    selected.forEach((m, index) => {
-      const slide = pptx.addSlide()
-      const content = stripHtml(m.content)
-
-      // Content starts at top
-      let contentY = 0.5
-
-      // Agents (if included)
-      if (includeAgents && m.usedAgentIds && m.usedAgentIds.length > 0) {
-        const agentNames = m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-        slide.addText(`Agentes: ${agentNames}`, {
-          x: 0.5,
-          y: contentY,
-          w: 9,
-          h: 0.4,
-          fontSize: 14,
-          bold: true,
-          italic: true,
-          color: "8B5CF6",
-        })
-        contentY = 1.0
-      }
-
-      // Content
-      slide.addText(content, {
-        x: 0.5,
-        y: contentY,
-        w: 9,
-        h: 6.5 - contentY,
-        fontSize: 18,
-        valign: "top",
-        breakLine: true,
+      const response = await fetch("/api/export/powerpoint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: messagesData, includeAgents }),
       })
-    })
 
-    const blob = await pptx.write({ outputType: "blob" })
-    const url = URL.createObjectURL(blob as Blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.pptx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+      if (!response.ok) throw new Error("Failed to generate PowerPoint")
 
-    addToast({
-      title: "PowerPoint exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em .pptx`,
-      variant: "success",
-    })
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.pptx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      addToast({
+        title: "PowerPoint exportado",
+        description: `${selected.length} mensagem(ns) exportada(s) em .pptx`,
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error exporting to PowerPoint:", error)
+      addToast({
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar para PowerPoint",
+        variant: "error",
+      })
+    }
   }
 
   const exportExcel = async (selected: Message[], includeAgents: boolean) => {
     console.log("[v0] 📊 Exporting to Excel, includeAgents:", includeAgents)
     console.log("[v0] 📊 Selected messages:", selected.length)
 
-    const headers = includeAgents ? ["Mensagem", "Agentes"] : ["Mensagem"]
-
-    const rows = selected.map((m) => {
-      const content = stripHtml(m.content)
-
-      const row: any = {
-        Mensagem: content,
-      }
-
-      if (includeAgents) {
-        const agentNames =
-          m.usedAgentIds && m.usedAgentIds.length > 0
+    try {
+      const messagesData = selected.map((m) => ({
+        content: stripHtml(m.content),
+        agents:
+          includeAgents && m.usedAgentIds
             ? m.usedAgentIds
                 .map((id) => {
                   const agent = agents.find((a) => a.id === id)
                   console.log("[v0] 🔍 Finding agent:", id, "Found:", agent?.name)
                   return agent?.name || id
                 })
-                .join(", ")
-            : "Nenhum"
-        row.Agentes = agentNames
-        console.log("[v0] 📝 Message agents:", agentNames)
-      }
+                .filter(Boolean)
+            : [],
+      }))
 
-      return row
-    })
-
-    console.log("[v0] 📋 Excel rows:", rows)
-
-    const worksheet = XLSX.utils.json_to_sheet(rows)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Mensagens")
-
-    // Auto-size columns
-    const maxWidths: { [key: string]: number } = {}
-    headers.forEach((h) => {
-      maxWidths[h] = h.length
-    })
-    rows.forEach((row) => {
-      Object.keys(row).forEach((key) => {
-        const value = String(row[key])
-        maxWidths[key] = Math.max(maxWidths[key] || 0, Math.min(value.length, 100))
+      const response = await fetch("/api/export/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: messagesData, includeAgents }),
       })
-    })
-    worksheet["!cols"] = headers.map((h) => ({ wch: maxWidths[h] + 2 }))
 
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.xlsx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+      if (!response.ok) throw new Error("Failed to generate Excel file")
 
-    addToast({
-      title: "Excel exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em .xlsx ${includeAgents ? "com agentes" : "sem agentes"}`,
-      variant: "success",
-    })
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      addToast({
+        title: "Excel exportado",
+        description: `${selected.length} mensagem(ns) exportada(s) em .xlsx ${includeAgents ? "com agentes" : "sem agentes"}`,
+        variant: "success",
+      })
+    } catch (error) {
+      console.error("[v0] Error exporting to Excel:", error)
+      addToast({
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar para Excel",
+        variant: "error",
+      })
+    }
   }
 
   const sendMessage = async () => {
