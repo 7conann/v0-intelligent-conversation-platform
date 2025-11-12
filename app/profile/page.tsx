@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, Building2, Palette, LogOut, Mail, Users, Trash2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, User, Building2, Palette, LogOut, Mail, Users } from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
@@ -22,7 +21,6 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("")
   const [theme, setTheme] = useState("dark")
   const [isAuthorized, setIsAuthorized] = useState(false)
-  const [resetDialogOpen, setResetDialogOpen] = useState(false)
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -153,76 +151,6 @@ export default function ProfilePage() {
     setTimeout(() => {
       window.location.href = "/login"
     }, 300)
-  }
-
-  const handleResetDataClick = () => {
-    setResetDialogOpen(true)
-  }
-
-  const handleResetData = async () => {
-    console.log("[v0] 🗑️ Reset data initiated")
-    setResetDialogOpen(false)
-    const supabase = createClient()
-
-    try {
-      // 1. Sign out from Supabase
-      await supabase.auth.signOut()
-      console.log("[v0] ✅ Signed out from Supabase")
-    } catch (err) {
-      console.error("[v0] ❌ Error signing out:", err)
-    }
-
-    try {
-      // 2. Clear all localStorage
-      localStorage.clear()
-      console.log("[v0] ✅ localStorage cleared")
-
-      // 3. Clear all sessionStorage
-      sessionStorage.clear()
-      console.log("[v0] ✅ sessionStorage cleared")
-
-      // 4. Clear all cookies
-      document.cookie.split(";").forEach((cookie) => {
-        const name = cookie.split("=")[0].trim()
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`
-      })
-      console.log("[v0] ✅ Cookies cleared")
-
-      // 5. Clear Service Workers cache if available
-      if ("caches" in window) {
-        const cacheNames = await caches.keys()
-        await Promise.all(cacheNames.map((name) => caches.delete(name)))
-        console.log("[v0] ✅ Service Worker cache cleared")
-      }
-
-      // 6. Unregister Service Workers
-      if ("serviceWorker" in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        await Promise.all(registrations.map((reg) => reg.unregister()))
-        console.log("[v0] ✅ Service Workers unregistered")
-      }
-
-      addToast({
-        title: "Dados resetados",
-        description: "Todos os dados locais foram apagados. Redirecionando...",
-        variant: "success",
-      })
-
-      console.log("[v0] ✅ All data cleared, redirecting to login")
-
-      // 7. Reload and redirect to login
-      setTimeout(() => {
-        window.location.href = "/login"
-      }, 1000)
-    } catch (err) {
-      console.error("[v0] ❌ Error during reset:", err)
-      addToast({
-        title: "Erro ao resetar",
-        description: "Ocorreu um erro ao limpar os dados",
-        variant: "error",
-      })
-    }
   }
 
   if (loading) {
@@ -407,23 +335,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-orange-500/30 bg-orange-950/20 p-6">
-          <button
-            onClick={handleResetDataClick}
-            className="w-full flex items-center justify-between hover:bg-orange-950/40 rounded-lg p-4 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-600/20 border border-orange-500/30">
-                <Trash2 className="h-5 w-5 text-orange-400" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-lg font-semibold text-orange-400">Resetar Dados</h2>
-                <p className="text-sm text-orange-400/70">Limpar cache, cookies e localStorage</p>
-              </div>
-            </div>
-          </button>
-        </div>
-
         <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-6">
           <button
             onClick={handleLogout}
@@ -441,42 +352,6 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
-
-      <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-600/20 border border-orange-500/30">
-                <AlertTriangle className="h-6 w-6 text-orange-400" />
-              </div>
-              <DialogTitle className="text-xl">Resetar Dados</DialogTitle>
-            </div>
-          </DialogHeader>
-          <div className="text-muted-foreground text-base leading-relaxed pt-2 px-6">
-            <p className="mb-3">Esta ação irá:</p>
-            <ul className="list-disc list-inside space-y-2 text-orange-400/90">
-              <li>Apagar todo o localStorage</li>
-              <li>Apagar todo o sessionStorage</li>
-              <li>Limpar todos os cookies</li>
-              <li>Limpar o cache do navegador</li>
-              <li>Deslogar você da conta</li>
-            </ul>
-            <p className="mt-4 font-semibold text-orange-400">Esta ação não pode ser desfeita!</p>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setResetDialogOpen(false)}
-              className="border-[var(--sidebar-border)]"
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleResetData} className="bg-orange-600 hover:bg-orange-500 text-white">
-              Confirmar Reset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

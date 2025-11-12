@@ -20,15 +20,6 @@ interface Conversation {
   created_at: string
   message_count: number
   agents_used: string[]
-  agents?: { color: string; name: string }
-}
-
-interface Message {
-  id: string
-  content: string
-  role: string
-  created_at: string
-  agents?: { color: string; name: string }
 }
 
 export default function UserDetailsPage() {
@@ -40,7 +31,7 @@ export default function UserDetailsPage() {
   const [user, setUser] = useState<UserDetails | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
 
   useEffect(() => {
@@ -177,10 +168,8 @@ export default function UserDetailsPage() {
           </div>
         </div>
 
-        <div className={selectedConversation ? "flex gap-6" : "grid grid-cols-1 lg:grid-cols-2 gap-6"}>
-          <div
-            className={`bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6 ${selectedConversation ? "w-80 flex-shrink-0" : ""}`}
-          >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Conversas ({conversations.length})</h2>
             <div className="space-y-3 max-h-[600px] overflow-y-auto">
               {conversations.map((conv) => (
@@ -199,7 +188,7 @@ export default function UserDetailsPage() {
                       {new Date(conv.created_at).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)] mb-2">
+                  <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
                     <div className="flex items-center gap-1">
                       <MessageSquare className="w-4 h-4" />
                       {conv.message_count} mensagens
@@ -209,47 +198,21 @@ export default function UserDetailsPage() {
                       {conv.agents_used.length} agentes
                     </div>
                   </div>
-                  {conv.agents_used.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {conv.agents_used.map((agentName, idx) => (
-                        <span key={idx} className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                          {agentName}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          <div
-            className={`bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6 ${selectedConversation ? "flex-1" : ""}`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                {selectedConversation ? "Mensagens" : "Selecione uma conversa"}
-              </h2>
-              {selectedConversation && (
-                <button
-                  onClick={() => {
-                    setSelectedConversation(null)
-                    setMessages([])
-                  }}
-                  className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  Fechar
-                </button>
-              )}
-            </div>
+          <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
+              {selectedConversation ? "Mensagens" : "Selecione uma conversa"}
+            </h2>
             {loadingMessages ? (
               <div className="flex items-center justify-center py-8">
                 <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
               </div>
-
             ) : selectedConversation ? (
-                <div className="space-y-3 max-h-[calc(100vh-0px)] overflow-y-auto">
-                  
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -257,22 +220,11 @@ export default function UserDetailsPage() {
                       msg.role === "user" ? "bg-purple-500/10 ml-8" : "bg-[var(--app-bg)] mr-8"
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2 mb-2">
                       <User className="w-4 h-4 text-[var(--text-secondary)]" />
                       <span className="text-sm font-medium text-[var(--text-primary)]">
                         {msg.role === "user" ? "Usuário" : "Assistente"}
                       </span>
-                      {msg.role === "assistant" && msg.agents && (
-                        <span
-                          className="text-xs px-2 py-1 rounded-full"
-                          style={{
-                            backgroundColor: `${msg.agents.color}20`,
-                            color: msg.agents.color,
-                          }}
-                        >
-                          {msg.agents.name}
-                        </span>
-                      )}
                       <span className="text-xs text-[var(--text-secondary)] ml-auto">
                         {new Date(msg.created_at).toLocaleString("pt-BR")}
                       </span>
