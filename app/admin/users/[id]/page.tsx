@@ -236,7 +236,8 @@ export default function UserDetailsPage() {
             ) : (
               <p className="text-[var(--text-secondary)] text-center py-8">
                 Selecione uma conversa para ver as mensagens
-              </p>
+                  </p>
+                  
             )}
           </div>
         </div>
