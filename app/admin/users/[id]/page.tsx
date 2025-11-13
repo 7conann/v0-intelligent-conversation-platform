@@ -240,6 +240,7 @@ export default function UserDetailsPage() {
             </p>
           )}
         </div>
+        
       </div>
     </div>
   )
