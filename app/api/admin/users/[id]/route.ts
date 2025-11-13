@@ -65,12 +65,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const conversationsWithDetails = await Promise.all(
       (conversationsData || []).map(async (conv) => {
-        const { data: messagesData } = await adminClient.from("messages").select("*").eq("conversation_id", conv.id)
+        const { data: messagesData } = await adminClient
+          .from("messages")
+          .select("id, agent_ids")
+          .eq("conversation_id", conv.id)
 
-        const agentsUsed = new Set<string>()
+        const agentIdsUsed = new Set<string>()
         messagesData?.forEach((msg) => {
-          if (msg.agent_ids) {
-            msg.agent_ids.forEach((id: string) => agentsUsed.add(id))
+          if (msg.agent_ids && Array.isArray(msg.agent_ids)) {
+            msg.agent_ids.forEach((id: string) => agentIdsUsed.add(id))
           }
         })
 
@@ -79,7 +82,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
           title: conv.title,
           created_at: conv.created_at,
           message_count: messagesData?.length || 0,
-          agents_used: Array.from(agentsUsed),
+          agents_count: agentIdsUsed.size, // Just show count instead of names to avoid rate limit
         }
       }),
     )

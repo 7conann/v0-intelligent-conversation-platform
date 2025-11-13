@@ -128,17 +128,17 @@ export default function UserDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[var(--app-bg)] flex flex-col">
+      <div className="flex-shrink-0 p-6 pb-0">
         <button
           onClick={() => router.push("/admin/dashboard")}
-          className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-6"
+          className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] mb-4"
         >
           <ArrowLeft className="w-5 h-5" />
           Voltar ao Dashboard
         </button>
 
-        <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6 mb-6">
+        <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6 mb-4">
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">{user.display_name}</h1>
@@ -168,78 +168,77 @@ export default function UserDetailsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Conversas ({conversations.length})</h2>
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
-              {conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => loadConversationMessages(conv.id)}
-                  className={`w-full text-left p-4 rounded-lg border transition-colors ${
-                    selectedConversation === conv.id
-                      ? "bg-purple-500/10 border-purple-500"
-                      : "bg-[var(--app-bg)] border-[var(--sidebar-border)] hover:border-purple-500/50"
+        <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-4 mb-4">
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Conversas ({conversations.length})</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => loadConversationMessages(conv.id)}
+                className={`flex-shrink-0 w-64 text-left p-4 rounded-lg border transition-colors ${
+                  selectedConversation === conv.id
+                    ? "bg-purple-500/10 border-purple-500"
+                    : "bg-[var(--app-bg)] border-[var(--sidebar-border)] hover:border-purple-500/50"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="font-medium text-[var(--text-primary)] truncate">{conv.title}</h3>
+                </div>
+                <div className="text-xs text-[var(--text-secondary)] mb-2">
+                  {new Date(conv.created_at).toLocaleDateString("pt-BR")}
+                </div>
+                <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-1">
+                    <MessageSquare className="w-4 h-4" />
+                    {conv.message_count}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Bot className="w-4 h-4" />
+                    {conv.agents_used?.length || 0} agentes
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-[600px] px-6 pb-6">
+        <div className="h-full bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6 flex flex-col">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 flex-shrink-0">
+            {selectedConversation ? "Mensagens" : "Selecione uma conversa"}
+          </h2>
+          {loadingMessages ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : selectedConversation ? (
+            <div className="flex-1 space-y-3 overflow-y-auto">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`p-4 rounded-lg ${
+                    msg.role === "user" ? "bg-purple-500/10 ml-8" : "bg-[var(--app-bg)] mr-8"
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-medium text-[var(--text-primary)]">{conv.title}</h3>
-                    <span className="text-xs text-[var(--text-secondary)]">
-                      {new Date(conv.created_at).toLocaleDateString("pt-BR")}
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-[var(--text-secondary)]" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {msg.role === "user" ? "Usuário" : "Assistente"}
+                    </span>
+                    <span className="text-xs text-[var(--text-secondary)] ml-auto">
+                      {new Date(msg.created_at).toLocaleString("pt-BR")}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
-                    <div className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      {conv.message_count} mensagens
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Bot className="w-4 h-4" />
-                      {conv.agents_used.length} agentes
-                    </div>
-                  </div>
-                </button>
+                  <p className="text-[var(--text-primary)] whitespace-pre-wrap">{msg.content}</p>
+                </div>
               ))}
             </div>
-          </div>
-
-          <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-6">
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">
-              {selectedConversation ? "Mensagens" : "Selecione uma conversa"}
-            </h2>
-            {loadingMessages ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : selectedConversation ? (
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`p-4 rounded-lg ${
-                      msg.role === "user" ? "bg-purple-500/10 ml-8" : "bg-[var(--app-bg)] mr-8"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <User className="w-4 h-4 text-[var(--text-secondary)]" />
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
-                        {msg.role === "user" ? "Usuário" : "Assistente"}
-                      </span>
-                      <span className="text-xs text-[var(--text-secondary)] ml-auto">
-                        {new Date(msg.created_at).toLocaleString("pt-BR")}
-                      </span>
-                    </div>
-                    <p className="text-[var(--text-primary)] whitespace-pre-wrap">{msg.content}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[var(--text-secondary)] text-center py-8">
-                Selecione uma conversa para ver as mensagens
-                  </p>
-                  
-            )}
-          </div>
+          ) : (
+            <p className="text-[var(--text-secondary)] text-center flex-1 flex items-center justify-center">
+              Selecione uma conversa para ver as mensagens
+            </p>
+          )}
         </div>
       </div>
     </div>

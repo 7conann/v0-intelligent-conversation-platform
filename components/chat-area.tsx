@@ -48,8 +48,8 @@ interface ChatAreaProps {
   className?: string
   onExternalApiResponse?: (payload: any, opts?: { decorate?: boolean }) => Promise<void>
   onToggleAgent?: (agentId: string) => void
-  selectedMessagesGlobal?: { chatId: string; messageIds: string[] } | null
-  onSelectedMessagesGlobalChange?: (selection: { chatId: string; messageIds: string[] } | null) => void
+  selectedMessagesGlobal?: Array<{ chatId: string; messageIds: string[] }>
+  onSelectedMessagesGlobalChange?: (selection: Array<{ chatId: string; messageIds: string[] }>) => void
 }
 
 export function ChatArea({
@@ -85,6 +85,7 @@ export function ChatArea({
   const [isUploading, setIsUploading] = useState(false)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingChatName, setEditingChatName] = useState("")
+  const [userDisplayName, setUserDisplayName] = useState<string>("")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
@@ -117,14 +118,12 @@ export function ChatArea({
   useEffect(() => {
     console.log("[v0] 🔍 Chat changed to:", currentChatId)
     console.log("[v0] 🔍 selectedMessagesGlobal:", selectedMessagesGlobal)
-    console.log(
-      "[v0] 🔍 Should show banner?",
-      selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId,
-    )
 
-    if (selectedMessagesGlobal?.chatId === currentChatId) {
+    const currentSelection = selectedMessagesGlobal?.find((sel) => sel.chatId === currentChatId)
+
+    if (currentSelection) {
       console.log("[v0] ✅ Setting local selection from global")
-      setSelectedMessages(selectedMessagesGlobal.messageIds)
+      setSelectedMessages(currentSelection.messageIds)
     } else {
       console.log("[v0] 🎯 Clearing local selection (different chat)")
       setSelectedMessages([])
@@ -134,12 +133,56 @@ export function ChatArea({
   useEffect(() => {
     if (selectedMessages.length > 0) {
       console.log("[v0] 📤 Updating global from local selection")
-      onSelectedMessagesGlobalChange?.({ chatId: currentChatId, messageIds: selectedMessages })
-    } else if (selectedMessagesGlobal?.chatId === currentChatId && selectedMessages.length === 0) {
-      console.log("[v0] 🧹 Clearing global (local selection cleared in current chat)")
-      onSelectedMessagesGlobalChange?.(null)
+
+      const existingSelection = selectedMessagesGlobal?.find((sel) => sel.chatId === currentChatId)
+
+      if (existingSelection) {
+        // Update existing selection
+        onSelectedMessagesGlobalChange?.(
+          selectedMessagesGlobal!.map((sel) =>
+            sel.chatId === currentChatId ? { chatId: currentChatId, messageIds: selectedMessages } : sel,
+          ),
+        )
+      } else {
+        // Add new selection
+        onSelectedMessagesGlobalChange?.([
+          ...(selectedMessagesGlobal || []),
+          { chatId: currentChatId, messageIds: selectedMessages },
+        ])
+      }
+    } else {
+      const hasCurrentSelection = selectedMessagesGlobal?.find((sel) => sel.chatId === currentChatId)
+
+      if (hasCurrentSelection) {
+        console.log("[v0] 🧹 Clearing global for current chat")
+        onSelectedMessagesGlobalChange?.(selectedMessagesGlobal!.filter((sel) => sel.chatId !== currentChatId))
+      }
     }
   }, [selectedMessages])
+
+  useEffect(() => {
+    const loadUserDisplayName = async () => {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profile?.display_name) {
+          setUserDisplayName(profile.display_name)
+          console.log("[v0] 👤 User display name loaded:", profile.display_name)
+        }
+      }
+    }
+
+    loadUserDisplayName()
+  }, [])
 
   const sendMessage = async () => {
     if ((!input.trim() && attachments.length === 0) || selectedAgents.length === 0) return
@@ -179,6 +222,11 @@ export function ChatArea({
           .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
           .join("\n\n")
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${messageToSend}`
+      }
+
+      if (userDisplayName) {
+        messageToSend = `[Usuário: ${userDisplayName}]\n${messageToSend}`
+        console.log("[v0] 👤 Prepending user name to message:", userDisplayName)
       }
 
       let payload: any
@@ -301,27 +349,21 @@ export function ChatArea({
     setInput(combinedText)
     setSelectedMessages([])
 
-    onSelectedMessagesGlobalChange?.(null)
-    console.log("[v0] 🗑️ Cleared selection after use")
+    onSelectedMessagesGlobalChange?.([])
+    console.log("[v0] 🗑️ Cleared local selection after use")
   }
+
+  const selectionsFromOtherChats = selectedMessagesGlobal?.filter((sel) => sel.chatId !== currentChatId) || []
+  const totalSelectedMessages = selectedMessagesGlobal?.reduce((sum, sel) => sum + sel.messageIds.length, 0) || 0
+  const totalSelectedChats = selectedMessagesGlobal?.length || 0
 
   const addSelectedMessagesToCurrentChat = () => {
     console.log("[v0] 🎯 addSelectedMessagesToCurrentChat called")
-    console.log("[v0] 🎯 selectedMessagesGlobal:", selectedMessagesGlobal)
 
-    if (!selectedMessagesGlobal) {
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) {
       console.log("[v0] ❌ No selectedMessagesGlobal")
       return
     }
-
-    const sourceChat = chats.find((c) => c.id === selectedMessagesGlobal.chatId)
-    const sourceMessages = messages[selectedMessagesGlobal.chatId] || []
-    const selected = sourceMessages.filter((m) => selectedMessagesGlobal.messageIds.includes(m.id))
-
-    console.log("[v0] 📋 Source chat:", sourceChat?.name)
-    console.log("[v0] 📋 Selected messages count:", selected.length)
-
-    const originConversationName = sourceChat?.name || "Conversa sem nome"
 
     const stripHtml = (html: string) => {
       const tmp = document.createElement("div")
@@ -329,22 +371,32 @@ export function ChatArea({
       return tmp.textContent || tmp.innerText || ""
     }
 
-    const combinedText = selected.map((m) => stripHtml(m.content)).join("\n\n")
+    const allSelectedTexts: string[] = []
 
-    // Set the text to the input field
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceChat = chats.find((c) => c.id === selection.chatId)
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      selected.forEach((msg) => {
+        allSelectedTexts.push(stripHtml(msg.content))
+      })
+    })
+
+    const combinedText = allSelectedTexts.join("\n\n")
     setInput(combinedText)
 
-    // Clear selection
-    onSelectedMessagesGlobalChange?.(null)
+    // Clear all selections
+    onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
 
     addToast({
       title: "Mensagens adicionadas",
-      description: `${selected.length} mensagem(ns) de "${originConversationName}" adicionada(s) ao campo de texto`,
+      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) adicionada(s)`,
       variant: "success",
     })
 
-    console.log("[v0] 🗑️ Cleared selection after adding to input field")
+    console.log("[v0] 🗑️ Cleared all selections after adding to input")
   }
 
   const createNewChatWithSelected = () => {
@@ -356,7 +408,7 @@ export function ChatArea({
     }))
     onCreateChatWithMessages(messagesWithOrigin)
 
-    onSelectedMessagesGlobalChange?.(null)
+    onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
 
     addToast({
@@ -365,7 +417,7 @@ export function ChatArea({
       variant: "success",
     })
 
-    console.log("[v0] 🗑️ Cleared selection after creating new chat")
+    console.log("[v0] 🗑️ Cleared local selection after creating new chat")
   }
 
   const copyAsMarkdown = async () => {
@@ -809,80 +861,93 @@ export function ChatArea({
           <Menu className="w-4 h-4" />
         </button>
 
-        {chats.map((chat) => (
-          <div
-            key={chat.id}
-            className="flex items-center gap-1 shrink-0 relative"
-            draggable
-            onDragStart={(e) => handleDragStart(e, chat.id)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, chat.id)}
-            onDragEnd={handleDragEnd}
-          >
-            {editingChatId === chat.id ? (
-              <div className="flex items-center gap-1 bg-[var(--agent-bg)] rounded-lg px-2 py-1">
-                <input
-                  ref={editInputRef}
-                  type="text"
-                  value={editingChatName}
-                  onChange={(e) => setEditingChatName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveChatName()
-                    if (e.key === "Escape") handleCancelEdit()
-                  }}
-                  className="bg-transparent border-none outline-none text-[var(--settings-text)] text-xs md:text-sm w-24 md:w-32"
-                  maxLength={30}
-                />
-                <button
-                  onClick={handleSaveChatName}
-                  className="w-5 h-5 rounded flex items-center justify-center text-green-400 hover:bg-green-500/20 transition-all"
-                  title="Salvar"
-                >
-                  <Check className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={handleCancelEdit}
-                  className="w-5 h-5 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
-                  title="Cancelar"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => onSwitchChat(chat.id)}
-                  className={cn(
-                    "px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
-                    currentChatId === chat.id
-                      ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
-                      : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
-                    draggedChatId === chat.id && "opacity-50",
-                  )}
-                >
-                  {chat.isFavorite && (
-                    <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
-                  )}
-                  {chat.name}
-                  {chat.contextMessages && chat.contextMessages.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
-                  )}
-                </button>
+        {chats.map((chat) => {
+          const isActive = currentChatId === chat.id
+          const hasSelection = selectedMessagesGlobal?.some((sel) => sel.chatId === chat.id)
 
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setDialogChatId(chat.id)
-                  }}
-                  className="w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
-                  title="Opções"
-                >
-                  <MoreVertical className="w-3 h-3 md:w-4 md:h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        ))}
+          return (
+            <div
+              key={chat.id}
+              className="flex items-center gap-1 shrink-0 relative"
+              draggable
+              onDragStart={(e) => handleDragStart(e, chat.id)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, chat.id)}
+              onDragEnd={handleDragEnd}
+            >
+              {isActive && (
+                <div className="absolute -top-1 -left-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--chat-header-bg)]" />
+              )}
+
+              {hasSelection && !isActive && (
+                <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-[var(--chat-header-bg)]" />
+              )}
+
+              {editingChatId === chat.id ? (
+                <div className="flex items-center gap-1 bg-[var(--agent-bg)] rounded-lg px-2 py-1">
+                  <input
+                    ref={editInputRef}
+                    type="text"
+                    value={editingChatName}
+                    onChange={(e) => setEditingChatName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveChatName()
+                      if (e.key === "Escape") handleCancelEdit()
+                    }}
+                    className="bg-transparent border-none outline-none text-[var(--settings-text)] text-xs md:text-sm w-24 md:w-32"
+                    maxLength={30}
+                  />
+                  <button
+                    onClick={handleSaveChatName}
+                    className="w-5 h-5 rounded flex items-center justify-center text-green-400 hover:bg-green-500/20 transition-all"
+                    title="Salvar"
+                  >
+                    <Check className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="w-5 h-5 rounded flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all"
+                    title="Cancelar"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => onSwitchChat(chat.id)}
+                    className={cn(
+                      "px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all relative cursor-pointer whitespace-nowrap",
+                      currentChatId === chat.id
+                        ? "bg-[var(--agent-bg)] text-[var(--settings-text)]"
+                        : "text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] hover:bg-[var(--agent-bg)]",
+                      draggedChatId === chat.id && "opacity-50",
+                    )}
+                  >
+                    {chat.isFavorite && (
+                      <Star className="w-2 h-2 md:w-3 md:h-3 text-yellow-400 fill-yellow-400 absolute -top-1 -left-1" />
+                    )}
+                    {chat.name}
+                    {chat.contextMessages && chat.contextMessages.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDialogChatId(chat.id)
+                    }}
+                    className="w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all cursor-pointer"
+                    title="Opções"
+                  >
+                    <MoreVertical className="w-3 h-3 md:w-4 md:h-4" />
+                  </button>
+                </>
+              )}
+            </div>
+          )
+        })}
         <button
           onClick={onCreateNewChat}
           className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] flex items-center justify-center text-[var(--settings-text-muted)] hover:text-[var(--settings-text)] transition-all cursor-pointer shrink-0"
@@ -1030,13 +1095,13 @@ export function ChatArea({
         </div>
       )}
 
-      {selectedMessagesGlobal && selectedMessagesGlobal.chatId !== currentChatId && (
+      {/* Updated banner to show selections from other chats */}
+      {selectionsFromOtherChats.length > 0 && (
         <div className="bg-blue-900/20 border-b border-blue-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquarePlus className="w-4 h-4 text-blue-400" />
             <span className="text-blue-300 text-sm">
-              {selectedMessagesGlobal.messageIds.length} mensagem(ns) selecionada(s) de "
-              {chats.find((c) => c.id === selectedMessagesGlobal.chatId)?.name || "outro chat"}"
+              {totalSelectedMessages} mensagem(ns) selecionada(s) de {selectionsFromOtherChats.length} conversa(s)
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -1056,7 +1121,7 @@ export function ChatArea({
             </Button>
             <button
               onClick={() => {
-                onSelectedMessagesGlobalChange?.(null)
+                onSelectedMessagesGlobalChange?.([])
                 setSelectedMessages([])
               }}
               className="text-gray-400 hover:text-white cursor-pointer"
@@ -1067,7 +1132,7 @@ export function ChatArea({
         </div>
       )}
 
-      {selectedMessages.length > 0 && selectedMessagesGlobal?.chatId === currentChatId && (
+      {selectedMessages.length > 0 && selectedMessagesGlobal?.some((sel) => sel.chatId === currentChatId) && (
         <div className="bg-purple-900/20 border-b border-purple-500/30 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-purple-400" />
@@ -1299,35 +1364,6 @@ export function ChatArea({
       </div>
 
       <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-2 md:p-4 shrink-0">
-        {selectedAgents.length === 0 && (
-          <div className="mb-2 md:mb-3 text-center text-xs md:text-sm text-purple-400">
-            Selecione pelo menos um agente na barra lateral para começar
-          </div>
-        )}
-
-        {attachments.length > 0 && (
-          <div className="mb-2 md:mb-3 flex flex-wrap gap-2">
-            {attachments.map((attachment, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 px-2 md:px-3 py-1.5 md:py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--chat-border)] text-xs md:text-sm"
-              >
-                {getFileIcon(attachment.type)}
-                <span className="text-[var(--settings-text)] truncate max-w-[120px] md:max-w-[200px]">
-                  {attachment.name}
-                </span>
-                <span className="text-[var(--settings-text-muted)] text-xs">{formatFileSize(attachment.size)}</span>
-                <button
-                  onClick={() => removeAttachment(index)}
-                  className="text-red-400 hover:text-red-300 transition-colors"
-                >
-                  <X className="w-3 h-3 md:w-4 md:h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="flex flex-col gap-2">
           {/* Input controls with tags inside */}
           <div className="flex gap-2 md:gap-3 items-end">

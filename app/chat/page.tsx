@@ -185,24 +185,19 @@ export default function ChatPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [showPhoneModal, setShowPhoneModal] = useState(false)
 
+  const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<Array<{ chatId: string; messageIds: string[] }>>(
+    [],
+  )
   const [chats, setChats] = useState<Chat[]>([])
   const [chatMessages, setChatMessages] = useState<Record<string, Message[]>>({})
 
-  const [selectedMessagesGlobal, setSelectedMessagesGlobal] = useState<{
-    chatId: string
-    messageIds: string[]
-  } | null>(() => {
-    if (typeof window === "undefined") return null
-    try {
-      const stored = localStorage.getItem("selectedMessagesGlobal")
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
-    }
-  })
+  useEffect(() => {
+    localStorage.removeItem("selectedMessagesGlobal")
+    console.log("[v0] 🧹 Cleared selectedMessagesGlobal from localStorage on page load")
+  }, [])
 
   useEffect(() => {
-    if (selectedMessagesGlobal) {
+    if (selectedMessagesGlobal.length > 0) {
       localStorage.setItem("selectedMessagesGlobal", JSON.stringify(selectedMessagesGlobal))
       console.log("[v0] 💾 Saved selectedMessagesGlobal to localStorage:", selectedMessagesGlobal)
     } else {

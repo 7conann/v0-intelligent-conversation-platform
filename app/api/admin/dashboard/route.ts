@@ -72,9 +72,9 @@ export async function GET(request: Request) {
 
     console.log("[v0] [API] Profiles fetched:", profilesData?.length)
 
-    const { data: conversationsData } = await adminClient.from("conversations").select("*")
-    const { data: messagesData } = await adminClient.from("messages").select("*")
-    const { data: agentsData } = await adminClient.from("agents").select("*")
+    const { data: conversationsData } = await adminClient.from("conversations").select("id, user_id")
+    const { data: messagesData } = await adminClient.from("messages").select("id, user_id")
+    const { data: agentsData } = await adminClient.from("agents").select("id")
 
     const systemMetrics = {
       total_users: profilesData?.length || 0,
@@ -86,33 +86,23 @@ export async function GET(request: Request) {
     console.log("[v0] [API] System metrics:", systemMetrics)
 
     if (profilesData) {
-      const usersWithMetrics = await Promise.all(
-        profilesData.map(async (profile) => {
-          const { data: userConversations } = await adminClient
-            .from("conversations")
-            .select("id")
-            .eq("user_id", profile.id)
+      const usersWithMetrics = profilesData.map((profile) => {
+        const userConversations = conversationsData?.filter((c) => c.user_id === profile.id) || []
+        const userMessages = messagesData?.filter((m) => m.user_id === profile.id) || []
 
-          const { data: userMessages } = await adminClient.from("messages").select("id").eq("user_id", profile.id)
-
-          return {
-            id: profile.id,
-            email: profile.email,
-            display_name: profile.display_name || "Sem nome",
-            phone: profile.phone || null,
-            created_at: profile.created_at,
-            last_access: profile.last_access || null,
-            account_expiration_date: profile.account_expiration_date || null,
-            total_conversations: userConversations?.length || 0,
-            total_messages: userMessages?.length || 0,
-            days_remaining: getDaysRemaining(
-              profile.email,
-              profile.created_at,
-              profile.account_expiration_date || null,
-            ),
-          }
-        }),
-      )
+        return {
+          id: profile.id,
+          email: profile.email,
+          display_name: profile.display_name || "Sem nome",
+          phone: profile.phone || null,
+          created_at: profile.created_at,
+          last_access: profile.last_access || null,
+          account_expiration_date: profile.account_expiration_date || null,
+          total_conversations: userConversations.length,
+          total_messages: userMessages.length,
+          days_remaining: getDaysRemaining(profile.email, profile.created_at, profile.account_expiration_date || null),
+        }
+      })
 
       console.log("[v0] [API] Users with metrics:", usersWithMetrics.length)
 
