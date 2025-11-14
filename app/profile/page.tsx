@@ -147,6 +147,7 @@ export default function ProfilePage() {
       variant: "success",
     })
 
+    
     console.log("[v0] Redirecting to /login")
     setTimeout(() => {
       window.location.href = "/login"
