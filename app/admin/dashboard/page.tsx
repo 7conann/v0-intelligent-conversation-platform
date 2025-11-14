@@ -1,26 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import {
-  Users,
-  MessageSquare,
-  Bot,
-  TrendingUp,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  X,
-  Calendar,
-  Phone,
-  Mail,
-  User,
-  Clock,
-  Edit,
-} from "lucide-react"
+import { Users, MessageSquare, Bot, TrendingUp, Eye, ChevronLeft, ChevronRight, Filter, X, Calendar, Phone, Mail, User, Clock, Edit, FileText } from 'lucide-react'
 
 interface UserMetrics {
   id: string
@@ -302,8 +286,12 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[var(--app-bg)] p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Painel Administrativo</h1>
-          <p className="text-[var(--text-secondary)]">Visão geral do sistema e gerenciamento de usuários</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Painel Administrativo</h1>
+              <p className="text-[var(--text-secondary)]">Visão geral do sistema e gerenciamento de usuários</p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

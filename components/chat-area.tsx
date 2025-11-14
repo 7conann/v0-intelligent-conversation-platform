@@ -243,6 +243,11 @@ export function ChatArea({
           type: "IMAGE",
           contactIdentifier: currentChatId,
           contactName: `Chat ${currentChatId}`,
+          metadata: {
+            conversationId: currentChatId,
+            messageId: userMessage.id,
+            agentIds: selectedAgents,
+          },
         }
       } else {
         payload = {
@@ -254,6 +259,11 @@ export function ChatArea({
           type: "TEXT",
           contactIdentifier: currentChatId,
           contactName: `Chat ${currentChatId}`,
+          metadata: {
+            conversationId: currentChatId,
+            messageId: userMessage.id,
+            agentIds: selectedAgents,
+          },
         }
       }
 

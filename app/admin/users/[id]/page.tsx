@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { ArrowLeft, MessageSquare, Bot, Calendar, User } from "lucide-react"
+import { ArrowLeft, MessageSquare, Bot, Calendar, User, FileText } from 'lucide-react'
 
 interface UserDetails {
   id: string
@@ -22,6 +22,15 @@ interface Conversation {
   agents_used: string[]
 }
 
+interface MessageLog {
+  user_message: string
+  assistant_response: string | null
+  request_payload: any
+  response_body: any
+  response_status: number
+  created_at: string
+}
+
 export default function UserDetailsPage() {
   const router = useRouter()
   const params = useParams()
@@ -33,6 +42,8 @@ export default function UserDetailsPage() {
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [selectedMessageLog, setSelectedMessageLog] = useState<MessageLog | null>(null)
+  const [loadingLog, setLoadingLog] = useState(false)
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -108,6 +119,64 @@ export default function UserDetailsPage() {
       console.error("[v0] Error loading messages:", error)
     } finally {
       setLoadingMessages(false)
+    }
+  }
+
+  const loadMessageLog = async (messageId: string) => {
+    setLoadingLog(true)
+    try {
+      const supabase = createClient()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) return
+
+      const response = await fetch(`/api/admin/message-log?messageId=${messageId}`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (!response.ok) {
+        console.error("[v0] Failed to fetch log")
+        setSelectedMessageLog({
+          user_message: "Erro ao carregar log",
+          assistant_response: null,
+          request_payload: null,
+          response_body: null,
+          response_status: 0,
+          created_at: new Date().toISOString()
+        } as MessageLog)
+        return
+      }
+
+      const data = await response.json()
+      
+      if (!data.log) {
+        setSelectedMessageLog({
+          user_message: "Log não disponível para esta mensagem",
+          assistant_response: "Esta mensagem foi criada antes da implementação do sistema de logs",
+          request_payload: null,
+          response_body: null,
+          response_status: 0,
+          created_at: new Date().toISOString()
+        } as MessageLog)
+      } else {
+        setSelectedMessageLog(data.log)
+      }
+    } catch (error) {
+      console.error("[v0] Error loading log:", error)
+      setSelectedMessageLog({
+        user_message: "Erro ao carregar log",
+        assistant_response: null,
+        request_payload: null,
+        response_body: null,
+        response_status: 0,
+        created_at: new Date().toISOString()
+      } as MessageLog)
+    } finally {
+      setLoadingLog(false)
     }
   }
 
@@ -229,6 +298,15 @@ export default function UserDetailsPage() {
                     <span className="text-xs text-[var(--text-secondary)] ml-auto">
                       {new Date(msg.created_at).toLocaleString("pt-BR")}
                     </span>
+                    {msg.role === "user" && (
+                      <button
+                        onClick={() => loadMessageLog(msg.id)}
+                        className="ml-2 p-1 rounded hover:bg-purple-500/20 transition-colors"
+                        title="Ver log da API"
+                      >
+                        <FileText className="w-4 h-4 text-purple-500" />
+                      </button>
+                    )}
                   </div>
                   <p className="text-[var(--text-primary)] whitespace-pre-wrap">{msg.content}</p>
                 </div>
@@ -240,8 +318,85 @@ export default function UserDetailsPage() {
             </p>
           )}
         </div>
-        
       </div>
+
+      {selectedMessageLog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedMessageLog(null)}>
+          <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] max-w-4xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-[var(--text-primary)]">Log da API</h3>
+                <button
+                  onClick={() => setSelectedMessageLog(null)}
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {!selectedMessageLog.request_payload && !selectedMessageLog.response_body ? (
+                <div className="text-center py-8">
+                  <p className="text-[var(--text-secondary)] mb-2">
+                    Log não disponível para esta mensagem
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Esta mensagem foi criada antes da implementação do sistema de logs
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Mensagem do Usuário</h4>
+                    <div className="bg-[var(--app-bg)] p-3 rounded border border-[var(--sidebar-border)]">
+                      <p className="text-[var(--text-primary)] whitespace-pre-wrap">{selectedMessageLog.user_message}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Resposta do Assistente</h4>
+                    <div className="bg-[var(--app-bg)] p-3 rounded border border-[var(--sidebar-border)]">
+                      <p className="text-[var(--text-primary)] whitespace-pre-wrap">{selectedMessageLog.assistant_response || "Sem resposta"}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Payload da Requisição</h4>
+                    <div className="bg-[var(--app-bg)] p-3 rounded border border-[var(--sidebar-border)]">
+                      <pre className="text-xs text-[var(--text-primary)] overflow-x-auto">
+                        {JSON.stringify(selectedMessageLog.request_payload, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">Resposta da API</h4>
+                    <div className="bg-[var(--app-bg)] p-3 rounded border border-[var(--sidebar-border)]">
+                      <pre className="text-xs text-[var(--text-primary)] overflow-x-auto">
+                        {JSON.stringify(selectedMessageLog.response_body, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 text-sm">
+                    <div>
+                      <span className="text-[var(--text-secondary)]">Status: </span>
+                      <span className={selectedMessageLog.response_status === 200 ? "text-green-500" : "text-red-500"}>
+                        {selectedMessageLog.response_status}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-secondary)]">Timestamp: </span>
+                      <span className="text-[var(--text-primary)]">
+                        {new Date(selectedMessageLog.created_at).toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
