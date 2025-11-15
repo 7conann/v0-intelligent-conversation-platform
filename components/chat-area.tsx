@@ -7,24 +7,7 @@ import type { Agent, Message, Chat } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import {
-  Send,
-  Plus,
-  X,
-  Sparkles,
-  MessageSquarePlus,
-  Download,
-  Upload,
-  MoreVertical,
-  Paperclip,
-  ImageIcon,
-  FileText,
-  Music,
-  Star,
-  Menu,
-  Pencil,
-  Check,
-} from "lucide-react"
+import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical, Paperclip, ImageIcon, FileText, Music, Star, Menu, Pencil, Check } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 
@@ -94,8 +77,9 @@ export function ChatArea({
 
   interface Attachment {
     name: string
-    data: string // base64 encoded file data
-    type: string
+    data: string // base64 or URL
+    type: string // "IMAGE", "AUDIO", "VIDEO", "DOCUMENT"
+    mimeType: string
     size: number
   }
 
@@ -189,7 +173,7 @@ export function ChatArea({
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input,
+      content: input || (attachments.length > 0 ? `[Anexo: ${attachments[0].name}]` : ""),
       sender: "user",
       timestamp: new Date(),
       usedAgentIds: selectedAgents,
@@ -233,21 +217,76 @@ export function ChatArea({
 
       if (attachmentsToSend.length > 0) {
         const attachment = attachmentsToSend[0]
-        payload = {
-          content: {
-            image: {
-              url: attachment.data,
-              caption: messageToSend || "Imagem enviada",
+        
+        if (attachment.type === "IMAGE") {
+          payload = {
+            content: {
+              image: {
+                url: attachment.data,
+                caption: messageToSend || "Imagem enviada",
+              },
             },
-          },
-          type: "IMAGE",
-          contactIdentifier: currentChatId,
-          contactName: `Chat ${currentChatId}`,
-          metadata: {
-            conversationId: currentChatId,
-            messageId: userMessage.id,
-            agentIds: selectedAgents,
-          },
+            type: "IMAGE",
+            contactIdentifier: currentChatId,
+            contactName: `Chat ${currentChatId}`,
+            metadata: {
+              conversationId: currentChatId,
+              messageId: userMessage.id,
+              agentIds: selectedAgents,
+            },
+          }
+        } else if (attachment.type === "AUDIO") {
+          payload = {
+            content: {
+              audio: {
+                url: attachment.data,
+              },
+            },
+            type: "AUDIO",
+            contactIdentifier: currentChatId,
+            contactName: `Chat ${currentChatId}`,
+            metadata: {
+              conversationId: currentChatId,
+              messageId: userMessage.id,
+              agentIds: selectedAgents,
+            },
+          }
+        } else if (attachment.type === "VIDEO") {
+          payload = {
+            content: {
+              video: {
+                url: attachment.data,
+                caption: messageToSend || "Vídeo enviado",
+              },
+            },
+            type: "VIDEO",
+            contactIdentifier: currentChatId,
+            contactName: `Chat ${currentChatId}`,
+            metadata: {
+              conversationId: currentChatId,
+              messageId: userMessage.id,
+              agentIds: selectedAgents,
+            },
+          }
+        } else {
+          // DOCUMENT
+          payload = {
+            content: {
+              document: {
+                url: attachment.data,
+                filename: attachment.name,
+                caption: messageToSend || "Documento enviado",
+              },
+            },
+            type: "DOCUMENT",
+            contactIdentifier: currentChatId,
+            contactName: `Chat ${currentChatId}`,
+            metadata: {
+              conversationId: currentChatId,
+              messageId: userMessage.id,
+              agentIds: selectedAgents,
+            },
+          }
         }
       } else {
         payload = {
@@ -431,24 +470,39 @@ export function ChatArea({
   }
 
   const copyAsMarkdown = async () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const markdown = selected
-      .map((m) => {
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) return
+
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
+
+    const allMarkdown: string[] = []
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceChat = chats.find((c) => c.id === selection.chatId)
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      selected.forEach((m) => {
         const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
         const timestamp = m.timestamp.toLocaleString("pt-BR")
         const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
         const agentInfo = agentNames ? ` (${agentNames})` : ""
-        return `${sender}${agentInfo} - ${timestamp}\n\n${m.content}\n\n---`
+        const cleanContent = stripHtml(m.content)
+        allMarkdown.push(`${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
       })
-      .join("\n\n")
+    })
 
+    const markdown = allMarkdown.join("\n\n")
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.md`
+    a.download = `mensagens-${new Date().toISOString().split("T")[0]}.md`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -456,56 +510,44 @@ export function ChatArea({
 
     addToast({
       title: "Markdown exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em formato Markdown`,
+      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) exportada(s)`,
       variant: "success",
     })
   }
 
   const copyAsWord = async () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const html = `
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: 'Calibri', sans-serif; font-size: 11pt; line-height: 1.5; }
-            .message { margin-bottom: 20px; page-break-inside: avoid; }
-            .sender { font-weight: bold; color: #2E5090; }
-            .timestamp { color: #666; font-size: 9pt; }
-            .agents { color: #8B5CF6; font-size: 9pt; font-style: italic; }
-            .content { margin-top: 8px; }
-            hr { border: none; border-top: 1px solid #ddd; margin: 15px 0; }
-          </style>
-        </head>
-        <body>
-          ${selected
-            .map((m) => {
-              const sender = m.sender === "user" ? "Você" : "Assistente"
-              const timestamp = m.timestamp.toLocaleString("pt-BR")
-              const agentNames = m.usedAgentIds
-                ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-                : ""
-              const agentInfo = agentNames ? `<div class="agents">Agentes: ${agentNames}</div>` : ""
-              return `
-                <div class="message">
-                  <div class="sender">${sender}</div>
-                  <div class="timestamp">${timestamp}</div>
-                  ${agentInfo}
-                  <div class="content">${m.content.replace(/\n/g, "<br>")}</div>
-                </div>
-                <hr>
-              `
-            })
-            .join("")}
-        </body>
-      </html>
-    `
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) return
 
-    const blob = new Blob([html], { type: "text/html;charset=utf-8;" })
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
+
+    const allMarkdown: string[] = []
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      selected.forEach((m) => {
+        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
+        const timestamp = m.timestamp.toLocaleString("pt-BR")
+        const agentNames = m.usedAgentIds
+          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
+          : ""
+        const agentInfo = agentNames ? ` (${agentNames})` : ""
+        const cleanContent = stripHtml(m.content)
+        allMarkdown.push(`${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
+      })
+    })
+
+    const markdown = allMarkdown.join("\n\n")
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.html`
+    a.download = `mensagens-word-${new Date().toISOString().split("T")[0]}.md`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -513,30 +555,44 @@ export function ChatArea({
 
     addToast({
       title: "Word exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em formato Word (HTML)`,
+      description: `${totalSelectedMessages} mensagem(ns) em Markdown para Word`,
       variant: "success",
     })
   }
 
   const copyAsPowerPoint = async () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const text = selected
-      .map((m, index) => {
-        const sender = m.sender === "user" ? "Você" : "Assistente"
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) return
+
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
+
+    const allMarkdown: string[] = []
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      selected.forEach((m, index) => {
+        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
         const timestamp = m.timestamp.toLocaleString("pt-BR")
         const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
         const agentInfo = agentNames ? ` (${agentNames})` : ""
-        return `${index + 1}. ${sender}${agentInfo} - ${timestamp}\n   ${m.content.replace(/\n/g, "\n   ")}`
+        const cleanContent = stripHtml(m.content)
+        allMarkdown.push(`## Slide ${index + 1}\n\n${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
       })
-      .join("\n\n")
+    })
 
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8;" })
+    const markdown = allMarkdown.join("\n\n")
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.txt`
+    a.download = `mensagens-powerpoint-${new Date().toISOString().split("T")[0]}.md`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -544,31 +600,45 @@ export function ChatArea({
 
     addToast({
       title: "PowerPoint exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em formato de lista`,
+      description: `${totalSelectedMessages} mensagem(ns) em Markdown para PowerPoint`,
       variant: "success",
     })
   }
 
   const copyAsExcel = async () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const csv = [
-      ["Data/Hora", "Remetente", "Mensagem", "Agentes"].join("\t"),
-      ...selected.map((m) => {
+    if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) return
+
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
+
+    const markdownRows: string[] = []
+    markdownRows.push("| Data/Hora | Remetente | Mensagem | Agentes |")
+    markdownRows.push("| --- | --- | --- | --- |")
+
+    selectedMessagesGlobal.forEach((selection) => {
+      const sourceMessages = messages[selection.chatId] || []
+      const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      selected.forEach((m) => {
         const timestamp = m.timestamp.toLocaleString("pt-BR")
         const sender = m.sender === "user" ? "Você" : "Assistente"
-        const content = m.content.replace(/\t/g, " ").replace(/\n/g, " ")
+        const content = stripHtml(m.content).replace(/\|/g, "\\|").replace(/\n/g, " ")
         const agentNames = m.usedAgentIds
           ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
           : ""
-        return [timestamp, sender, content, agentNames].join("\t")
-      }),
-    ].join("\n")
+        markdownRows.push(`| ${timestamp} | ${sender} | ${content} | ${agentNames} |`)
+      })
+    })
 
-    const blob = new Blob([csv], { type: "text/tab-separated-values;charset=utf-8;" })
+    const markdown = markdownRows.join("\n")
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${currentChat?.name || currentChatId}-${new Date().toISOString().split("T")[0]}.tsv`
+    a.download = `mensagens-excel-${new Date().toISOString().split("T")[0]}.md`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -576,7 +646,7 @@ export function ChatArea({
 
     addToast({
       title: "Excel exportado",
-      description: `${selected.length} mensagem(ns) exportada(s) em formato Excel (TSV)`,
+      description: `${totalSelectedMessages} mensagem(ns) em tabela Markdown para Excel`,
       variant: "success",
     })
   }
@@ -710,8 +780,9 @@ export function ChatArea({
   }
 
   const getFileIcon = (type: string) => {
-    if (type.startsWith("image/")) return <ImageIcon className="w-4 h-4" />
-    if (type.startsWith("audio/")) return <Music className="w-4 h-4" />
+    if (type === "IMAGE") return <ImageIcon className="w-4 h-4" />
+    if (type === "AUDIO") return <Music className="w-4 h-4" />
+    if (type === "VIDEO") return <FileText className="w-4 h-4" />
     return <FileText className="w-4 h-4" />
   }
 
@@ -837,9 +908,21 @@ export function ChatArea({
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
-    if (!files) return
+    if (!files || files.length === 0) return
 
     const file = files[0]
+    
+    let attachmentType: string
+    if (file.type.startsWith("image/")) {
+      attachmentType = "IMAGE"
+    } else if (file.type.startsWith("audio/")) {
+      attachmentType = "AUDIO"
+    } else if (file.type.startsWith("video/")) {
+      attachmentType = "VIDEO"
+    } else {
+      attachmentType = "DOCUMENT"
+    }
+
     const reader = new FileReader()
     reader.onload = (e) => {
       const base64Data = e.target?.result as string
@@ -847,8 +930,9 @@ export function ChatArea({
         ...prev,
         {
           name: file.name,
-          data: base64Data.split(",")[1], // Remove the data URL prefix
-          type: file.type,
+          data: base64Data,
+          type: attachmentType,
+          mimeType: file.type,
           size: file.size,
         },
       ])
@@ -1311,14 +1395,17 @@ export function ChatArea({
                       {message.usedAgentIds.map((agentId) => {
                         const agent = agents.find((a) => a.id === agentId)
                         if (!agent) return null
+                        // </CHANGE> Fixed unterminated string by extracting template literals
+                        const badgeBgColor = agent.color + "20"
+                        const badgeBorderColor = agent.color + "40"
                         return (
                           <Badge
                             key={agentId}
                             className="text-[10px] md:text-xs px-1.5 py-0 h-5 font-medium"
                             style={{
-                              backgroundColor: `${agent.color}20`,
+                              backgroundColor: badgeBgColor,
                               color: agent.color,
-                              borderColor: `${agent.color}40`,
+                              borderColor: badgeBorderColor,
                               borderWidth: "1px",
                             }}
                           >
@@ -1375,13 +1462,35 @@ export function ChatArea({
 
       <div className="border-t border-[var(--chat-border)] bg-[var(--chat-header-bg)] p-2 md:p-4 shrink-0">
         <div className="flex flex-col gap-2">
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 pb-2 border-b border-[var(--chat-border)]">
+              {attachments.map((attachment, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 text-xs"
+                >
+                  {getFileIcon(attachment.type)}
+                  <span className="max-w-[150px] truncate">{attachment.name}</span>
+                  <span className="text-[10px] opacity-70">({formatFileSize(attachment.size)})</span>
+                  <button
+                    onClick={() => removeAttachment(index)}
+                    className="ml-1 hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                    title="Remover anexo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Input controls with tags inside */}
           <div className="flex gap-2 md:gap-3 items-end">
             <input
               ref={attachmentInputRef}
               type="file"
               multiple
-              accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.csv"
+              accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt,.csv"
               onChange={handleFileUpload}
               className="hidden"
             />
@@ -1399,13 +1508,16 @@ export function ChatArea({
               <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)] z-10 pointer-events-none">
                 {selectedAgentObjects.map((agent) => {
                   const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
+                  const bgColor = agentColor + "15"
+                  const borderColor = agentColor + "60"
+                  
                   return (
                     <div
                       key={agent.id}
                       className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
                       style={{
-                        backgroundColor: `${agentColor}15`,
-                        borderColor: `${agentColor}60`,
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
                         borderWidth: "1px",
                         borderStyle: "solid",
                         color: agentColor,

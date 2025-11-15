@@ -3,22 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import {
-  ArrowLeft,
-  Star,
-  SettingsIcon,
-  Hash,
-  Plus,
-  Eye,
-  EyeOff,
-  Trash2,
-  GripVertical,
-  Filter,
-  AlertCircle,
-  FolderOpen,
-  Edit2,
-} from "lucide-react"
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter, AlertCircle, FolderOpen, Edit2 } from 'lucide-react'
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -494,6 +480,7 @@ export default function WorkspacesPage() {
         icon: selectedAgent.icon,
         color: selectedAgent.color,
         description: selectedAgent.description,
+        trigger_word: selectedAgent.trigger_word,
         group_id: selectedAgent.group_id,
       })
       .eq("id", selectedAgent.id)
