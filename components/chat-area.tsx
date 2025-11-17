@@ -72,6 +72,7 @@ export function ChatArea({
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingChatName, setEditingChatName] = useState("")
   const [userDisplayName, setUserDisplayName] = useState<string>("")
+  const [originChats, setOriginChats] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
@@ -98,9 +99,8 @@ export function ChatArea({
     scrollToBottom()
   }, [currentMessages])
 
-  useEffect(() => {
-    setInput("")
-  }, [currentChatId])
+  // The old useEffect was clearing input whenever currentChatId changed,
+  // which prevented the new chat from showing the copied messages
 
   useEffect(() => {
     console.log("[v0] 🔍 Chat changed to:", currentChatId)
@@ -452,24 +452,51 @@ export function ChatArea({
   }
 
   const createNewChatWithSelected = () => {
-    const selected = currentMessages.filter((m) => selectedMessages.includes(m.id))
-    const originConversationName = currentChat?.name || "Conversa sem nome"
-    const messagesWithOrigin = selected.map((msg) => ({
-      ...msg,
-      originConversation: originConversationName,
-    }))
-    onCreateChatWithMessages(messagesWithOrigin)
+    const stripHtml = (html: string) => {
+      const tmp = document.createElement("div")
+      tmp.innerHTML = html
+      return tmp.textContent || tmp.innerText || ""
+    }
 
+    const allSelectedTexts: string[] = []
+    const chatOrigins: string[] = []
+
+    if (selectedMessagesGlobal && selectedMessagesGlobal.length > 0) {
+      selectedMessagesGlobal.forEach((selection) => {
+        const sourceChat = chats.find((c) => c.id === selection.chatId)
+        const sourceMessages = messages[selection.chatId] || []
+        const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+        if (sourceChat && !chatOrigins.includes(sourceChat.name)) {
+          chatOrigins.push(sourceChat.name)
+        }
+
+        selected.forEach((msg) => {
+          allSelectedTexts.push(stripHtml(msg.content))
+        })
+      })
+    }
+
+    const combinedText = allSelectedTexts.join("\n\n")
+
+    // Clear selections first
     onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
 
+    // Create new chat
+    onCreateNewChat()
+    
+    // Set origin chats and input
+    setOriginChats(chatOrigins)
+    setInput(combinedText)
+
     addToast({
       title: "Nova conversa criada",
-      description: `${selected.length} mensagem(ns) movida(s) de "${originConversationName}"`,
+      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) copiada(s)`,
       variant: "success",
     })
 
-    console.log("[v0] 🗑️ Cleared local selection after creating new chat")
+    console.log("[v0] 🗑️ Cleared selections and created new chat with messages in input")
   }
 
   const copyAsMarkdown = async () => {
@@ -881,6 +908,10 @@ export function ChatArea({
     if (onToggleAgent) {
       onToggleAgent(agentId)
     }
+  }
+
+  const handleRemoveOriginTag = (chatName: string) => {
+    setOriginChats((prev) => prev.filter((name) => name !== chatName))
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1483,6 +1514,31 @@ export function ChatArea({
 
             <div className="flex-1 relative">
               <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)] z-10 pointer-events-none">
+                {/* Origin chat tags - shown in blue */}
+                {originChats.map((chatName) => (
+                  <div
+                    key={chatName}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
+                    style={{
+                      backgroundColor: "#3b82f615",
+                      borderColor: "#3b82f660",
+                      borderWidth: "1px",
+                      borderStyle: "solid",
+                      color: "#3b82f6",
+                    }}
+                  >
+                    <span className="text-[10px] font-semibold">De: {chatName}</span>
+                    <button
+                      onClick={() => handleRemoveOriginTag(chatName)}
+                      className="ml-0.5 hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                      title={`Remover origem ${chatName}`}
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Agent tags */}
                 {selectedAgentObjects.map((agent) => {
                   const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
                   const bgColor = agentColor + "15"
@@ -1525,7 +1581,7 @@ export function ChatArea({
                 placeholder="Digite sua mensagem..."
                 className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
                 style={{
-                  paddingTop: selectedAgentObjects.length > 0 ? "2rem" : "0.75rem",
+                  paddingTop: (selectedAgentObjects.length > 0 || originChats.length > 0) ? "2rem" : "0.75rem",
                 }}
                 disabled={selectedAgents.length === 0}
               />

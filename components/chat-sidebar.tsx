@@ -75,7 +75,7 @@ export function ChatSidebar({
   const [groupsWithOrder, setGroupsWithOrder] = useState<Array<{ name: string; icon: string; display_order: number }>>(
     [],
   )
-  const [hoveredAgent, setHoveredAgent] = useState<string | null>(null)
+  const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
   const [draggedAgent, setDraggedAgent] = useState<string | null>(null)
@@ -246,12 +246,7 @@ export function ChatSidebar({
     const rect = e.currentTarget.getBoundingClientRect()
     const messageCount = agentHistories[agent.id]?.length || 0
 
-    let tooltipText = agent.name
-    if (agent.description) {
-      tooltipText += `\n${agent.description}`
-    }
-
-    setHoveredAgent(tooltipText)
+    setHoveredAgent(agent)
     setCoords({
       top: rect.top + rect.height / 2,
       left: rect.right + 8,
@@ -926,16 +921,19 @@ export function ChatSidebar({
           coords &&
           createPortal(
             <div
-              className="fixed px-3 py-2 bg-[var(--tooltip-bg)] text-[var(--tooltip-text)] text-xs rounded-lg shadow-lg whitespace-pre-line transition-opacity opacity-100 max-w-xs"
+              className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700"
               style={{
                 top: coords.top,
                 left: coords.left,
                 transform: "translateY(-50%)",
-                zIndex: 999999999,
+                zIndex: 99999,
                 pointerEvents: "none",
               }}
             >
-              {hoveredAgent}
+              <div className="font-semibold mb-1">{hoveredAgent.name}</div>
+              {hoveredAgent.description && (
+                <div className="text-xs text-gray-300">{hoveredAgent.description}</div>
+              )}
             </div>,
             document.getElementById("tooltip-root")!,
           )}
