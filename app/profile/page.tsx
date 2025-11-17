@@ -160,7 +160,6 @@ export default function ProfilePage() {
           <div className="mb-4 text-2xl text-[var(--text-primary)]">Carregando perfil...</div>
         </div>
       </div>
-      
     )
   }
 

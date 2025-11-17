@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter, AlertCircle, FolderOpen, Edit2 } from 'lucide-react'
+import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter, AlertCircle, FolderOpen, Edit2, RotateCcw } from 'lucide-react'
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -48,6 +48,7 @@ export default function WorkspacesPage() {
   const [loading, setLoading] = useState(true)
   const [agents, setAgents] = useState<WorkspaceAgent[]>([])
   const [filteredAgents, setFilteredAgents] = useState<WorkspaceAgent[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
@@ -76,6 +77,7 @@ export default function WorkspacesPage() {
     trigger_word: "",
     group_name: "", // Initialize as empty, will be set by group selection logic
   })
+  const [newAgentIcon, setCreateAgentIcon] = useState("") // Added this line
   const [newGroupName, setNewGroupName] = useState("")
   const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false)
   const [inactiveAgents, setInactiveAgents] = useState<Set<string>>(new Set())
@@ -93,6 +95,10 @@ export default function WorkspacesPage() {
   })
   const [showMigrationModal, setShowMigrationModal] = useState(false)
   const [isMigrating, setIsMigrating] = useState(false)
+  const [hoveredAgent, setHoveredAgent] = useState<WorkspaceAgent | null>(null)
+  const [hoveredGroup, setHoveredGroup] = useState<Group | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -189,6 +195,15 @@ export default function WorkspacesPage() {
   useEffect(() => {
     let filtered = [...agents]
 
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter((a) => 
+        a.name.toLowerCase().includes(query) ||
+        a.trigger_word?.toLowerCase().includes(query) ||
+        a.description?.toLowerCase().includes(query)
+      )
+    }
+
     if (filterStatus === "active") {
       filtered = filtered.filter((a) => !inactiveAgents.has(a.id))
     } else if (filterStatus === "inactive") {
@@ -200,7 +215,7 @@ export default function WorkspacesPage() {
     }
 
     setFilteredAgents(filtered)
-  }, [agents, filterStatus, filterGroup, inactiveAgents])
+  }, [agents, filterStatus, filterGroup, inactiveAgents, searchQuery])
 
   const groupNames = groups.map((g) => g.name)
 
@@ -480,7 +495,6 @@ export default function WorkspacesPage() {
         icon: selectedAgent.icon,
         color: selectedAgent.color,
         description: selectedAgent.description,
-        trigger_word: selectedAgent.trigger_word,
         group_id: selectedAgent.group_id,
       })
       .eq("id", selectedAgent.id)
@@ -1046,6 +1060,26 @@ export default function WorkspacesPage() {
       </div>
 
       <div className="mx-auto max-w-6xl px-6 pb-6 pt-6">
+        <div className="mb-4">
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="🔍 Pesquisar agentes pelo nome, palavra-chave ou descrição..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] pl-4 pr-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center gap-4 mb-4">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-[var(--text-secondary)]" />
@@ -1092,6 +1126,18 @@ export default function WorkspacesPage() {
                 onDragOver={(e) => handleDragOver(e, agent)}
                 onDragLeave={handleDragLeave}
                 onDrop={() => handleDrop(agent)}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  setHoveredAgent(agent)
+                  setTooltipPosition({
+                    top: rect.top - 10,
+                    left: rect.left + rect.width / 2,
+                  })
+                }}
+                onMouseLeave={() => {
+                  setHoveredAgent(null)
+                  setTooltipPosition(null)
+                }}
                 className={`rounded-xl border border-[var(--sidebar-border)] bg-[var(--settings-bg)] p-6 hover:border-purple-500/50 transition-all ${
                   isInactive ? "opacity-50" : ""
                 } ${isAuthorized && !isInactive ? "cursor-move" : ""} ${
@@ -1157,6 +1203,7 @@ export default function WorkspacesPage() {
                         variant="outline"
                         className="flex-1 border-green-500/50 text-green-500 hover:bg-green-500/10"
                       >
+                        <RotateCcw className="h-4 w-4 mr-2" />
                         Restaurar
                       </Button>
                     ) : (
@@ -1173,8 +1220,20 @@ export default function WorkspacesPage() {
                           Configurar
                         </Button>
                         <Button
+                          onClick={() => {
+                            setSelectedAgent(agent)
+                            setShowAgentConfig(true)
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
                           onClick={() => handleDeleteAgent(agent.id)}
                           variant="outline"
+                          size="sm"
                           className="border-red-500/50 text-red-500 hover:bg-red-500/10"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1295,11 +1354,11 @@ export default function WorkspacesPage() {
                 <Label htmlFor="editAgentIcon" className="text-[var(--text-primary)]">
                   Ícone (Emoji) *
                 </Label>
-                <EmojiPicker
+                <IconPicker
                   value={selectedAgent.icon}
                   onChange={(emoji) => setSelectedAgent({ ...selectedAgent, icon: emoji })}
                 />
-                <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
+                <p className="text-xs text-[var(--text-secondary)]">Escolha um emoji para representar o agente</p>
               </div>
 
               <div className="space-y-2">
@@ -1425,8 +1484,8 @@ export default function WorkspacesPage() {
                 <Label htmlFor="agentIcon" className="text-[var(--text-primary)]">
                   Ícone (Emoji) *
                 </Label>
-                <EmojiPicker value={newAgent.icon} onChange={(emoji) => setNewAgent({ ...newAgent, icon: emoji })} />
-                <p className="text-xs text-[var(--text-secondary)]">Use um emoji para representar o agente</p>
+                <IconPicker value={newAgentIcon} onChange={(emoji) => setCreateAgentIcon(emoji)} />
+                <p className="text-xs text-[var(--text-secondary)]">Escolha um emoji para representar o agente</p>
               </div>
 
               <div className="space-y-2">
@@ -1688,6 +1747,18 @@ export default function WorkspacesPage() {
                     onDragOver={(e) => handleGroupDragOver(e, group)}
                     onDragLeave={handleGroupDragLeave}
                     onDrop={() => handleGroupDrop(group)}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setHoveredGroup(group)
+                      setTooltipPosition({
+                        top: rect.top - 10,
+                        left: rect.left + rect.width / 2,
+                      })
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredGroup(null)
+                      setTooltipPosition(null)
+                    }}
                     className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
                       isAuthorized && !isEditing ? "cursor-move" : ""
                     } ${
@@ -1904,6 +1975,38 @@ export default function WorkspacesPage() {
           </div>
         </div>
       )}
+      {hoveredAgent && tooltipPosition && (
+        <div
+          className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl max-w-xs border border-gray-700 z-[99999] pointer-events-none"
+          style={{
+            top: tooltipPosition.top,
+            left: tooltipPosition.left,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <div className="font-semibold mb-1">{hoveredAgent.name}</div>
+          {hoveredAgent.description && (
+            <div className="text-xs text-gray-300 leading-relaxed">{hoveredAgent.description}</div>
+          )}
+        </div>
+      )}
+
+      {hoveredGroup && tooltipPosition && (
+        <div
+          className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl max-w-xs border border-gray-700 z-[99999] pointer-events-none"
+          style={{
+            top: tooltipPosition.top,
+            left: tooltipPosition.left,
+            transform: "translate(-50%, -100%)",
+          }}
+        >
+          <div className="font-semibold mb-1">{hoveredGroup.name}</div>
+          <div className="text-xs text-gray-300">
+            {agents.filter(a => a.group_id === hoveredGroup.id).length} agente(s)
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}

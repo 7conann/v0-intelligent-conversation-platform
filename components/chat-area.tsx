@@ -10,6 +10,9 @@ import { useToast } from "@/components/ui/toast"
 import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical, Paperclip, ImageIcon, FileText, Music, Star, Menu, Pencil, Check } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import * as XLSX from 'xlsx'
+import { Document, Paragraph, TextRun, Packer } from 'docx'
+import pptxgen from 'pptxgenjs'
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -481,19 +484,12 @@ export function ChatArea({
     const allMarkdown: string[] = []
 
     selectedMessagesGlobal.forEach((selection) => {
-      const sourceChat = chats.find((c) => c.id === selection.chatId)
       const sourceMessages = messages[selection.chatId] || []
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
       selected.forEach((m) => {
-        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
-        const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const agentNames = m.usedAgentIds
-          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-          : ""
-        const agentInfo = agentNames ? ` (${agentNames})` : ""
         const cleanContent = stripHtml(m.content)
-        allMarkdown.push(`${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
+        allMarkdown.push(cleanContent)
       })
     })
 
@@ -524,30 +520,24 @@ export function ChatArea({
       return tmp.textContent || tmp.innerText || ""
     }
 
-    const allMarkdown: string[] = []
+    const allMessages: string[] = []
 
     selectedMessagesGlobal.forEach((selection) => {
       const sourceMessages = messages[selection.chatId] || []
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
       selected.forEach((m) => {
-        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
-        const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const agentNames = m.usedAgentIds
-          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-          : ""
-        const agentInfo = agentNames ? ` (${agentNames})` : ""
-        const cleanContent = stripHtml(m.content)
-        allMarkdown.push(`${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
+        const content = stripHtml(m.content)
+        allMessages.push(content)
       })
     })
 
-    const markdown = allMarkdown.join("\n\n")
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
+    const textContent = allMessages.join('\n\n')
+    const blob = new Blob([textContent], { type: 'application/msword;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
+    const a = document.createElement('a')
     a.href = url
-    a.download = `mensagens-word-${new Date().toISOString().split("T")[0]}.md`
+    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.doc`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -555,7 +545,7 @@ export function ChatArea({
 
     addToast({
       title: "Word exportado",
-      description: `${totalSelectedMessages} mensagem(ns) em Markdown para Word`,
+      description: `${totalSelectedMessages} mensagem(ns) exportada(s)`,
       variant: "success",
     })
   }
@@ -569,30 +559,24 @@ export function ChatArea({
       return tmp.textContent || tmp.innerText || ""
     }
 
-    const allMarkdown: string[] = []
+    const allMessages: string[] = []
 
     selectedMessagesGlobal.forEach((selection) => {
       const sourceMessages = messages[selection.chatId] || []
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
-      selected.forEach((m, index) => {
-        const sender = m.sender === "user" ? "**Você**" : "**Assistente**"
-        const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const agentNames = m.usedAgentIds
-          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-          : ""
-        const agentInfo = agentNames ? ` (${agentNames})` : ""
-        const cleanContent = stripHtml(m.content)
-        allMarkdown.push(`## Slide ${index + 1}\n\n${sender}${agentInfo} - ${timestamp}\n\n${cleanContent}\n\n---`)
+      selected.forEach((m) => {
+        const content = stripHtml(m.content)
+        allMessages.push(content)
       })
     })
 
-    const markdown = allMarkdown.join("\n\n")
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
+    const textContent = allMessages.join('\n\n')
+    const blob = new Blob([textContent], { type: 'application/vnd.ms-powerpoint;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
+    const a = document.createElement('a')
     a.href = url
-    a.download = `mensagens-powerpoint-${new Date().toISOString().split("T")[0]}.md`
+    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.ppt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -600,7 +584,7 @@ export function ChatArea({
 
     addToast({
       title: "PowerPoint exportado",
-      description: `${totalSelectedMessages} mensagem(ns) em Markdown para PowerPoint`,
+      description: `${totalSelectedMessages} mensagem(ns) exportada(s)`,
       variant: "success",
     })
   }
@@ -614,31 +598,24 @@ export function ChatArea({
       return tmp.textContent || tmp.innerText || ""
     }
 
-    const markdownRows: string[] = []
-    markdownRows.push("| Data/Hora | Remetente | Mensagem | Agentes |")
-    markdownRows.push("| --- | --- | --- | --- |")
+    const rows: string[] = []
 
     selectedMessagesGlobal.forEach((selection) => {
       const sourceMessages = messages[selection.chatId] || []
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
       selected.forEach((m) => {
-        const timestamp = m.timestamp.toLocaleString("pt-BR")
-        const sender = m.sender === "user" ? "Você" : "Assistente"
-        const content = stripHtml(m.content).replace(/\|/g, "\\|").replace(/\n/g, " ")
-        const agentNames = m.usedAgentIds
-          ? m.usedAgentIds.map((id) => agents.find((a) => a.id === id)?.name || id).join(", ")
-          : ""
-        markdownRows.push(`| ${timestamp} | ${sender} | ${content} | ${agentNames} |`)
+        const content = stripHtml(m.content).replace(/\t/g, ' ').replace(/\n/g, ' ')
+        rows.push(content)
       })
     })
 
-    const markdown = markdownRows.join("\n")
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8;" })
+    const tsvContent = rows.join('\n')
+    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
+    const a = document.createElement('a')
     a.href = url
-    a.download = `mensagens-excel-${new Date().toISOString().split("T")[0]}.md`
+    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.xls`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -646,7 +623,7 @@ export function ChatArea({
 
     addToast({
       title: "Excel exportado",
-      description: `${totalSelectedMessages} mensagem(ns) em tabela Markdown para Excel`,
+      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) exportada(s)`,
       variant: "success",
     })
   }

@@ -4,25 +4,10 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import {
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Briefcase,
-  X,
-  BarChart3,
-  Code,
-  Palette,
-  Users,
-  Layers,
-  Eye,
-  EyeOff,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react"
+import { Settings, ChevronLeft, ChevronRight, Briefcase, X, BarChart3, Code, Palette, Users, Layers, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -261,13 +246,9 @@ export function ChatSidebar({
     const rect = e.currentTarget.getBoundingClientRect()
     const messageCount = agentHistories[agent.id]?.length || 0
 
-    // Build tooltip with name, description, and message count
     let tooltipText = agent.name
     if (agent.description) {
       tooltipText += `\n${agent.description}`
-    }
-    if (messageCount > 0) {
-      tooltipText += `\n(${messageCount} mensagens)`
     }
 
     setHoveredAgent(tooltipText)
@@ -295,12 +276,14 @@ export function ChatSidebar({
     const timeout = setTimeout(() => {
       console.log("[v0] ⏱️ Group hover timeout reached:", groupName)
 
+      const groupData = groupsWithOrder.find(g => g.name === groupName)
+      
       setHoveredGroup({ name: groupName, count: agentCount })
       setGroupCoords({
         top: rect.top - 8, // Position above the group
         left: rect.left + rect.width / 2, // Center horizontally
       })
-    }, 800)
+    }, 300) // Reduced from 800ms to 300ms for faster response
 
     setGroupHoverTimeout(timeout)
   }
@@ -961,17 +944,17 @@ export function ChatSidebar({
           groupCoords &&
           createPortal(
             <div
-              className="fixed px-4 py-3 bg-gray-800 text-white text-xs rounded-md shadow-lg transition-opacity opacity-100 max-w-xs border border-gray-700"
+              className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700"
               style={{
                 top: groupCoords.top,
                 left: groupCoords.left,
                 transform: "translate(-50%, -100%)", // Center horizontally and position above
-                zIndex: 999999999,
+                zIndex: 99999,
                 pointerEvents: "none",
               }}
             >
-              <div className="font-medium">{hoveredGroup.name}</div>
-              <div className="text-[10px] text-gray-300 mt-0.5">
+              <div className="font-semibold mb-1">{hoveredGroup.name}</div>
+              <div className="text-xs text-gray-300">
                 {hoveredGroup.count} {hoveredGroup.count === 1 ? "agente" : "agentes"}
               </div>
             </div>,

@@ -244,26 +244,31 @@ export default function UserDetailsPage() {
               <button
                 key={conv.id}
                 onClick={() => loadConversationMessages(conv.id)}
-                className={`flex-shrink-0 w-64 text-left p-4 rounded-lg border transition-colors ${
+                className={`flex-shrink-0 w-64 text-left p-4 rounded-lg border transition-colors relative ${
                   selectedConversation === conv.id
                     ? "bg-purple-500/10 border-purple-500"
                     : "bg-[var(--app-bg)] border-[var(--sidebar-border)] hover:border-purple-500/50"
                 }`}
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-medium text-[var(--text-primary)] truncate">{conv.title}</h3>
-                </div>
-                <div className="text-xs text-[var(--text-secondary)] mb-2">
-                  {new Date(conv.created_at).toLocaleDateString("pt-BR")}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-[var(--text-secondary)]">
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="w-4 h-4" />
-                    {conv.message_count}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Bot className="w-4 h-4" />
-                    {conv.agents_used?.length || 0} agentes
+                  <h3 className="font-medium text-[var(--text-primary)] truncate flex-1">{conv.title}</h3>
+                  
+                  {/* Bolinhas indicadoras usando flex */}
+                  <div className="flex items-center gap-1.5 ml-2" style={{ zIndex: 99999 }}>
+                    {selectedConversation === conv.id && messages.length > 0 && (
+                      <div 
+                        className="w-3 h-3 bg-yellow-500 rounded-full shadow-lg flex-shrink-0"
+                        title="Com mensagens carregadas"
+                      />
+                    )}
+
+                    {/* Green indicator - Selected conversation (right) */}
+                    {selectedConversation === conv.id && (
+                      <div 
+                        className="w-3 h-3 bg-green-500 rounded-full shadow-lg flex-shrink-0"
+                        title="Conversa selecionada"
+                      />
+                    )}
                   </div>
                 </div>
               </button>
