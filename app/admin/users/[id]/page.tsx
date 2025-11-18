@@ -235,6 +235,7 @@ export default function UserDetailsPage() {
               </div>
             </div>
           </div>
+          
         </div>
 
         <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-4 mb-4">
