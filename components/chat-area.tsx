@@ -72,7 +72,9 @@ export function ChatArea({
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingChatName, setEditingChatName] = useState("")
   const [userDisplayName, setUserDisplayName] = useState<string>("")
-  const [originChats, setOriginChats] = useState<string[]>([])
+  const [hiddenContextMessages, setHiddenContextMessages] = useState<string>("")
+  const [contextSourceChats, setContextSourceChats] = useState<string[]>([])
+  // </CHANGE>
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
@@ -204,12 +206,18 @@ export function ChatArea({
 
       let messageToSend = triggerWords ? `${triggerWords}: ${input}` : input
 
-      if (isFirstMessage && contextMessages && contextMessages.length > 0) {
+      if (isFirstMessage && hiddenContextMessages) {
+        messageToSend = `Contexto das mensagens anteriores:\n\n${hiddenContextMessages}\n\n---\n\nMinha pergunta: ${messageToSend}`
+        // Clear hidden context after first use
+        setHiddenContextMessages("")
+        setContextSourceChats([])
+      } else if (isFirstMessage && contextMessages && contextMessages.length > 0) {
         const contextText = contextMessages
           .map((m) => `[${m.sender === "user" ? "Usuário" : "Assistente"}]: ${m.content}`)
           .join("\n\n")
         messageToSend = `Contexto das mensagens anteriores:\n\n${contextText}\n\n---\n\nMinha pergunta: ${messageToSend}`
       }
+      // </CHANGE>
 
       if (userDisplayName) {
         messageToSend = `[Usuário: ${userDisplayName}]\n${messageToSend}`
@@ -424,11 +432,15 @@ export function ChatArea({
     }
 
     const allSelectedTexts: string[] = []
-
+    const chatOrigins: string[] = []
     selectedMessagesGlobal.forEach((selection) => {
       const sourceChat = chats.find((c) => c.id === selection.chatId)
       const sourceMessages = messages[selection.chatId] || []
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+      if (sourceChat && !chatOrigins.includes(sourceChat.name)) {
+        chatOrigins.push(sourceChat.name)
+      }
 
       selected.forEach((msg) => {
         allSelectedTexts.push(stripHtml(msg.content))
@@ -436,19 +448,22 @@ export function ChatArea({
     })
 
     const combinedText = allSelectedTexts.join("\n\n")
-    setInput(combinedText)
+    
+    setHiddenContextMessages(combinedText)
+    setContextSourceChats(chatOrigins)
+    // </CHANGE>
 
     // Clear all selections
     onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
 
     addToast({
-      title: "Mensagens adicionadas",
-      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) adicionada(s)`,
+      title: "Contexto adicionado",
+      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) adicionada(s) como contexto`,
       variant: "success",
     })
 
-    console.log("[v0] 🗑️ Cleared all selections after adding to input")
+    console.log("[v0] 🗑️ Cleared all selections and added as hidden context")
   }
 
   const createNewChatWithSelected = () => {
@@ -478,7 +493,7 @@ export function ChatArea({
     }
 
     const combinedText = allSelectedTexts.join("\n\n")
-
+    
     // Clear selections first
     onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
@@ -486,17 +501,18 @@ export function ChatArea({
     // Create new chat
     onCreateNewChat()
     
-    // Set origin chats and input
-    setOriginChats(chatOrigins)
-    setInput(combinedText)
+    // Store context messages as hidden (not in input)
+    setHiddenContextMessages(combinedText)
+    setContextSourceChats(chatOrigins)
+    // </CHANGE>
 
     addToast({
       title: "Nova conversa criada",
-      description: `${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s) copiada(s)`,
+      description: `Chat criado com contexto de ${totalSelectedMessages} mensagem(ns) de ${totalSelectedChats} conversa(s)`,
       variant: "success",
     })
 
-    console.log("[v0] 🗑️ Cleared selections and created new chat with messages in input")
+    console.log("[v0] 🗑️ Cleared selections and created new chat with hidden context")
   }
 
   const copyAsMarkdown = async () => {
@@ -911,7 +927,11 @@ export function ChatArea({
   }
 
   const handleRemoveOriginTag = (chatName: string) => {
-    setOriginChats((prev) => prev.filter((name) => name !== chatName))
+    setContextSourceChats((prev) => prev.filter((name) => name !== chatName))
+    if (contextSourceChats.length <= 1) {
+      setHiddenContextMessages("")
+    }
+    // </CHANGE>
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1296,7 +1316,20 @@ export function ChatArea({
         </div>
       )}
 
-      {contextMessages && contextMessages.length > 0 && currentMessages.length === 0 && (
+      {hiddenContextMessages && contextSourceChats.length > 0 && (
+        <div className="bg-green-900/20 border-b border-green-500/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-green-300 text-sm">
+            <Sparkles className="w-4 h-4 md:w-6 md:h-6 text-green-400" />
+            <span>Contexto carregado de {contextSourceChats.join(", ")}</span>
+          </div>
+          <p className="text-xs md:text-sm text-[var(--settings-text-muted)] mt-1">
+            As mensagens selecionadas serão enviadas automaticamente com sua primeira pergunta
+          </p>
+        </div>
+      )}
+      {/* </CHANGE> */}
+
+      {contextMessages && contextMessages.length > 0 && currentMessages.length === 0 && !hiddenContextMessages && (
         <div className="bg-green-900/20 border-b border-green-500/30 px-4 py-3">
           <div className="flex items-center gap-2 text-green-300 text-sm">
             <Sparkles className="w-4 h-4 md:w-6 md:h-6 text-green-400" />
@@ -1514,29 +1547,32 @@ export function ChatArea({
 
             <div className="flex-1 relative">
               <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[calc(100%-1rem)] z-10 pointer-events-none">
-                {/* Origin chat tags - shown in blue */}
-                {originChats.map((chatName) => (
+                {contextSourceChats.length > 0 && hiddenContextMessages && (
                   <div
-                    key={chatName}
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium pointer-events-auto"
                     style={{
-                      backgroundColor: "#3b82f615",
-                      borderColor: "#3b82f660",
+                      backgroundColor: "#10b98115",
+                      borderColor: "#10b98160",
                       borderWidth: "1px",
                       borderStyle: "solid",
-                      color: "#3b82f6",
+                      color: "#10b981",
                     }}
                   >
-                    <span className="text-[10px] font-semibold">De: {chatName}</span>
+                    <Sparkles className="w-3 h-3" />
+                    <span className="text-[10px] font-semibold">Contexto de: {contextSourceChats.join(", ")}</span>
                     <button
-                      onClick={() => handleRemoveOriginTag(chatName)}
+                      onClick={() => {
+                        setHiddenContextMessages("")
+                        setContextSourceChats([])
+                      }}
                       className="ml-0.5 hover:bg-black/20 rounded-full p-0.5 transition-colors"
-                      title={`Remover origem ${chatName}`}
+                      title="Remover contexto"
                     >
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </div>
-                ))}
+                )}
+                {/* </CHANGE> */}
 
                 {/* Agent tags */}
                 {selectedAgentObjects.map((agent) => {
@@ -1581,7 +1617,7 @@ export function ChatArea({
                 placeholder="Digite sua mensagem..."
                 className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
                 style={{
-                  paddingTop: (selectedAgentObjects.length > 0 || originChats.length > 0) ? "2rem" : "0.75rem",
+                  paddingTop: (selectedAgentObjects.length > 0 || (contextSourceChats.length > 0 && hiddenContextMessages)) ? "2rem" : "0.75rem",
                 }}
                 disabled={selectedAgents.length === 0}
               />
