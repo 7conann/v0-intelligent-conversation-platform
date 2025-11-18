@@ -71,7 +71,6 @@ export default function WorkspacesPage() {
   const [dragOverGroup, setDragOverGroup] = useState<Group | null>(null)
   const [newAgent, setNewAgent] = useState({
     name: "",
-    icon: "",
     color: "#8B5CF6",
     description: "",
     trigger_word: "",
@@ -79,6 +78,7 @@ export default function WorkspacesPage() {
   })
   const [newAgentIcon, setCreateAgentIcon] = useState("") // Added this line
   const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupDescription, setNewGroupDescription] = useState("")
   const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false)
   const [inactiveAgents, setInactiveAgents] = useState<Set<string>>(new Set())
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -230,12 +230,13 @@ export default function WorkspacesPage() {
           setShowCreateAgent(false)
           setNewAgent({
             name: "",
-            icon: "",
             color: "#8B5CF6",
             description: "",
             trigger_word: "",
             group_name: "", // Reset to empty
           })
+          setCreateAgentIcon("") // Reset icon
+          setNewGroupDescription("") // Reset description
         }
         if (showManageAgents) {
           setShowManageAgents(false)
@@ -245,6 +246,7 @@ export default function WorkspacesPage() {
           setCreateGroupName("")
           setCreateGroupIcon("📁")
           setSelectedAgentsForGroup(new Set())
+          setNewGroupDescription("") // Reset description
         }
         if (showManageGroups) {
           setShowManageGroups(false)
@@ -538,7 +540,7 @@ export default function WorkspacesPage() {
       return
     }
 
-    if (!newAgent.name || !newAgent.icon || !newAgent.trigger_word) {
+    if (!newAgent.name || !newAgentIcon || !newAgent.trigger_word) {
       addToast({
         title: "Campos obrigatórios",
         description: "Preencha nome, ícone e palavra-chave",
@@ -548,6 +550,53 @@ export default function WorkspacesPage() {
     }
 
     const supabase = createClient()
+
+    let groupIdToUse = newAgent.group_name
+
+    if (!groupIdToUse) {
+      // Check if "Sem Grupo" already exists
+      const { data: existingGroup } = await supabase
+        .from("groups")
+        .select("id")
+        .eq("name", "Sem Grupo")
+        .single()
+
+      if (existingGroup) {
+        groupIdToUse = existingGroup.id
+      } else {
+        // Create "Sem Grupo" if it doesn't exist
+        const { data: maxDisplayOrder } = await supabase
+          .from("groups")
+          .select("display_order")
+          .order("display_order", { ascending: false })
+          .limit(1)
+
+        const newDisplayOrder = (maxDisplayOrder?.[0]?.display_order || 0) + 1
+
+        const { data: newGroup, error: groupError } = await supabase
+          .from("groups")
+          .insert({
+            name: "Sem Grupo",
+            icon: "📁",
+            description: "Agentes sem grupo específico",
+            display_order: newDisplayOrder,
+          })
+          .select("id")
+          .single()
+
+        if (groupError || !newGroup) {
+          console.error("Error creating default group:", groupError)
+          addToast({
+            title: "Erro ao criar grupo padrão",
+            description: groupError?.message || "Erro desconhecido",
+            variant: "error",
+          })
+          return
+        }
+
+        groupIdToUse = newGroup.id
+      }
+    }
 
     const { data: maxOrderData } = await supabase
       .from("agents")
@@ -561,13 +610,13 @@ export default function WorkspacesPage() {
       .from("agents")
       .insert({
         name: newAgent.name,
-        icon: newAgent.icon,
+        icon: newAgentIcon,
         color: newAgent.color,
         description: newAgent.description,
         trigger_word: newAgent.trigger_word,
         is_system: false,
         order: maxOrder + 1,
-        group_id: newAgent.group_name, // This will be the group_id now
+        group_id: groupIdToUse, // Always use a valid group_id
       })
       .select(`
         *,
@@ -606,12 +655,12 @@ export default function WorkspacesPage() {
     setShowCreateAgent(false)
     setNewAgent({
       name: "",
-      icon: "",
       color: "#8B5CF6",
       description: "",
       trigger_word: "",
-      group_name: "", // Reset to empty
+      group_name: "",
     })
+    setCreateAgentIcon("")
   }
 
   const handleDeleteAgent = async (agentId: string) => {
@@ -745,6 +794,7 @@ export default function WorkspacesPage() {
         name: createGroupName.trim(),
         icon: createGroupIcon,
         display_order: groups.length,
+        description: newGroupDescription, // Add group description
       })
       .select()
       .single()
@@ -806,6 +856,7 @@ export default function WorkspacesPage() {
       setCreateGroupName("")
       setCreateGroupIcon("📁")
       setSelectedAgentsForGroup(new Set())
+      setNewGroupDescription("") // Reset description
     } catch (error) {
       console.error("[v0] Error creating group:", error)
       addToast({
@@ -897,7 +948,7 @@ export default function WorkspacesPage() {
 
     const { error: groupError } = await supabase
       .from("groups")
-      .update({ name: newName.trim(), icon: newIcon })
+      .update({ name: newName.trim(), icon: newIcon, description: newGroupDescription }) // Update description
       .eq("id", groupId)
 
     if (groupError) {
@@ -1549,6 +1600,7 @@ export default function WorkspacesPage() {
                     if (e.target.value === "__new__") {
                       setIsCreatingNewGroup(true)
                       setNewGroupName("")
+                      setNewGroupDescription("")
                     } else {
                       setIsCreatingNewGroup(false)
                       setNewAgent({ ...newAgent, group_name: e.target.value })
@@ -1565,23 +1617,32 @@ export default function WorkspacesPage() {
                   <option value="__new__">+ Novo Grupo</option>
                 </select>
                 {isCreatingNewGroup && (
-                  <Input
-                    type="text"
-                    placeholder="Nome do novo grupo"
-                    value={newGroupName}
-                    onChange={(e) => {
-                      setNewGroupName(e.target.value)
-                      setNewAgent({ ...newAgent, group_name: e.target.value })
-                    }}
-                    onBlur={() => {
-                      if (!newGroupName.trim()) {
-                        setIsCreatingNewGroup(false)
-                        setNewAgent({ ...newAgent, group_name: "" }) // Reset to empty
-                      }
-                    }}
-                    autoFocus
-                    className="mt-2 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
-                  />
+                  <div className="space-y-2 mt-2">
+                    <Input
+                      type="text"
+                      placeholder="Nome do novo grupo"
+                      value={newGroupName}
+                      onChange={(e) => {
+                        setNewGroupName(e.target.value)
+                        setNewAgent({ ...newAgent, group_name: e.target.value })
+                      }}
+                      onBlur={() => {
+                        if (!newGroupName.trim()) {
+                          setIsCreatingNewGroup(false)
+                          setNewAgent({ ...newAgent, group_name: "" })
+                          setNewGroupDescription("")
+                        }
+                      }}
+                      autoFocus
+                      className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
+                    />
+                    <Textarea
+                      placeholder="Descrição do grupo (opcional)"
+                      value={newGroupDescription}
+                      onChange={(e) => setNewGroupDescription(e.target.value)}
+                      className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] min-h-[60px]"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -1591,12 +1652,13 @@ export default function WorkspacesPage() {
                     setShowCreateAgent(false)
                     setNewAgent({
                       name: "",
-                      icon: "",
                       color: "#8B5CF6",
                       description: "",
                       trigger_word: "",
-                      group_name: "", // Reset to empty
+                      group_name: "",
                     })
+                    setCreateAgentIcon("")
+                    setNewGroupDescription("")
                   }}
                   variant="outline"
                   className="flex-1"
