@@ -236,6 +236,7 @@ export default function UserDetailsPage() {
             </div>
           </div>
         </div>
+        
 
         <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-4 mb-4">
           <h2 className="text-lg font-bold text-[var(--text-primary)] mb-3">Conversas ({conversations.length})</h2>
