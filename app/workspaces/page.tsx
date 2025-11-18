@@ -38,6 +38,7 @@ interface Group {
   icon: string
   display_order: number
   created_at?: string
+  description?: string | null
 }
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -79,6 +80,7 @@ export default function WorkspacesPage() {
   const [newAgentIcon, setCreateAgentIcon] = useState("") // Added this line
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupDescription, setNewGroupDescription] = useState("")
+  const [createGroupDescription, setCreateGroupDescription] = useState("") // Added this state
   const [isCreatingNewGroup, setIsCreatingNewGroup] = useState(false)
   const [inactiveAgents, setInactiveAgents] = useState<Set<string>>(new Set())
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -233,7 +235,7 @@ export default function WorkspacesPage() {
             color: "#8B5CF6",
             description: "",
             trigger_word: "",
-            group_name: "", // Reset to empty
+            group_name: "",
           })
           setCreateAgentIcon("") // Reset icon
           setNewGroupDescription("") // Reset description
@@ -246,7 +248,7 @@ export default function WorkspacesPage() {
           setCreateGroupName("")
           setCreateGroupIcon("📁")
           setSelectedAgentsForGroup(new Set())
-          setNewGroupDescription("") // Reset description
+          setCreateGroupDescription("") // Reset description
         }
         if (showManageGroups) {
           setShowManageGroups(false)
@@ -794,7 +796,7 @@ export default function WorkspacesPage() {
         name: createGroupName.trim(),
         icon: createGroupIcon,
         display_order: groups.length,
-        description: newGroupDescription, // Add group description
+        description: createGroupDescription.trim() || null, // Using the dedicated state
       })
       .select()
       .single()
@@ -856,7 +858,7 @@ export default function WorkspacesPage() {
       setCreateGroupName("")
       setCreateGroupIcon("📁")
       setSelectedAgentsForGroup(new Set())
-      setNewGroupDescription("") // Reset description
+      setCreateGroupDescription("") // Reset description
     } catch (error) {
       console.error("[v0] Error creating group:", error)
       addToast({
@@ -1712,6 +1714,20 @@ export default function WorkspacesPage() {
                 </div>
               </div>
 
+              {/* CHANGE: Added description field for group */}
+              <div className="space-y-2">
+                <Label htmlFor="groupDescription" className="text-[var(--text-primary)]">
+                  Descrição do Grupo (opcional)
+                </Label>
+                <Textarea
+                  id="groupDescription"
+                  value={createGroupDescription}
+                  onChange={(e) => setCreateGroupDescription(e.target.value)}
+                  placeholder="Descreva o propósito ou função deste grupo..."
+                  className="bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] min-h-[80px]"
+                />
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-[var(--text-primary)]">Selecione os Agentes *</Label>
@@ -1766,6 +1782,7 @@ export default function WorkspacesPage() {
                     setCreateGroupName("")
                     setCreateGroupIcon("📁")
                     setSelectedAgentsForGroup(new Set())
+                    setCreateGroupDescription("")
                   }}
                   variant="outline"
                   className="flex-1"
