@@ -57,7 +57,7 @@ export default function WorkspacesPage() {
   const [showManageAgents, setShowManageAgents] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showManageGroups, setShowManageGroups] = useState(false)
-  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string } | null>(null)
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string } | null>(null)
   const [createGroupName, setCreateGroupName] = useState("")
   const [createGroupIcon, setCreateGroupIcon] = useState("📁")
   const [selectedAgentsForGroup, setSelectedAgentsForGroup] = useState<Set<string>>(new Set())
@@ -941,7 +941,7 @@ export default function WorkspacesPage() {
 
     const oldName = group.name
 
-    if (newName.trim() === oldName && newIcon === group.icon) {
+    if (newName.trim() === oldName && newIcon === group.icon && editingGroup?.description === group.description) {
       setEditingGroup(null)
       return
     }
@@ -950,7 +950,7 @@ export default function WorkspacesPage() {
 
     const { error: groupError } = await supabase
       .from("groups")
-      .update({ name: newName.trim(), icon: newIcon, description: newGroupDescription }) // Update description
+      .update({ name: newName.trim(), icon: newIcon, description: editingGroup?.description || "" })
       .eq("id", groupId)
 
     if (groupError) {
@@ -963,7 +963,7 @@ export default function WorkspacesPage() {
       return
     }
 
-    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: newName.trim(), icon: newIcon } : g)))
+    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: newName.trim(), icon: newIcon, description: editingGroup?.description || "" } : g)))
 
     setAgents((prev) =>
       prev.map((agent) =>
@@ -1870,6 +1870,13 @@ export default function WorkspacesPage() {
                             autoFocus
                             className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                           />
+                          
+                          <Textarea
+                            value={editingGroup.description || ""}
+                            onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
+                            placeholder="Descrição do grupo (opcional)"
+                            className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)] min-h-[60px]"
+                          />
 
                           {/* Ações explícitas (não fecham quando clicar no ícone) */}
                           <Button
@@ -1909,7 +1916,7 @@ export default function WorkspacesPage() {
                       {!isEditing && (
                         <>
                           <Button
-                            onClick={() => setEditingGroup({ id: group.id, name: group.name, icon: group.icon })}
+                            onClick={() => setEditingGroup({ id: group.id, name: group.name, icon: group.icon, description: group.description || "" })}
                             variant="outline"
                             size="sm"
                             className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
