@@ -41,6 +41,12 @@ interface Group {
   description?: string | null
 }
 
+interface CustomAgent {
+  id: string
+  name: string
+  agent_ids?: string[]
+}
+
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
 
 export default function WorkspacesPage() {
@@ -51,6 +57,7 @@ export default function WorkspacesPage() {
   const [filteredAgents, setFilteredAgents] = useState<WorkspaceAgent[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [groups, setGroups] = useState<Group[]>([])
+  const [customAgents, setCustomAgents] = useState<CustomAgent[]>([]) // Added this state
   const [selectedAgent, setSelectedAgent] = useState<WorkspaceAgent | null>(null)
   const [showAgentConfig, setShowAgentConfig] = useState(false)
   const [showCreateAgent, setShowCreateAgent] = useState(false)
@@ -102,8 +109,57 @@ export default function WorkspacesPage() {
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
 
 
+  const loadAgents = async () => {
+    const supabase = createClient()
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) return
+
+    const { data: agentsData, error: agentsError } = await supabase
+      .from("agents")
+      .select(`
+        *,
+        group:groups!group_id (
+          id,
+          name,
+          icon,
+          display_order
+        )
+      `)
+      .order("order", { ascending: true })
+
+    if (agentsError) {
+      console.error("Error loading agents:", agentsError)
+    } else if (agentsData) {
+      const mappedAgents = agentsData.map((agent: any) => ({
+        ...agent,
+        display_order: agent.display_order ?? agent.order ?? 0,
+        is_active: agent.is_active ?? true,
+      }))
+      setAgents(mappedAgents as WorkspaceAgent[])
+    }
+
+    const { data: favoritesData } = await supabase
+      .from("agent_favorites")
+      .select("agent_id")
+      .eq("user_id", session.user.id)
+
+    if (favoritesData) {
+      const favoriteIds = favoritesData.map((f) => f.agent_id)
+      setAgents((prev) =>
+        prev.map((agent) => ({
+          ...agent,
+          is_favorite: favoriteIds.includes(agent.id),
+        })),
+      )
+    }
+  }
+
+
   useEffect(() => {
-    const loadData = async () => {
+    const loadInitialData = async () => {
       const supabase = createClient()
 
       const {
@@ -146,52 +202,25 @@ export default function WorkspacesPage() {
         setGroups(groupsData as Group[])
       }
 
-      const { data: agentsData, error: agentsError } = await supabase
-        .from("agents")
-        .select(`
-          *,
-          group:groups!group_id (
-            id,
-            name,
-            icon,
-            display_order
-          )
-        `)
-        .order("order", { ascending: true })
+      await loadAgents() // Load agents after loading groups
 
-      if (agentsError) {
-        console.error("Error loading agents:", agentsError)
-      } else if (agentsData) {
-        const mappedAgents = agentsData.map((agent: any) => ({
-          ...agent,
-          display_order: agent.display_order ?? agent.order ?? 0,
-          is_active: agent.is_active ?? true,
-        }))
-        setAgents(mappedAgents as WorkspaceAgent[])
+      const { data: customAgentsData, error: customAgentsError } = await supabase
+        .from("custom_agents")
+        .select("id, name, agent_ids")
+
+      if (customAgentsError) {
+        console.error("Error loading custom agents:", customAgentsError)
+      } else if (customAgentsData) {
+        setCustomAgents(customAgentsData)
       }
 
       const preferences = getAgentPreferences(session.user.id)
       setAgentVisibility(preferences)
 
-      const { data: favoritesData } = await supabase
-        .from("agent_favorites")
-        .select("agent_id")
-        .eq("user_id", session.user.id)
-
-      if (favoritesData) {
-        const favoriteIds = favoritesData.map((f) => f.agent_id)
-        setAgents((prev) =>
-          prev.map((agent) => ({
-            ...agent,
-            is_favorite: favoriteIds.includes(agent.id),
-          })),
-        )
-      }
-
       setLoading(false)
     }
 
-    loadData()
+    loadInitialData()
   }, [router, addToast])
 
   useEffect(() => {
@@ -199,7 +228,7 @@ export default function WorkspacesPage() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter((a) => 
+      filtered = filtered.filter((a) =>
         a.name.toLowerCase().includes(query) ||
         a.trigger_word?.toLowerCase().includes(query) ||
         a.description?.toLowerCase().includes(query)
@@ -438,9 +467,20 @@ export default function WorkspacesPage() {
     setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, is_favorite: !a.is_favorite } : a)))
   }
 
-  const handleToggleAgentVisibility = (agentId: string) => {
+  const handleToggleAgentVisibility = async (agentId: string) => {
+    const currentAgent = agents.find((a) => a.id === agentId)
+    if (!currentAgent) return
+
     const currentVisibility = agentVisibility[agentId] ?? true
     const newVisibility = !currentVisibility
+
+    console.log("[v0] 🔄 Toggling agent visibility:", {
+      agentId,
+      agentName: currentAgent.name,
+      currentVisibility,
+      newVisibility,
+      currentIsActive: currentAgent.is_active
+    })
 
     setAgentVisibility((prev) => ({
       ...prev,
@@ -448,15 +488,40 @@ export default function WorkspacesPage() {
     }))
 
     try {
+      const supabase = createClient()
+      
+      console.log("[v0] 💾 Updating database - is_active:", newVisibility)
+      
+      const { error, data } = await supabase
+        .from("agents")
+        .update({ is_active: newVisibility })
+        .eq("id", agentId)
+        .select("id, name, is_active")
+
+      if (error) {
+        console.error("[v0] ❌ Error updating agent is_active:", error)
+        throw error
+      }
+
+      console.log("[v0] ✅ Database update successful:", data)
+
+      // Update in localStorage after successful database update
       toggleAgentVisibility(userId, agentId, newVisibility)
+
+      // Update local state
+      setAgents((prev) =>
+        prev.map((a) => (a.id === agentId ? { ...a, is_active: newVisibility } : a))
+      )
 
       addToast({
         title: newVisibility ? "Agente ativado" : "Agente desativado",
         description: newVisibility ? "O agente agora aparecerá na sidebar" : "O agente foi ocultado da sidebar",
         variant: "success",
       })
+      
+      await loadAgents()
     } catch (error) {
-      console.error("[v0] Error saving to localStorage:", error)
+      console.error("[v0] Error saving agent status:", error)
       setAgentVisibility((prev) => ({
         ...prev,
         [agentId]: currentVisibility,
@@ -500,6 +565,8 @@ export default function WorkspacesPage() {
         color: selectedAgent.color,
         description: selectedAgent.description,
         group_id: selectedAgent.group_id,
+        trigger_word: selectedAgent.trigger_word,
+        is_active: selectedAgent.is_active ?? true,
       })
       .eq("id", selectedAgent.id)
       .select(`
@@ -665,6 +732,7 @@ export default function WorkspacesPage() {
     setCreateAgentIcon("")
   }
 
+  // Removed handleDeactivateAgent and integrated its logic into handleDeleteAgent
   const handleDeleteAgent = async (agentId: string) => {
     if (!isAuthorized) {
       addToast({
@@ -698,7 +766,7 @@ export default function WorkspacesPage() {
           linkedCustomAgents.forEach((ca) => newInactive.add(ca.id))
           newInactive.add(agentId)
           setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
 
           addToast({
             title: "Agente desativado",
@@ -717,7 +785,7 @@ export default function WorkspacesPage() {
           const newInactive = new Set(inactiveAgents)
           newInactive.add(agentId)
           setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
+          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
 
           addToast({
             title: "Agente desativado",
@@ -741,7 +809,7 @@ export default function WorkspacesPage() {
         const newInactive = new Set(inactiveAgents)
         newInactive.delete(agentId)
         setInactiveAgents(newInactive)
-        localStorage.setItem(`inactive_agents_${userId}`, JSON.JSON.stringify(Array.from(newInactive)))
+        localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
 
         addToast({
           title: "Agente restaurado",

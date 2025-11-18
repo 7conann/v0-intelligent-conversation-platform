@@ -6,7 +6,19 @@ export async function getAgents() {
   const { data, error } = await supabase
     .from("agents")
     .select(`
-      *,
+      id,
+      name,
+      description,
+      icon,
+      color,
+      trigger_word,
+      is_system,
+      is_active,
+      order,
+      display_order,
+      group_name,
+      group_id,
+      created_at,
       group:groups(id, name, icon, display_order)
     `)
     .order("order", { ascending: true, nullsFirst: false })
@@ -17,6 +29,11 @@ export async function getAgents() {
   }
 
   console.log(`[v0] 📦 Loaded ${data?.length || 0} agents from agents table`)
+  if (data && data.length > 0) {
+    console.log("[v0] 🔍 First agent is_active value:", data[0].is_active)
+    console.log("[v0] 🔍 First agent keys:", Object.keys(data[0]))
+  }
+  
   return data
 }
 

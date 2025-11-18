@@ -44,6 +44,7 @@ export default function UserDetailsPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [selectedMessageLog, setSelectedMessageLog] = useState<MessageLog | null>(null)
   const [loadingLog, setLoadingLog] = useState(false)
+  const [conversationsWithMessages, setConversationsWithMessages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -115,6 +116,10 @@ export default function UserDetailsPage() {
 
       setMessages(data.messages)
       setSelectedConversation(conversationId)
+      
+      if (data.messages.length > 0) {
+        setConversationsWithMessages(prev => new Set(prev).add(conversationId))
+      }
     } catch (error) {
       console.error("[v0] Error loading messages:", error)
     } finally {
@@ -235,7 +240,6 @@ export default function UserDetailsPage() {
               </div>
             </div>
           </div>
-          
         </div>
 
         <div className="bg-[var(--sidebar-bg)] rounded-lg border border-[var(--sidebar-border)] p-4 mb-4">
@@ -254,16 +258,14 @@ export default function UserDetailsPage() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-medium text-[var(--text-primary)] truncate flex-1">{conv.title}</h3>
                   
-                  {/* Bolinhas indicadoras usando flex */}
                   <div className="flex items-center gap-1.5 ml-2" style={{ zIndex: 99999 }}>
-                    {selectedConversation === conv.id && messages.length > 0 && (
+                    {conversationsWithMessages.has(conv.id) && (
                       <div 
                         className="w-3 h-3 bg-yellow-500 rounded-full shadow-lg flex-shrink-0"
-                        title="Com mensagens carregadas"
+                        title="Mensagens carregadas"
                       />
                     )}
 
-                    {/* Green indicator - Selected conversation (right) */}
                     {selectedConversation === conv.id && (
                       <div 
                         className="w-3 h-3 bg-green-500 rounded-full shadow-lg flex-shrink-0"

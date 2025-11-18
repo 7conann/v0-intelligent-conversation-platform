@@ -301,6 +301,7 @@ export default function ChatPage() {
                 trigger_word: agent.trigger_word,
                 group_id: agent.group_id,
                 group: agent.group,
+                is_active: agent.is_active,
               })),
             )
           }
@@ -322,6 +323,7 @@ export default function ChatPage() {
                     group_id: agent.group_id,
                     group: agent.group,
                     isCustomAgent: true,
+                    is_active: agent.is_active,
                   }) as any,
               ),
             )
@@ -513,6 +515,7 @@ export default function ChatPage() {
               trigger_word: agent.trigger_word,
               group_id: agent.group_id,
               group: agent.group,
+              is_active: agent.is_active,
             })),
           )
         }
@@ -534,6 +537,7 @@ export default function ChatPage() {
                   group_id: agent.group_id,
                   group: agent.group,
                   isCustomAgent: true,
+                  is_active: agent.is_active,
                 }) as any,
             ),
           )
