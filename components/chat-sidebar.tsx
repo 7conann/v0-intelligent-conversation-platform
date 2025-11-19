@@ -381,13 +381,9 @@ export function ChatSidebar({
   }
 
   const filteredAgents = localAgents.filter((agent) => {
-    // If is_active is undefined or true, keep the agent
     if (agent.is_active === false) {
-      console.log("[v0] 🚫 SIDEBAR: Filtering out inactive agent:", agent.name, "is_active:", agent.is_active)
       return false
     }
-    
-    console.log("[v0] ✅ SIDEBAR: Including agent:", agent.name, "is_active:", agent.is_active)
     
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()

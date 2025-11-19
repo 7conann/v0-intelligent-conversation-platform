@@ -7,7 +7,7 @@ import type { Agent, Message, Chat } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical, Paperclip, ImageIcon, FileText, Music, Star, Menu, Pencil, Check } from 'lucide-react'
+import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical, Paperclip, ImageIcon, FileText, Music, Star, Menu, Pencil, Check, ChevronDown } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
 import * as XLSX from 'xlsx'
@@ -74,6 +74,7 @@ export function ChatArea({
   const [userDisplayName, setUserDisplayName] = useState<string>("")
   const [hiddenContextMessages, setHiddenContextMessages] = useState<string>("")
   const [contextSourceChats, setContextSourceChats] = useState<string[]>([])
+  const [contextConfirmation, setContextConfirmation] = useState<{ isOpen: boolean; action: 'add' | 'new' } | null>(null)
   // </CHANGE>
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -417,8 +418,8 @@ export function ChatArea({
   const totalSelectedMessages = selectedMessagesGlobal?.reduce((sum, sel) => sum + sel.messageIds.length, 0) || 0
   const totalSelectedChats = selectedMessagesGlobal?.length || 0
 
-  const addSelectedMessagesToCurrentChat = () => {
-    console.log("[v0] 🎯 addSelectedMessagesToCurrentChat called")
+  const performAddSelectedMessagesToCurrentChat = () => {
+    console.log("[v0] 🎯 performAddSelectedMessagesToCurrentChat called")
 
     if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) {
       console.log("[v0] ❌ No selectedMessagesGlobal")
@@ -451,7 +452,6 @@ export function ChatArea({
     
     setHiddenContextMessages(combinedText)
     setContextSourceChats(chatOrigins)
-    // </CHANGE>
 
     // Clear all selections
     onSelectedMessagesGlobalChange?.([])
@@ -466,7 +466,11 @@ export function ChatArea({
     console.log("[v0] 🗑️ Cleared all selections and added as hidden context")
   }
 
-  const createNewChatWithSelected = () => {
+  const addSelectedMessagesToCurrentChat = () => {
+    setContextConfirmation({ isOpen: true, action: 'add' })
+  }
+
+  const performCreateNewChatWithSelected = () => {
     const stripHtml = (html: string) => {
       const tmp = document.createElement("div")
       tmp.innerHTML = html
@@ -504,7 +508,6 @@ export function ChatArea({
     // Store context messages as hidden (not in input)
     setHiddenContextMessages(combinedText)
     setContextSourceChats(chatOrigins)
-    // </CHANGE>
 
     addToast({
       title: "Nova conversa criada",
@@ -514,6 +517,11 @@ export function ChatArea({
 
     console.log("[v0] 🗑️ Cleared selections and created new chat with hidden context")
   }
+
+  const createNewChatWithSelected = () => {
+    setContextConfirmation({ isOpen: true, action: 'new' })
+  }
+  // </CHANGE>
 
   const copyAsMarkdown = async () => {
     if (!selectedMessagesGlobal || selectedMessagesGlobal.length === 0) return
@@ -1216,6 +1224,95 @@ export function ChatArea({
           </div>
         </div>
       )}
+
+      {contextConfirmation && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+          onClick={() => setContextConfirmation(null)}
+        >
+          <div
+            className="bg-[var(--card-bg)] border border-[var(--chat-border)] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-[var(--settings-text)] mb-2">Confirmar seleção</h3>
+              <p className="text-[var(--settings-text-muted)] text-sm">
+                Você selecionou {totalSelectedMessages} mensagens de {totalSelectedChats} conversas.
+                <br />
+                Deseja usar essas mensagens como contexto para {contextConfirmation.action === 'new' ? 'uma nova conversa' : 'esta conversa'}?
+              </p>
+            </div>
+
+            <details className="mb-4 bg-[var(--agent-bg)] rounded-lg overflow-hidden">
+              <summary className="px-4 py-3 cursor-pointer hover:bg-[var(--agent-hover)] transition-colors flex items-center justify-between text-[var(--settings-text)] text-sm font-medium">
+                <div className="flex items-center gap-2">
+                  <MessageSquarePlus className="w-4 h-4" />
+                  <span>Ver mensagens selecionadas</span>
+                </div>
+                <ChevronDown className="w-4 h-4 transition-transform [details[open]_&]:rotate-180" />
+              </summary>
+              <div className="px-4 pb-3 max-h-[300px] overflow-y-auto space-y-3">
+                {selectedMessagesGlobal?.map((selection) => {
+                  const sourceChat = chats.find((c) => c.id === selection.chatId)
+                  const sourceMessages = messages[selection.chatId] || []
+                  const selectedInChat = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
+
+                  const stripHtml = (html: string) => {
+                    const tmp = document.createElement("div")
+                    tmp.innerHTML = html
+                    return tmp.textContent || tmp.innerText || ""
+                  }
+
+                  return (
+                    <div key={selection.chatId} className="border-l-2 border-purple-500/40 pl-3">
+                      <div className="text-xs font-semibold text-purple-400 mb-2">
+                        {sourceChat?.name || 'Conversa'}
+                      </div>
+                      <div className="space-y-2">
+                        {selectedInChat.map((msg) => (
+                          <div key={msg.id} className="bg-black/20 rounded p-2">
+                            <div className="text-[10px] text-[var(--settings-text-muted)] mb-1 flex items-center justify-between">
+                              <span>{msg.sender === "user" ? "Você" : "Assistente"}</span>
+                              <span>{msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                            </div>
+                            <div className="text-xs text-[var(--settings-text)] line-clamp-3">
+                              {stripHtml(msg.content)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
+            {/* </CHANGE> */}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setContextConfirmation(null)}
+                className="flex-1 px-4 py-2 rounded-lg bg-[var(--agent-bg)] hover:bg-[var(--agent-hover)] text-[var(--settings-text)] transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (contextConfirmation.action === 'new') {
+                    performCreateNewChatWithSelected()
+                  } else {
+                    performAddSelectedMessagesToCurrentChat()
+                  }
+                  setContextConfirmation(null)
+                }}
+                className="flex-1 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white transition-all cursor-pointer"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* </CHANGE> */}
 
       {/* Updated banner to show selections from other chats */}
       {selectionsFromOtherChats.length > 0 && (

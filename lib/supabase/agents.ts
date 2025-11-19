@@ -29,10 +29,6 @@ export async function getAgents() {
   }
 
   console.log(`[v0] 📦 Loaded ${data?.length || 0} agents from agents table`)
-  if (data && data.length > 0) {
-    console.log("[v0] 🔍 First agent is_active value:", data[0].is_active)
-    console.log("[v0] 🔍 First agent keys:", Object.keys(data[0]))
-  }
   
   return data
 }

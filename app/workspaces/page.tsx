@@ -469,28 +469,23 @@ export default function WorkspacesPage() {
 
   const handleToggleAgentVisibility = async (agentId: string) => {
     const currentAgent = agents.find((a) => a.id === agentId)
-    if (!currentAgent) return
+    if (!currentAgent) {
+      console.log("[v0] ❌ Agent not found:", agentId)
+      return
+    }
 
-    const currentVisibility = agentVisibility[agentId] ?? true
+    const currentVisibility = currentAgent.is_active ?? true
     const newVisibility = !currentVisibility
 
-    console.log("[v0] 🔄 Toggling agent visibility:", {
-      agentId,
-      agentName: currentAgent.name,
-      currentVisibility,
-      newVisibility,
-      currentIsActive: currentAgent.is_active
-    })
-
-    setAgentVisibility((prev) => ({
-      ...prev,
-      [agentId]: newVisibility,
-    }))
+    console.log("[v0] 🔄 Toggle Agent:")
+    console.log("[v0]   - Agent ID:", agentId)
+    console.log("[v0]   - Agent Name:", currentAgent.name)
+    console.log("[v0]   - Current is_active value:", currentAgent.is_active)
+    console.log("[v0]   - Current visibility (with default):", currentVisibility)
+    console.log("[v0]   - New visibility to set:", newVisibility)
 
     try {
       const supabase = createClient()
-      
-      console.log("[v0] 💾 Updating database - is_active:", newVisibility)
       
       const { error, data } = await supabase
         .from("agents")
@@ -498,20 +493,28 @@ export default function WorkspacesPage() {
         .eq("id", agentId)
         .select("id, name, is_active")
 
+      console.log("[v0] 📝 Update result:", { error, data })
+
       if (error) {
         console.error("[v0] ❌ Error updating agent is_active:", error)
-        throw error
+        addToast({
+          title: "Erro",
+          description: "Não foi possível alterar a visibilidade do agente",
+          variant: "error",
+        })
+        return
       }
 
-      console.log("[v0] ✅ Database update successful:", data)
+      console.log("[v0] ✅ Successfully updated agent is_active to:", newVisibility)
 
-      // Update in localStorage after successful database update
-      toggleAgentVisibility(userId, agentId, newVisibility)
-
-      // Update local state
       setAgents((prev) =>
         prev.map((a) => (a.id === agentId ? { ...a, is_active: newVisibility } : a))
       )
+
+      setAgentVisibility((prev) => ({
+        ...prev,
+        [agentId]: newVisibility,
+      }))
 
       addToast({
         title: newVisibility ? "Agente ativado" : "Agente desativado",
@@ -521,11 +524,7 @@ export default function WorkspacesPage() {
       
       await loadAgents()
     } catch (error) {
-      console.error("[v0] Error saving agent status:", error)
-      setAgentVisibility((prev) => ({
-        ...prev,
-        [agentId]: currentVisibility,
-      }))
+      console.error("[v0] ❌ Error saving agent status:", error)
       addToast({
         title: "Erro",
         description: "Não foi possível alterar a visibilidade do agente",

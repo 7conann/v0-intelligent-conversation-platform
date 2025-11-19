@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { ArrowLeft, MessageSquare, Bot, Calendar, User, FileText } from 'lucide-react'
+import { ArrowLeft, MessageSquare, Bot, Calendar, User, FileText, Paperclip } from 'lucide-react'
 
 interface UserDetails {
   id: string
@@ -88,8 +88,16 @@ export default function UserDetailsPage() {
     checkAdminAndLoadData()
   }, [router, userId])
 
+  useEffect(() => {
+    if (selectedConversation && messages.length > 0) {
+      setConversationsWithMessages(prev => new Set(prev).add(selectedConversation))
+    }
+  }, [selectedConversation, messages.length])
+
   const loadConversationMessages = async (conversationId: string) => {
     setLoadingMessages(true)
+    setSelectedConversation(conversationId)
+    
     try {
       const supabase = createClient()
 
@@ -115,7 +123,6 @@ export default function UserDetailsPage() {
       console.log("[v0] Messages received:", data.messages.length)
 
       setMessages(data.messages)
-      setSelectedConversation(conversationId)
       
       if (data.messages.length > 0) {
         setConversationsWithMessages(prev => new Set(prev).add(conversationId))
@@ -258,17 +265,19 @@ export default function UserDetailsPage() {
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="font-medium text-[var(--text-primary)] truncate flex-1">{conv.title}</h3>
                   
-                  <div className="flex items-center gap-1.5 ml-2" style={{ zIndex: 99999 }}>
-                    {conversationsWithMessages.has(conv.id) && (
-                      <div 
-                        className="w-3 h-3 bg-yellow-500 rounded-full shadow-lg flex-shrink-0"
+                  <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                    {(conversationsWithMessages.has(conv.id) || (selectedConversation === conv.id && messages.length > 0)) && (
+                      <Paperclip 
+                        className="w-4 h-4 text-yellow-500"
+                        style={{ zIndex: 99999 }}
                         title="Mensagens carregadas"
                       />
                     )}
 
                     {selectedConversation === conv.id && (
                       <div 
-                        className="w-3 h-3 bg-green-500 rounded-full shadow-lg flex-shrink-0"
+                        className="w-3 h-3 bg-green-500 rounded-full shadow-lg"
+                        style={{ zIndex: 99999 }}
                         title="Conversa selecionada"
                       />
                     )}
