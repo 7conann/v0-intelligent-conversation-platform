@@ -19,7 +19,7 @@ export async function getAgents() {
       group_name,
       group_id,
       created_at,
-      group:groups(id, name, icon, display_order)
+      group:groups!group_id(id, name, icon, display_order, description)
     `)
     .order("order", { ascending: true, nullsFirst: false })
 
@@ -76,7 +76,7 @@ export async function getCustomAgents(userId: string, workspaceId: string) {
       .from("agents")
       .select(`
         *,
-        group:groups(id, name, icon, display_order)
+        group:groups!group_id(id, name, icon, display_order, description)
       `)
       .eq("workspace_id", workspaceId)
       .eq("is_system", false)
@@ -153,7 +153,7 @@ export async function getAllAgentsForWorkspace(workspaceId: string) {
       .from("agents")
       .select(`
         *,
-        group:groups(id, name, icon, display_order)
+        group:groups!group_id(id, name, icon, display_order, description)
       `)
       .or(`is_system.eq.true,workspace_id.eq.${workspaceId}`)
       .order("order")
@@ -169,7 +169,7 @@ export async function getAllAgentsForWorkspace(workspaceId: string) {
         .from("agents")
         .select(`
           *,
-          group:groups(id, name, icon, display_order)
+          group:groups!group_id(id, name, icon, display_order, description)
         `)
         .order("order", { ascending: true, nullsFirst: false })
 

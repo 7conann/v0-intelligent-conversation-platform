@@ -89,87 +89,19 @@ export function ChatSidebar({
   const [groupHoverTimeout, setGroupHoverTimeout] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    const deduplicatedAgents = agents.reduce((acc, agent) => {
-      const isCustomAgent = (agent as any).isCustomAgent || false
-
-      // Check if we already have an agent with this exact name
-      const exactMatch = acc.find((a) => a.name === agent.name)
-      if (exactMatch) {
-        const existingIsCustom = (exactMatch as any).isCustomAgent || false
-
-        // If the new agent is custom and existing is not, replace it
-        if (isCustomAgent && !existingIsCustom) {
-          console.log("[v0] 🔄 Substituindo agente normal por custom agent:", agent.name)
-          const index = acc.indexOf(exactMatch)
-          acc[index] = agent
-          return acc
-        }
-
-        // If existing is custom and new is not, keep existing
-        if (existingIsCustom && !isCustomAgent) {
-          console.log("[v0] 🔄 Mantendo custom agent, ignorando agente normal:", agent.name)
-          return acc
-        }
-
-        // Both are same type, remove duplicate
-        console.log("[v0] 🔄 Removendo agente duplicado (nome exato):", agent.name, agent.id)
-        return acc
-      }
-
-      // Check if we have an agent whose name contains this agent's name or vice versa
-      const partialMatch = acc.find((a) => {
-        const aNameLower = a.name.toLowerCase()
-        const agentNameLower = agent.name.toLowerCase()
-        return aNameLower.includes(agentNameLower) || agentNameLower.includes(aNameLower)
-      })
-
-      if (partialMatch) {
-        const existingIsCustom = (partialMatch as any).isCustomAgent || false
-
-        // If the new agent is custom and existing is not, replace it
-        if (isCustomAgent && !existingIsCustom) {
-          console.log("[v0] 🔄 Substituindo agente normal por custom agent (parcial):", agent.name)
-          const index = acc.indexOf(partialMatch)
-          acc[index] = agent
-          return acc
-        }
-
-        // If existing is custom and new is not, keep existing
-        if (existingIsCustom && !isCustomAgent) {
-          console.log("[v0] 🔄 Mantendo custom agent, ignorando agente normal (parcial):", agent.name)
-          return acc
-        }
-
-        // Both are same type, keep the longer name (more specific)
-        if (agent.name.length > partialMatch.name.length) {
-          console.log("[v0] 🔄 Substituindo agente com nome mais curto:", partialMatch.name, "por:", agent.name)
-          const index = acc.indexOf(partialMatch)
-          acc[index] = agent
-        } else {
-          console.log("[v0] 🔄 Removendo agente duplicado (nome parcial):", agent.name, agent.id)
-        }
-        return acc
-      }
-
-      // No duplicate found, add the agent
-      acc.push(agent)
-      return acc
-    }, [] as Agent[])
-
-    setLocalAgents(deduplicatedAgents)
+    setLocalAgents(agents)
     console.log(
       "[v0] 🎨 SIDEBAR: Agentes recebidos:",
-      deduplicatedAgents.map((a) => ({
+      agents.map((a) => ({
         name: a.name,
         id: a.id,
-        description: a.description,
         group_name: a.group_name,
+        group_id: (a as any).group_id,
+        group: (a as any).group,
         isCustom: (a as any).isCustomAgent,
-        trigger: a.trigger_word,
       })),
     )
-    console.log("[v0] 🎨 SIDEBAR: Total de agentes na sidebar:", deduplicatedAgents.length)
-    console.log("[v0] 🎨 SIDEBAR: Agentes removidos por duplicação:", agents.length - deduplicatedAgents.length)
+    console.log("[v0] 🎨 SIDEBAR: Total de agentes na sidebar:", agents.length)
   }, [agents])
 
   useEffect(() => {
@@ -386,6 +318,16 @@ export function ChatSidebar({
       return false
     }
     
+    if (viewMode === "grouped") {
+      const hasGroup = agent.group?.name || agent.group_name
+      const groupName = hasGroup || ""
+      
+      // Filter out agents with "Sem Grupo" or no group at all
+      if (!hasGroup || groupName === "Sem Grupo") {
+        return false
+      }
+    }
+    
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
@@ -397,7 +339,7 @@ export function ChatSidebar({
 
   const groupedAgents = filteredAgents.reduce(
     (acc, agent) => {
-      const groupName = agent.group?.name || "Sem Grupo"
+      const groupName = agent.group?.name || agent.group_name || "Sem Grupo"
       if (!acc[groupName]) {
         acc[groupName] = []
       }
@@ -428,11 +370,11 @@ export function ChatSidebar({
 
   // Also include any groups that have agents but aren't in the groups table
   Object.entries(groupedAgents).forEach(([groupName, groupAgents]) => {
-    if (!groupIcons[groupName] && groupName !== "Sem Grupo" && groupAgents.length > 0) {
-      console.log("[v0] ⚠️ SIDEBAR: Group has agents but not in groups table:", groupName)
+    if (!groupIcons[groupName] && groupAgents.length > 0) {
+      if (groupName !== "Sem Grupo") {
+        console.log("[v0] ⚠️ SIDEBAR: Group has agents but not in groups table:", groupName)
+      }
       activeGroupedAgents[groupName] = groupAgents
-    } else if (groupName === "Sem Grupo") {
-      console.log("[v0] 🚫 SIDEBAR: Filtering out agents without group:", groupName)
     }
   })
 
@@ -794,8 +736,6 @@ export function ChatSidebar({
                   : "max-h-[calc(100vh-140px)]"),
           )}
         >
-          {console.log("[v0] 🎨 SIDEBAR: Renderizando", filteredAgents.length, "agentes")}
-
           {viewMode === "icon"
             ? filteredAgents.map((agent) => renderIconButton(agent))
             : viewMode === "sequential"
