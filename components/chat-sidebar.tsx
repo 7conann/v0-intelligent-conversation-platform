@@ -72,7 +72,7 @@ export function ChatSidebar({
   const [viewMode, setViewMode] = useState<"sequential" | "grouped" | "icon">("sequential")
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Geral"]))
   const [groupIcons, setGroupIcons] = useState<Record<string, string>>({})
-  const [groupsWithOrder, setGroupsWithOrder] = useState<Array<{ name: string; icon: string; display_order: number }>>(
+  const [groupsWithOrder, setGroupsWithOrder] = useState<Array<{ name: string; icon: string; display_order: number; description?: string }>>(
     [],
   )
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null)
@@ -84,7 +84,7 @@ export function ChatSidebar({
 
   const [searchQuery, setSearchQuery] = useState("")
 
-  const [hoveredGroup, setHoveredGroup] = useState<{ name: string; count: number } | null>(null)
+  const [hoveredGroup, setHoveredGroup] = useState<{ name: string; count: number; description?: string } | null>(null)
   const [groupCoords, setGroupCoords] = useState<{ top: number; left: number } | null>(null)
   const [groupHoverTimeout, setGroupHoverTimeout] = useState<NodeJS.Timeout | null>(null)
 
@@ -196,7 +196,7 @@ export function ChatSidebar({
         }
       }
 
-      const { data: groupsData, error: groupsError } = await supabase.from("groups").select("name, icon, display_order")
+      const { data: groupsData, error: groupsError } = await supabase.from("groups").select("name, icon, display_order, description")
 
       if (!groupsError && groupsData) {
         const icons: Record<string, string> = {}
@@ -272,13 +272,14 @@ export function ChatSidebar({
       console.log("[v0] ⏱️ Group hover timeout reached:", groupName)
 
       const groupData = groupsWithOrder.find(g => g.name === groupName)
+      const groupDescription = (groupData as any)?.description || ""
       
-      setHoveredGroup({ name: groupName, count: agentCount })
+      setHoveredGroup({ name: groupName, count: agentCount, description: groupDescription })
       setGroupCoords({
-        top: rect.top - 8, // Position above the group
-        left: rect.left + rect.width / 2, // Center horizontally
+        top: rect.top - 8,
+        left: rect.left + rect.width / 2,
       })
-    }, 300) // Reduced from 800ms to 300ms for faster response
+    }, 300)
 
     setGroupHoverTimeout(timeout)
   }
@@ -957,7 +958,7 @@ export function ChatSidebar({
             >
               <div className="font-semibold mb-1">{hoveredGroup.name}</div>
               <div className="text-xs text-gray-300">
-                {hoveredGroup.count} {hoveredGroup.count === 1 ? "agente" : "agentes"}
+                {hoveredGroup.description || `${hoveredGroup.count} ${hoveredGroup.count === 1 ? "agente" : "agentes"}`}
               </div>
             </div>,
             document.getElementById("tooltip-root")!,
