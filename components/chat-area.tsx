@@ -7,12 +7,27 @@ import type { Agent, Message, Chat } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import { Send, Plus, X, Sparkles, MessageSquarePlus, Download, Upload, MoreVertical, Paperclip, ImageIcon, FileText, Music, Star, Menu, Pencil, Check, ChevronDown } from 'lucide-react'
+import {
+  Send,
+  Plus,
+  X,
+  Sparkles,
+  MessageSquarePlus,
+  Download,
+  Upload,
+  MoreVertical,
+  Paperclip,
+  ImageIcon,
+  FileText,
+  Music,
+  Star,
+  Menu,
+  Pencil,
+  Check,
+  ChevronDown,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
-import * as XLSX from 'xlsx'
-import { Document, Paragraph, TextRun, Packer } from 'docx'
-import pptxgen from 'pptxgenjs'
 
 interface ChatAreaProps {
   agents: Agent[]
@@ -74,7 +89,9 @@ export function ChatArea({
   const [userDisplayName, setUserDisplayName] = useState<string>("")
   const [hiddenContextMessages, setHiddenContextMessages] = useState<string>("")
   const [contextSourceChats, setContextSourceChats] = useState<string[]>([])
-  const [contextConfirmation, setContextConfirmation] = useState<{ isOpen: boolean; action: 'add' | 'new' } | null>(null)
+  const [contextConfirmation, setContextConfirmation] = useState<{ isOpen: boolean; action: "add" | "new" } | null>(
+    null,
+  )
   // </CHANGE>
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -229,7 +246,7 @@ export function ChatArea({
 
       if (attachmentsToSend.length > 0) {
         const attachment = attachmentsToSend[0]
-        
+
         if (attachment.type === "IMAGE") {
           payload = {
             content: {
@@ -335,26 +352,53 @@ export function ChatArea({
       const data = await response.json()
       console.log("[v0] 📥 RESPOSTA COMPLETA DA API BLUBASH:", JSON.stringify(data, null, 2))
 
-      // 🔧 DEBUG para confirmar se o handler de formatação está chegando como prop
-      // Obs: certifique-se de que ChatAreaProps tenha onExternalApiResponse e que ChatPage o passe.
-      // @ts-ignore - caso o tipo ainda não tenha sido atualizado
       const hasFormatter = typeof onExternalApiResponse === "function"
-      // @ts-ignore
       console.log("[v0] 🔧 onExternalApiResponse disponível?", hasFormatter)
 
-      // Se houver handler, delega a formatação (máscara -> HTML) pra ele
-      // @ts-ignore
+      // Check if BluBash returned AI messages or just acknowledgment
+      const hasAiMessages = data.aiMessages && Array.isArray(data.aiMessages) && data.aiMessages.length > 0
+
+      if (!hasAiMessages) {
+        console.warn("[v0] ⚠️ BluBash retornou success mas SEM aiMessages - resposta assíncrona pendente")
+        console.log("[v0] 📋 Response data:", {
+          success: data.success,
+          messageId: data.messageId,
+          conversationId: data.conversationId,
+          hasAiMessages: false,
+        })
+
+        // Show "processing" message to user
+        const processingMessage: Message = {
+          id: `processing-${Date.now()}`,
+          content: "⏳ Mensagem enviada com sucesso! Aguardando resposta do assistente...",
+          sender: "assistant",
+          timestamp: new Date(),
+        }
+        onAddMessage(currentChatId, processingMessage)
+
+        // TODO: Implement webhook listener or polling mechanism to get async AI responses
+        // The BluBash API seems to work asynchronously:
+        // 1. POST /messages returns immediate acknowledgment (messageId, conversationId)
+        // 2. AI responses come later via webhook or need to be polled
+        //
+        // Solutions:
+        // A) Webhook: Configure BluBash to send responses to /api/webhook/blubash
+        // B) Polling: Periodically check /api/get-blubash-response/:messageId
+        // C) WebSocket: Real-time connection to receive responses
+
+        return
+      }
+
+      // If we have AI messages, process them normally
       if (hasFormatter) {
-        // @ts-ignore
         console.log("[v0] 🔧 Encaminhando payload para onExternalApiResponse (com máscara/decorate=true)")
-        // @ts-ignore
         await onExternalApiResponse(data, { decorate: true })
         return
       }
 
       // Fallback (sem o handler): mantém o fluxo antigo (texto puro sem máscara)
       console.warn("[v0] ⚠️ Sem onExternalApiResponse — usando fallback SEM formatação.")
-      if (data.success && data.aiMessages && data.aiMessages.length > 0) {
+      if (data.success && hasAiMessages) {
         const texts = data.aiMessages.map((m: any) => m?.content?.text?.body).filter(Boolean)
 
         console.log("[v0] 🧾 Fallback: corpos de texto detectados:", texts.length)
@@ -449,7 +493,7 @@ export function ChatArea({
     })
 
     const combinedText = allSelectedTexts.join("\n\n")
-    
+
     setHiddenContextMessages(combinedText)
     setContextSourceChats(chatOrigins)
 
@@ -467,7 +511,7 @@ export function ChatArea({
   }
 
   const addSelectedMessagesToCurrentChat = () => {
-    setContextConfirmation({ isOpen: true, action: 'add' })
+    setContextConfirmation({ isOpen: true, action: "add" })
   }
 
   const performCreateNewChatWithSelected = () => {
@@ -497,14 +541,14 @@ export function ChatArea({
     }
 
     const combinedText = allSelectedTexts.join("\n\n")
-    
+
     // Clear selections first
     onSelectedMessagesGlobalChange?.([])
     setSelectedMessages([])
 
     // Create new chat
     onCreateNewChat()
-    
+
     // Store context messages as hidden (not in input)
     setHiddenContextMessages(combinedText)
     setContextSourceChats(chatOrigins)
@@ -519,7 +563,7 @@ export function ChatArea({
   }
 
   const createNewChatWithSelected = () => {
-    setContextConfirmation({ isOpen: true, action: 'new' })
+    setContextConfirmation({ isOpen: true, action: "new" })
   }
   // </CHANGE>
 
@@ -583,12 +627,12 @@ export function ChatArea({
       })
     })
 
-    const textContent = allMessages.join('\n\n')
-    const blob = new Blob([textContent], { type: 'application/msword;charset=utf-8;' })
+    const textContent = allMessages.join("\n\n")
+    const blob = new Blob([textContent], { type: "application/msword;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.doc`
+    a.download = `mensagens-${new Date().toISOString().split("T")[0]}.doc`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -622,12 +666,12 @@ export function ChatArea({
       })
     })
 
-    const textContent = allMessages.join('\n\n')
-    const blob = new Blob([textContent], { type: 'application/vnd.ms-powerpoint;charset=utf-8;' })
+    const textContent = allMessages.join("\n\n")
+    const blob = new Blob([textContent], { type: "application/vnd.ms-powerpoint;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.ppt`
+    a.download = `mensagens-${new Date().toISOString().split("T")[0]}.ppt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -656,17 +700,17 @@ export function ChatArea({
       const selected = sourceMessages.filter((m) => selection.messageIds.includes(m.id))
 
       selected.forEach((m) => {
-        const content = stripHtml(m.content).replace(/\t/g, ' ').replace(/\n/g, ' ')
+        const content = stripHtml(m.content).replace(/\t/g, " ").replace(/\n/g, " ")
         rows.push(content)
       })
     })
 
-    const tsvContent = rows.join('\n')
-    const blob = new Blob([tsvContent], { type: 'text/tab-separated-values;charset=utf-8;' })
+    const tsvContent = rows.join("\n")
+    const blob = new Blob([tsvContent], { type: "text/tab-separated-values;charset=utf-8;" })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
+    const a = document.createElement("a")
     a.href = url
-    a.download = `mensagens-${new Date().toISOString().split('T')[0]}.xls`
+    a.download = `mensagens-${new Date().toISOString().split("T")[0]}.xls`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -947,7 +991,7 @@ export function ChatArea({
     if (!files || files.length === 0) return
 
     const file = files[0]
-    
+
     let attachmentType: string
     if (file.type.startsWith("image/")) {
       attachmentType = "IMAGE"
@@ -1239,7 +1283,8 @@ export function ChatArea({
               <p className="text-[var(--settings-text-muted)] text-sm">
                 Você selecionou {totalSelectedMessages} mensagens de {totalSelectedChats} conversas.
                 <br />
-                Deseja usar essas mensagens como contexto para {contextConfirmation.action === 'new' ? 'uma nova conversa' : 'esta conversa'}?
+                Deseja usar essas mensagens como contexto para{" "}
+                {contextConfirmation.action === "new" ? "uma nova conversa" : "esta conversa"}?
               </p>
             </div>
 
@@ -1265,15 +1310,15 @@ export function ChatArea({
 
                   return (
                     <div key={selection.chatId} className="border-l-2 border-purple-500/40 pl-3">
-                      <div className="text-xs font-semibold text-purple-400 mb-2">
-                        {sourceChat?.name || 'Conversa'}
-                      </div>
+                      <div className="text-xs font-semibold text-purple-400 mb-2">{sourceChat?.name || "Conversa"}</div>
                       <div className="space-y-2">
                         {selectedInChat.map((msg) => (
                           <div key={msg.id} className="bg-black/20 rounded p-2">
                             <div className="text-[10px] text-[var(--settings-text-muted)] mb-1 flex items-center justify-between">
                               <span>{msg.sender === "user" ? "Você" : "Assistente"}</span>
-                              <span>{msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                              <span>
+                                {msg.timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
                             </div>
                             <div className="text-xs text-[var(--settings-text)] line-clamp-3">
                               {stripHtml(msg.content)}
@@ -1297,7 +1342,7 @@ export function ChatArea({
               </button>
               <button
                 onClick={() => {
-                  if (contextConfirmation.action === 'new') {
+                  if (contextConfirmation.action === "new") {
                     performCreateNewChatWithSelected()
                   } else {
                     performAddSelectedMessagesToCurrentChat()
@@ -1676,7 +1721,7 @@ export function ChatArea({
                   const agentColor = agent.color && agent.color.trim() !== "" ? agent.color : "#8b5cf6"
                   const bgColor = agentColor + "15"
                   const borderColor = agentColor + "60"
-                  
+
                   return (
                     <div
                       key={agent.id}
@@ -1714,7 +1759,10 @@ export function ChatArea({
                 placeholder="Digite sua mensagem..."
                 className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
                 style={{
-                  paddingTop: (selectedAgentObjects.length > 0 || (contextSourceChats.length > 0 && hiddenContextMessages)) ? "2rem" : "0.75rem",
+                  paddingTop:
+                    selectedAgentObjects.length > 0 || (contextSourceChats.length > 0 && hiddenContextMessages)
+                      ? "2rem"
+                      : "0.75rem",
                 }}
                 disabled={selectedAgents.length === 0}
               />
