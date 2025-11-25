@@ -4,10 +4,25 @@ import type React from "react"
 
 import type { Agent, Message } from "@/types/chat"
 import { cn } from "@/lib/utils"
-import { Settings, ChevronLeft, ChevronRight, Briefcase, X, BarChart3, Code, Palette, Users, Layers, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Briefcase,
+  X,
+  BarChart3,
+  Code,
+  Palette,
+  Users,
+  Layers,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 
 const AUTHORIZED_EMAILS = ["kleber.zumiotti@iprocesso.com", "angelomarchi05@gmail.com"]
@@ -45,6 +60,8 @@ interface ChatSidebarProps {
   isMobileOpen?: boolean
   onMobileClose?: () => void
   onAgentOrderChange?: (agentIds: string[]) => void
+  isSidebarOpen?: boolean
+  onSelectAgent: (agentId: string) => void
 }
 
 export function ChatSidebar({
@@ -59,6 +76,8 @@ export function ChatSidebar({
   isMobileOpen = false,
   onMobileClose,
   onAgentOrderChange,
+  isSidebarOpen = true,
+  onSelectAgent,
 }: ChatSidebarProps) {
   const router = useRouter()
   const [userName, setUserName] = useState("Usuário")
@@ -72,9 +91,9 @@ export function ChatSidebar({
   const [viewMode, setViewMode] = useState<"sequential" | "grouped" | "icon">("sequential")
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Geral"]))
   const [groupIcons, setGroupIcons] = useState<Record<string, string>>({})
-  const [groupsWithOrder, setGroupsWithOrder] = useState<Array<{ name: string; icon: string; display_order: number; description?: string }>>(
-    [],
-  )
+  const [groupsWithOrder, setGroupsWithOrder] = useState<
+    Array<{ name: string; icon: string; display_order: number; description?: string }>
+  >([])
   const [hoveredAgent, setHoveredAgent] = useState<Agent | null>(null)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
 
@@ -87,6 +106,8 @@ export function ChatSidebar({
   const [hoveredGroup, setHoveredGroup] = useState<{ name: string; count: number; description?: string } | null>(null)
   const [groupCoords, setGroupCoords] = useState<{ top: number; left: number } | null>(null)
   const [groupHoverTimeout, setGroupHoverTimeout] = useState<NodeJS.Timeout | null>(null)
+
+  const selectedAgentId = selectedAgents.length > 0 ? selectedAgents[0] : null
 
   useEffect(() => {
     setLocalAgents(agents)
@@ -128,7 +149,9 @@ export function ChatSidebar({
         }
       }
 
-      const { data: groupsData, error: groupsError } = await supabase.from("groups").select("name, icon, display_order, description")
+      const { data: groupsData, error: groupsError } = await supabase
+        .from("groups")
+        .select("name, icon, display_order, description")
 
       if (!groupsError && groupsData) {
         const icons: Record<string, string> = {}
@@ -173,16 +196,24 @@ export function ChatSidebar({
   }
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, agent: Agent) => {
-    if (isExpanded) return
-
     const rect = e.currentTarget.getBoundingClientRect()
-    const messageCount = agentHistories[agent.id]?.length || 0
 
     setHoveredAgent(agent)
-    setCoords({
-      top: rect.top + rect.height / 2,
-      left: rect.right + 8,
-    })
+
+    // Position differently based on expanded state
+    if (isExpanded) {
+      // When expanded, show above the element centered (like workspace)
+      setCoords({
+        top: rect.top - 10,
+        left: rect.left + rect.width / 2,
+      })
+    } else {
+      // When collapsed, show to the right
+      setCoords({
+        top: rect.top + rect.height / 2,
+        left: rect.right + 8,
+      })
+    }
   }
 
   const handleMouseLeave = () => {
@@ -190,9 +221,8 @@ export function ChatSidebar({
     setCoords(null)
   }
 
-  const handleGroupMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, groupName: string, agentCount: number) => {
-    console.log("[v0] 🎯 Group hover started:", groupName)
-
+  const handleGroupMouseEnter = (e: React.MouseEvent, groupName: string, agentCount: number) => {
+    console.log("[v0] 👆 Group hover started:", groupName)
     const rect = e.currentTarget.getBoundingClientRect()
 
     // Clear any existing timeout
@@ -200,12 +230,13 @@ export function ChatSidebar({
       clearTimeout(groupHoverTimeout)
     }
 
+    // Set a timeout for 1500ms before showing tooltip
     const timeout = setTimeout(() => {
       console.log("[v0] ⏱️ Group hover timeout reached:", groupName)
 
-      const groupData = groupsWithOrder.find(g => g.name === groupName)
+      const groupData = groupsWithOrder.find((g) => g.name === groupName)
       const groupDescription = (groupData as any)?.description || ""
-      
+
       setHoveredGroup({ name: groupName, count: agentCount, description: groupDescription })
       setGroupCoords({
         top: rect.top - 8,
@@ -314,20 +345,7 @@ export function ChatSidebar({
   }
 
   const filteredAgents = localAgents.filter((agent) => {
-    if (agent.is_active === false) {
-      return false
-    }
-    
-    if (viewMode === "grouped") {
-      const hasGroup = agent.group?.name || agent.group_name
-      const groupName = hasGroup || ""
-      
-      // Filter out agents with "Sem Grupo" or no group at all
-      if (!hasGroup || groupName === "Sem Grupo") {
-        return false
-      }
-    }
-    
+    // Apenas filtro de busca, nenhum outro filtro
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (
@@ -394,7 +412,7 @@ export function ChatSidebar({
         onDragStart={(e) => handleDragStart(e, agent.id)}
         onDragOver={(e) => handleDragOver(e, agent.id)}
         onDragEnd={handleDragEnd}
-        onClick={() => onToggleAgent(agent.id)}
+        onClick={() => onSelectAgent(agent.id)}
         onMouseEnter={(e) => handleMouseEnter(e, agent)}
         onMouseLeave={handleMouseLeave}
         className={cn(
@@ -412,7 +430,6 @@ export function ChatSidebar({
         style={{
           ...(isSelected && { borderColor: agent.color }),
         }}
-        title={agent.name}
       >
         {isCustomAgent && (
           <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
@@ -469,7 +486,7 @@ export function ChatSidebar({
     return (
       <button
         key={agent.id}
-        onClick={() => onToggleAgent(agent.id)}
+        onClick={() => onSelectAgent(agent.id)}
         onMouseEnter={(e) => handleMouseEnter(e, agent)}
         onMouseLeave={handleMouseLeave}
         className={cn(
@@ -480,7 +497,6 @@ export function ChatSidebar({
         style={{
           ...(isSelected && { borderColor: agent.color }),
         }}
-        title={agent.name}
       >
         {isCustomAgent && (
           <div className="absolute -top-1 -left-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
@@ -583,7 +599,6 @@ export function ChatSidebar({
         <button
           onClick={onMobileClose}
           className="md:hidden absolute right-2 top-2 w-8 h-8 rounded-full bg-[var(--agent-bg)] border border-[var(--sidebar-border)] flex items-center justify-center hover:bg-[var(--agent-hover)] transition-all z-10"
-          title="Fechar menu"
         >
           <X className="w-4 h-4 text-[var(--text-primary)]" />
         </button>
@@ -609,7 +624,6 @@ export function ChatSidebar({
               <button
                 onClick={() => router.push("/profile")}
                 className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center hover:scale-105 transition-transform cursor-pointer overflow-hidden"
-                title={!isExpanded ? userName : undefined}
               >
                 <img src="/iredondo.png" alt={userName || "User avatar"} className="w-full h-full object-cover" />
               </button>
@@ -866,18 +880,19 @@ export function ChatSidebar({
           coords &&
           createPortal(
             <div
-              className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700"
+              className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700 whitespace-normal break-words"
               style={{
                 top: coords.top,
-                left: coords.left,
-                transform: "translateY(-50%)",
+                left: isExpanded ? Math.max(160, Math.min(coords.left, window.innerWidth - 160)) : coords.left,
+                transform: isExpanded ? "translate(-50%, -100%)" : "translate(0, -50%)",
+                marginTop: isExpanded ? "-8px" : "0",
                 zIndex: 99999,
                 pointerEvents: "none",
               }}
             >
               <div className="font-semibold mb-1">{hoveredAgent.name}</div>
               {hoveredAgent.description && (
-                <div className="text-xs text-gray-300">{hoveredAgent.description}</div>
+                <div className="text-xs text-gray-300 leading-relaxed">{hoveredAgent.description}</div>
               )}
             </div>,
             document.getElementById("tooltip-root")!,
@@ -885,19 +900,21 @@ export function ChatSidebar({
 
         {hoveredGroup &&
           groupCoords &&
+          groupCoords.top !== 0 &&
+          groupCoords.left !== 0 &&
           createPortal(
             <div
               className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700"
               style={{
                 top: groupCoords.top,
-                left: groupCoords.left,
-                transform: "translate(-50%, -100%)", // Center horizontally and position above
+                left: Math.max(160, Math.min(groupCoords.left, window.innerWidth - 160)),
+                transform: "translate(-50%, -100%)",
                 zIndex: 99999,
                 pointerEvents: "none",
               }}
             >
               <div className="font-semibold mb-1">{hoveredGroup.name}</div>
-              <div className="text-xs text-gray-300">
+              <div className="text-xs text-gray-300 whitespace-normal break-words">
                 {hoveredGroup.description || `${hoveredGroup.count} ${hoveredGroup.count === 1 ? "agente" : "agentes"}`}
               </div>
             </div>,

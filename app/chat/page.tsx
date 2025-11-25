@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
 import { PhoneModal } from "@/components/phone-modal"
@@ -92,7 +92,7 @@ const markdownToHtmlFromGlossary = (raw: string): string => {
 
   for (const block of blocks) {
     // Bloco de código cercado por \`\`\`
-    const fence = block.match(/^\`\`\`([\s\S]*?)\`\`\`$/)
+    const fence = block.match(/^```([\s\S]*?)```$/)
     if (fence) {
       out.push(`<pre><code>${fence[1]}</code></pre>`)
       continue
@@ -144,7 +144,7 @@ const markdownToHtmlFromGlossary = (raw: string): string => {
   // Inline: negrito/itálico/código/links
   function fmt(s: string) {
     let x = s
-    x = x.replace(/\`\`\`([\s\S]*?)\`\`\`/g, (_, code) => `<pre><code>${code}</code></pre>`)
+    x = x.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code}</code></pre>`)
     x = x.replace(/`([^`]+?)`/g, "<code>$1</code>")
     x = x.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
     x = x.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
@@ -296,6 +296,7 @@ export default function ChatPage() {
               ...agentsData.map((agent) => ({
                 id: agent.id,
                 name: agent.name,
+                description: agent.description, // Added description field
                 icon: agent.icon,
                 color: agent.color,
                 trigger_word: agent.trigger_word,
@@ -317,6 +318,7 @@ export default function ChatPage() {
                   ({
                     id: agent.id,
                     name: agent.name,
+                    description: agent.description, // Added description field
                     icon: agent.icon,
                     color: agent.color,
                     trigger_word: agent.trigger_word,
@@ -510,6 +512,7 @@ export default function ChatPage() {
             ...agentsData.map((agent) => ({
               id: agent.id,
               name: agent.name,
+              description: agent.description, // Added description field
               icon: agent.icon,
               color: agent.color,
               trigger_word: agent.trigger_word,
@@ -531,6 +534,7 @@ export default function ChatPage() {
                 ({
                   id: agent.id,
                   name: agent.name,
+                  description: agent.description, // Added description field
                   icon: agent.icon,
                   color: agent.color,
                   trigger_word: agent.trigger_word,
