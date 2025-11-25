@@ -1021,6 +1021,7 @@ export default function ChatPage() {
         selectedAgents={currentSelectedAgents}
         usedAgents={currentUsedAgents}
         onToggleAgent={toggleAgent}
+        onSelectAgent={toggleAgent} // Added onSelectAgent prop to fix agent clicks
         agentHistories={currentAgentHistories}
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setIsMobileSidebarOpen(false)}
