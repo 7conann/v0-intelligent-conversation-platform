@@ -485,68 +485,49 @@ export default function WorkspacesPage() {
     setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, is_favorite: !a.is_favorite } : a)))
   }
 
-  const handleToggleAgentVisibility = async (agentId: string) => {
+  const handleToggleAgentVisibility = (agentId: string) => {
     const currentAgent = agents.find((a) => a.id === agentId)
     if (!currentAgent) {
       console.log("[v0] ❌ Agent not found:", agentId)
       return
     }
 
-    const currentVisibility = currentAgent.is_active ?? true
-    const newVisibility = !currentVisibility
+    // Get current visibility from localStorage
+    const hiddenAgents = JSON.parse(localStorage.getItem("hiddenAgents") || "[]")
+    const isCurrentlyHidden = hiddenAgents.includes(agentId)
+    const newVisibility = isCurrentlyHidden // Will be visible if currently hidden
 
-    console.log("[v0] 🔄 Toggle Agent:")
+    console.log("[v0] 🔄 Toggle Agent Visibility (localStorage only):")
     console.log("[v0]   - Agent ID:", agentId)
     console.log("[v0]   - Agent Name:", currentAgent.name)
-    console.log("[v0]   - Current is_active value:", currentAgent.is_active)
-    console.log("[v0]   - Current visibility (with default):", currentVisibility)
-    console.log("[v0]   - New visibility to set:", newVisibility)
+    console.log("[v0]   - Currently hidden:", isCurrentlyHidden)
+    console.log("[v0]   - Will be visible:", newVisibility)
 
-    try {
-      const supabase = createClient()
-
-      const { error, data } = await supabase
-        .from("agents")
-        .update({ is_active: newVisibility })
-        .eq("id", agentId)
-        .select("id, name, is_active")
-
-      console.log("[v0] 📝 Update result:", { error, data })
-
-      if (error) {
-        console.error("[v0] ❌ Error updating agent is_active:", error)
-        addToast({
-          title: "Erro",
-          description: "Não foi possível alterar a visibilidade do agente",
-          variant: "error",
-        })
-        return
-      }
-
-      console.log("[v0] ✅ Successfully updated agent is_active to:", newVisibility)
-
-      setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, is_active: newVisibility } : a)))
-
-      setAgentVisibility((prev) => ({
-        ...prev,
-        [agentId]: newVisibility,
-      }))
-
-      addToast({
-        title: newVisibility ? "Agente ativado" : "Agente desativado",
-        description: newVisibility ? "O agente agora aparecerá na sidebar" : "O agente foi ocultado da sidebar",
-        variant: "success",
-      })
-
-      await loadAgents()
-    } catch (error) {
-      console.error("[v0] ❌ Error saving agent status:", error)
-      addToast({
-        title: "Erro",
-        description: "Não foi possível alterar a visibilidade do agente",
-        variant: "error",
-      })
+    // Update localStorage
+    let updatedHiddenAgents
+    if (isCurrentlyHidden) {
+      // Remove from hidden list (make visible)
+      updatedHiddenAgents = hiddenAgents.filter((id: string) => id !== agentId)
+    } else {
+      // Add to hidden list (hide)
+      updatedHiddenAgents = [...hiddenAgents, agentId]
     }
+
+    localStorage.setItem("hiddenAgents", JSON.stringify(updatedHiddenAgents))
+
+    // Update local state
+    setAgentVisibility((prev) => ({
+      ...prev,
+      [agentId]: newVisibility,
+    }))
+
+    addToast({
+      title: newVisibility ? "Agente visível" : "Agente oculto",
+      description: newVisibility
+        ? "O agente agora aparecerá na sua sidebar"
+        : "O agente foi ocultado da sua sidebar (apenas para você)",
+      variant: "success",
+    })
   }
 
   const handleSaveAgentConfig = async () => {
@@ -1272,7 +1253,9 @@ export default function WorkspacesPage() {
       <div className="mx-auto max-w-6xl px-6 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAgents.map((agent) => {
-            const isInactive = agent.is_active === false
+            // const isInactive = agent.is_active === false
+            const isHiddenLocally = localStorage.getItem("hiddenAgents")?.includes(agent.id) ?? false
+            const isInactive = agent.is_active === false || isHiddenLocally
 
             return (
               <div
@@ -1324,7 +1307,7 @@ export default function WorkspacesPage() {
                         </p>
                         {isInactive && (
                           <span className="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-500 whitespace-nowrap">
-                            Inativo
+                            {agent.is_active === false ? "Inativo" : "Oculto"}
                           </span>
                         )}
                       </div>
@@ -1355,12 +1338,18 @@ export default function WorkspacesPage() {
                   <div className="flex gap-2">
                     {isInactive ? (
                       <Button
-                        onClick={() => handleRestoreAgent(agent.id)}
+                        onClick={() => {
+                          if (agent.is_active === false) {
+                            handleRestoreAgent(agent.id)
+                          } else {
+                            handleToggleAgentVisibility(agent.id) // Toggle visibility from localStorage
+                          }
+                        }}
                         variant="outline"
                         className="flex-1 border-green-500/50 text-green-500 hover:bg-green-500/10"
                       >
                         <RotateCcw className="h-4 w-4 mr-2" />
-                        Restaurar
+                        {agent.is_active === false ? "Restaurar" : "Tornar Visível"}
                       </Button>
                     ) : (
                       <>
@@ -1418,6 +1407,7 @@ export default function WorkspacesPage() {
             <div className="space-y-2 mb-6">
               {agents.map((agent) => {
                 const isVisible = agentVisibility[agent.id] ?? true
+                const isLocallyHidden = localStorage.getItem("hiddenAgents")?.includes(agent.id) ?? false
                 return (
                   <div
                     key={agent.id}
@@ -1440,20 +1430,20 @@ export default function WorkspacesPage() {
                     <button
                       onClick={() => handleToggleAgentVisibility(agent.id)}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                        isVisible
-                          ? "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                          : "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                        isLocallyHidden
+                          ? "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                          : "bg-green-500/20 text-green-500 hover:bg-green-500/30"
                       }`}
                     >
-                      {isVisible ? (
-                        <>
-                          <Eye className="h-4 w-4" />
-                          <span className="text-sm font-medium">Visível</span>
-                        </>
-                      ) : (
+                      {isLocallyHidden ? (
                         <>
                           <EyeOff className="h-4 w-4" />
                           <span className="text-sm font-medium">Oculto</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-4 w-4" />
+                          <span className="text-sm font-medium">Visível</span>
                         </>
                       )}
                     </button>

@@ -187,6 +187,13 @@ export function ChatSidebar({
     if (savedViewMode && (savedViewMode === "sequential" || savedViewMode === "grouped" || savedViewMode === "icon")) {
       setViewMode(savedViewMode)
     }
+
+    const hiddenAgents = JSON.parse(localStorage.getItem("hiddenAgents") || "[]")
+    console.log("[v0] 📋 Hidden agents from localStorage:", hiddenAgents)
+
+    // Update local agents to filter out hidden ones
+    const visibleAgents = agents.filter((agent) => !hiddenAgents.includes(agent.id))
+    setLocalAgents(visibleAgents)
   }, [])
 
   const toggleExpanded = () => {
@@ -346,6 +353,10 @@ export function ChatSidebar({
 
   const filteredAgents = localAgents.filter((agent) => {
     if (agent.is_active === false) return false
+
+    // Filter by localStorage hidden agents (per-user visibility)
+    const hiddenAgents = JSON.parse(localStorage.getItem("hiddenAgents") || "[]")
+    if (hiddenAgents.includes(agent.id)) return false
 
     // Filtro de busca
     if (!searchQuery) return true
