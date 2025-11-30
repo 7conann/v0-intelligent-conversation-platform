@@ -345,7 +345,9 @@ export function ChatSidebar({
   }
 
   const filteredAgents = localAgents.filter((agent) => {
-    // Apenas filtro de busca, nenhum outro filtro
+    if (agent.is_active === false) return false
+
+    // Filtro de busca
     if (!searchQuery) return true
     const query = searchQuery.toLowerCase()
     return (

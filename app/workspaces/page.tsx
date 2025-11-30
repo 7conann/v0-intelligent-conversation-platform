@@ -3,19 +3,33 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, Star, SettingsIcon, Hash, Plus, Eye, EyeOff, Trash2, GripVertical, Filter, AlertCircle, FolderOpen, Edit2, RotateCcw } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import {
+  ArrowLeft,
+  Star,
+  SettingsIcon,
+  Hash,
+  Plus,
+  Eye,
+  EyeOff,
+  Trash2,
+  GripVertical,
+  Filter,
+  AlertCircle,
+  FolderOpen,
+  Edit2,
+  RotateCcw,
+} from "lucide-react"
 import { useToast } from "@/components/ui/toast"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { EmojiPicker } from "@/components/emoji-picker"
 import { IconPicker } from "@/components/icon-picker"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import type { Agent } from "@/types/chat"
-import { getAgentPreferences, toggleAgentVisibility } from "@/lib/supabase/agent-preferences"
+import { getAgentPreferences } from "@/lib/supabase/agent-preferences"
 import { runAgentManagementMigration } from "@/app/actions/run-migration"
 
 interface WorkspaceAgent extends Agent {
@@ -64,7 +78,12 @@ export default function WorkspacesPage() {
   const [showManageAgents, setShowManageAgents] = useState(false)
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showManageGroups, setShowManageGroups] = useState(false)
-  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string } | null>(null)
+  const [editingGroup, setEditingGroup] = useState<{
+    id: string
+    name: string
+    icon: string
+    description: string
+  } | null>(null)
   const [createGroupName, setCreateGroupName] = useState("")
   const [createGroupIcon, setCreateGroupIcon] = useState("📁")
   const [selectedAgentsForGroup, setSelectedAgentsForGroup] = useState<Set<string>>(new Set())
@@ -107,7 +126,6 @@ export default function WorkspacesPage() {
   const [hoveredAgent, setHoveredAgent] = useState<WorkspaceAgent | null>(null)
   const [hoveredGroup, setHoveredGroup] = useState<Group | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null)
-
 
   const loadAgents = async () => {
     const supabase = createClient()
@@ -156,7 +174,6 @@ export default function WorkspacesPage() {
       )
     }
   }
-
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -228,17 +245,18 @@ export default function WorkspacesPage() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter((a) =>
-        a.name.toLowerCase().includes(query) ||
-        a.trigger_word?.toLowerCase().includes(query) ||
-        a.description?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (a) =>
+          a.name.toLowerCase().includes(query) ||
+          a.trigger_word?.toLowerCase().includes(query) ||
+          a.description?.toLowerCase().includes(query),
       )
     }
 
     if (filterStatus === "active") {
-      filtered = filtered.filter((a) => !inactiveAgents.has(a.id))
+      filtered = filtered.filter((a) => a.is_active !== false)
     } else if (filterStatus === "inactive") {
-      filtered = filtered.filter((a) => inactiveAgents.has(a.id))
+      filtered = filtered.filter((a) => a.is_active === false)
     }
 
     if (filterGroup !== "all") {
@@ -246,7 +264,7 @@ export default function WorkspacesPage() {
     }
 
     setFilteredAgents(filtered)
-  }, [agents, filterStatus, filterGroup, inactiveAgents, searchQuery])
+  }, [agents, filterStatus, filterGroup, searchQuery])
 
   const groupNames = groups.map((g) => g.name)
 
@@ -486,7 +504,7 @@ export default function WorkspacesPage() {
 
     try {
       const supabase = createClient()
-      
+
       const { error, data } = await supabase
         .from("agents")
         .update({ is_active: newVisibility })
@@ -507,9 +525,7 @@ export default function WorkspacesPage() {
 
       console.log("[v0] ✅ Successfully updated agent is_active to:", newVisibility)
 
-      setAgents((prev) =>
-        prev.map((a) => (a.id === agentId ? { ...a, is_active: newVisibility } : a))
-      )
+      setAgents((prev) => prev.map((a) => (a.id === agentId ? { ...a, is_active: newVisibility } : a)))
 
       setAgentVisibility((prev) => ({
         ...prev,
@@ -521,7 +537,7 @@ export default function WorkspacesPage() {
         description: newVisibility ? "O agente agora aparecerá na sidebar" : "O agente foi ocultado da sidebar",
         variant: "success",
       })
-      
+
       await loadAgents()
     } catch (error) {
       console.error("[v0] ❌ Error saving agent status:", error)
@@ -623,11 +639,7 @@ export default function WorkspacesPage() {
 
     if (!groupIdToUse) {
       // Check if "Sem Grupo" already exists
-      const { data: existingGroup } = await supabase
-        .from("groups")
-        .select("id")
-        .eq("name", "Sem Grupo")
-        .single()
+      const { data: existingGroup } = await supabase.from("groups").select("id").eq("name", "Sem Grupo").single()
 
       if (existingGroup) {
         groupIdToUse = existingGroup.id
@@ -731,7 +743,6 @@ export default function WorkspacesPage() {
     setCreateAgentIcon("")
   }
 
-  // Removed handleDeactivateAgent and integrated its logic into handleDeleteAgent
   const handleDeleteAgent = async (agentId: string) => {
     if (!isAuthorized) {
       addToast({
@@ -760,37 +771,47 @@ export default function WorkspacesPage() {
         title: "Desativar agente vinculado",
         description: `Este agente está vinculado aos seguintes agentes customizados: ${customAgentNames}.\n\nAo desativar este agente, os agentes customizados vinculados também serão desativados. Deseja continuar?`,
         variant: "destructive",
-        onConfirm: () => {
-          const newInactive = new Set(inactiveAgents)
-          linkedCustomAgents.forEach((ca) => newInactive.add(ca.id))
-          newInactive.add(agentId)
-          setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+        onConfirm: async () => {
+          await supabase.from("agents").update({ is_active: false }).eq("id", agentId)
+
+          for (const ca of linkedCustomAgents) {
+            await supabase.from("agents").update({ is_active: false }).eq("id", ca.id)
+          }
 
           addToast({
             title: "Agente desativado",
-            description: `${agent.name} e ${linkedCustomAgents.length} agente(s) customizado(s) vinculado(s) foram movidos para a lixeira`,
+            description: `${agent.name} e ${linkedCustomAgents.length} agente(s) customizado(s) vinculado(s) foram desativados`,
             variant: "success",
           })
+
+          await loadAgents()
         },
       })
     } else {
       setConfirmDialog({
         isOpen: true,
         title: "Desativar agente",
-        description: `Deseja desativar o agente "${agent.name}"?\n\nO agente será movido para a lixeira e não aparecerá mais na sidebar.\nVocê poderá restaurá-lo a qualquer momento usando o filtro "Inativos (Lixeira)".`,
+        description: `Deseja desativar o agente "${agent.name}"?\n\nO agente não aparecerá mais na sidebar.\nVocê poderá restaurá-lo a qualquer momento usando o filtro "Inativos (Lixeira)".`,
         variant: "destructive",
-        onConfirm: () => {
-          const newInactive = new Set(inactiveAgents)
-          newInactive.add(agentId)
-          setInactiveAgents(newInactive)
-          localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+        onConfirm: async () => {
+          const { error } = await supabase.from("agents").update({ is_active: false }).eq("id", agentId)
+
+          if (error) {
+            addToast({
+              title: "Erro",
+              description: "Não foi possível desativar o agente",
+              variant: "error",
+            })
+            return
+          }
 
           addToast({
             title: "Agente desativado",
-            description: `${agent.name} foi movido para a lixeira. Use o filtro "Inativos" para restaurá-lo.`,
+            description: `${agent.name} foi desativado. Use o filtro "Inativos" para restaurá-lo.`,
             variant: "success",
           })
+
+          await loadAgents()
         },
       })
     }
@@ -804,17 +825,26 @@ export default function WorkspacesPage() {
       isOpen: true,
       title: "Restaurar agente",
       description: `Deseja restaurar o agente "${agent.name}"?\n\nO agente voltará a aparecer na sidebar e ficará ativo novamente.`,
-      onConfirm: () => {
-        const newInactive = new Set(inactiveAgents)
-        newInactive.delete(agentId)
-        setInactiveAgents(newInactive)
-        localStorage.setItem(`inactive_agents_${userId}`, JSON.stringify(Array.from(newInactive)))
+      onConfirm: async () => {
+        const supabase = createClient()
+        const { error } = await supabase.from("agents").update({ is_active: true }).eq("id", agentId)
+
+        if (error) {
+          addToast({
+            title: "Erro",
+            description: "Não foi possível restaurar o agente",
+            variant: "error",
+          })
+          return
+        }
 
         addToast({
           title: "Agente restaurado",
           description: `${agent.name} foi restaurado e voltará a aparecer na sidebar`,
           variant: "success",
         })
+
+        await loadAgents()
       },
     })
   }
@@ -1030,7 +1060,13 @@ export default function WorkspacesPage() {
       return
     }
 
-    setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, name: newName.trim(), icon: newIcon, description: editingGroup?.description || "" } : g)))
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === groupId
+          ? { ...g, name: newName.trim(), icon: newIcon, description: editingGroup?.description || "" }
+          : g,
+      ),
+    )
 
     setAgents((prev) =>
       prev.map((agent) =>
@@ -1236,7 +1272,7 @@ export default function WorkspacesPage() {
       <div className="mx-auto max-w-6xl px-6 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAgents.map((agent) => {
-            const isInactive = inactiveAgents.has(agent.id)
+            const isInactive = agent.is_active === false
 
             return (
               <div
@@ -1805,7 +1841,7 @@ export default function WorkspacesPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto p-1">
                   {agents
-                    .filter((a) => !inactiveAgents.has(a.id))
+                    .filter((a) => a.is_active !== false)
                     .map((agent) => {
                       const isSelected = selectedAgentsForGroup.has(agent.id)
                       return (
@@ -1937,7 +1973,7 @@ export default function WorkspacesPage() {
                             autoFocus
                             className="flex-1 bg-[var(--input-bg)] border-[var(--sidebar-border)] text-[var(--text-primary)]"
                           />
-                          
+
                           <Textarea
                             value={editingGroup.description || ""}
                             onChange={(e) => setEditingGroup({ ...editingGroup, description: e.target.value })}
@@ -1983,7 +2019,14 @@ export default function WorkspacesPage() {
                       {!isEditing && (
                         <>
                           <Button
-                            onClick={() => setEditingGroup({ id: group.id, name: group.name, icon: group.icon, description: group.description || "" })}
+                            onClick={() =>
+                              setEditingGroup({
+                                id: group.id,
+                                name: group.name,
+                                icon: group.icon,
+                                description: group.description || "",
+                              })
+                            }
                             variant="outline"
                             size="sm"
                             className="border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
@@ -2155,7 +2198,7 @@ export default function WorkspacesPage() {
         >
           <div className="font-semibold mb-1">{hoveredGroup.name}</div>
           <div className="text-xs text-gray-300">
-            {agents.filter(a => a.group_id === hoveredGroup.id).length} agente(s)
+            {agents.filter((a) => a.group_id === hoveredGroup.id).length} agente(s)
           </div>
         </div>
       )}

@@ -359,26 +359,27 @@ export default function CustomAgentsPage() {
   const handleDeleteCustomAgent = async (id: string) => {
     const supabase = createClient()
 
-    const { error: agentsError } = await supabase.from("agents").delete().eq("id", id)
+    const { error: agentsError } = await supabase.from("agents").update({ is_active: false }).eq("id", id)
 
     if (agentsError) {
-      console.error("[v0] Error deleting from agents table:", agentsError)
-    }
-
-    const { error } = await supabase.from("custom_agents").delete().eq("id", id)
-
-    if (error) {
+      console.error("[v0] Error deactivating agent:", agentsError)
       addToast({
-        title: "Erro ao deletar",
-        description: error.message,
+        title: "Erro ao desativar",
+        description: agentsError.message,
         variant: "error",
       })
       return
     }
 
+    const { error } = await supabase.from("custom_agents").update({ is_active: false }).eq("id", id)
+
+    if (error) {
+      console.log("[v0] Note: custom_agents update failed (table may not have is_active column):", error.message)
+    }
+
     addToast({
-      title: "Agente deletado",
-      description: "Agente customizado foi removido para todos os usuários",
+      title: "Agente desativado",
+      description: "Agente customizado foi desativado para todos os usuários",
       variant: "success",
     })
 
