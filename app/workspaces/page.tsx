@@ -495,7 +495,7 @@ export default function WorkspacesPage() {
     // Get current visibility from localStorage
     const hiddenAgents = JSON.parse(localStorage.getItem("hiddenAgents") || "[]")
     const isCurrentlyHidden = hiddenAgents.includes(agentId)
-    const newVisibility = isCurrentlyHidden // Will be visible if currently hidden
+    const newVisibility = !isCurrentlyHidden // Will be visible if currently hidden
 
     console.log("[v0] 🔄 Toggle Agent Visibility (localStorage only):")
     console.log("[v0]   - Agent ID:", agentId)
@@ -515,7 +515,7 @@ export default function WorkspacesPage() {
 
     localStorage.setItem("hiddenAgents", JSON.stringify(updatedHiddenAgents))
 
-    // Update local state
+    // Update local state if needed (though it's not directly used to filter the UI here, it's good practice)
     setAgentVisibility((prev) => ({
       ...prev,
       [agentId]: newVisibility,
@@ -1405,51 +1405,53 @@ export default function WorkspacesPage() {
             </div>
 
             <div className="space-y-2 mb-6">
-              {agents.map((agent) => {
-                const isVisible = agentVisibility[agent.id] ?? true
-                const isLocallyHidden = localStorage.getItem("hiddenAgents")?.includes(agent.id) ?? false
-                return (
-                  <div
-                    key={agent.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50 transition-all"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
-                        style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
-                      >
-                        {agent.icon}
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-[var(--text-primary)]">{agent.name}</h3>
-                        <p className="text-xs text-[var(--text-secondary)]">
-                          {agent.trigger_word || "Sem palavra-chave"}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleToggleAgentVisibility(agent.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                        isLocallyHidden
-                          ? "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
-                          : "bg-green-500/20 text-green-500 hover:bg-green-500/30"
-                      }`}
+              {agents
+                .filter((agent) => agent.is_active !== false)
+                .map((agent) => {
+                  const isVisible = agentVisibility[agent.id] ?? true
+                  const isLocallyHidden = localStorage.getItem("hiddenAgents")?.includes(agent.id) ?? false
+                  return (
+                    <div
+                      key={agent.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-[var(--sidebar-border)] bg-[var(--agent-bg)] hover:border-purple-500/50 transition-all"
                     >
-                      {isLocallyHidden ? (
-                        <>
-                          <EyeOff className="h-4 w-4" />
-                          <span className="text-sm font-medium">Oculto</span>
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-4 w-4" />
-                          <span className="text-sm font-medium">Visível</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
+                          style={{ backgroundColor: `${agent.color}20`, border: `2px solid ${agent.color}40` }}
+                        >
+                          {agent.icon}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-[var(--text-primary)]">{agent.name}</h3>
+                          <p className="text-xs text-[var(--text-secondary)]">
+                            {agent.trigger_word || "Sem palavra-chave"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleToggleAgentVisibility(agent.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                          isLocallyHidden
+                            ? "bg-gray-500/20 text-gray-500 hover:bg-gray-500/30"
+                            : "bg-green-500/20 text-green-500 hover:bg-green-500/30"
+                        }`}
+                      >
+                        {isLocallyHidden ? (
+                          <>
+                            <EyeOff className="h-4 w-4" />
+                            <span className="text-sm font-medium">Oculto</span>
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4" />
+                            <span className="text-sm font-medium">Visível</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
             </div>
 
             <div className="flex justify-end">

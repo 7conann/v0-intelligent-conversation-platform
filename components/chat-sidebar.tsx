@@ -207,20 +207,10 @@ export function ChatSidebar({
 
     setHoveredAgent(agent)
 
-    // Position differently based on expanded state
-    if (isExpanded) {
-      // When expanded, show above the element centered (like workspace)
-      setCoords({
-        top: rect.top - 10,
-        left: rect.left + rect.width / 2,
-      })
-    } else {
-      // When collapsed, show to the right
-      setCoords({
-        top: rect.top + rect.height / 2,
-        left: rect.right + 8,
-      })
-    }
+    setCoords({
+      top: rect.top + rect.height / 2,
+      left: rect.right + 12,
+    })
   }
 
   const handleMouseLeave = () => {
@@ -246,8 +236,8 @@ export function ChatSidebar({
 
       setHoveredGroup({ name: groupName, count: agentCount, description: groupDescription })
       setGroupCoords({
-        top: rect.top - 8,
-        left: rect.left + rect.width / 2,
+        top: rect.top + rect.height / 2,
+        left: rect.right + 12,
       })
     }, 300)
 
@@ -896,9 +886,8 @@ export function ChatSidebar({
               className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700 whitespace-normal break-words"
               style={{
                 top: coords.top,
-                left: isExpanded ? Math.max(160, Math.min(coords.left, window.innerWidth - 160)) : coords.left,
-                transform: isExpanded ? "translate(-50%, -100%)" : "translate(0, -50%)",
-                marginTop: isExpanded ? "-8px" : "0",
+                left: coords.left,
+                transform: "translateY(-50%)",
                 zIndex: 99999,
                 pointerEvents: "none",
               }}
@@ -920,8 +909,8 @@ export function ChatSidebar({
               className="fixed px-4 py-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl transition-opacity opacity-100 max-w-xs border border-gray-700"
               style={{
                 top: groupCoords.top,
-                left: Math.max(160, Math.min(groupCoords.left, window.innerWidth - 160)),
-                transform: "translate(-50%, -100%)",
+                left: groupCoords.left,
+                transform: "translateY(-50%)",
                 zIndex: 99999,
                 pointerEvents: "none",
               }}
