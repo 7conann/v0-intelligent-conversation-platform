@@ -72,15 +72,64 @@ export async function GET(request: Request) {
 
     console.log("[v0] [API] Profiles fetched:", profilesData?.length)
 
-    const { data: conversationsData } = await adminClient.from("conversations").select("id, user_id")
-    const { data: messagesData } = await adminClient.from("messages").select("id, user_id")
-    const { data: agentsData } = await adminClient.from("agents").select("id")
+    // Get counts without limit
+    const { count: conversationsCount } = await adminClient
+      .from("conversations")
+      .select("*", { count: "exact", head: true })
+    
+    const { count: messagesCount } = await adminClient
+      .from("messages")
+      .select("*", { count: "exact", head: true })
+    
+    const { count: agentsCount } = await adminClient
+      .from("agents")
+      .select("*", { count: "exact", head: true })
+
+    // Fetch agents data
+    let agentsData = null
+    let agentsError = null
+    retries = 3
+
+    while (retries > 0) {
+      const result = await adminClient.from("agents").select("*")
+      agentsData = result.data
+      agentsError = result.error
+
+      if (!agentsError) break
+
+      // If rate limited, wait and retry
+      if (agentsError.message?.includes("Too Many") || agentsError.code === "429") {
+        console.log(`[v0] [API] Rate limited, retrying... (${retries} attempts left)`)
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+        retries--
+      } else {
+        break
+      }
+    }
+
+    if (agentsError) {
+      console.error("[v0] [API] Error fetching agents:", agentsError)
+      throw agentsError
+    }
+
+    console.log("[v0] [API] Agents fetched:", agentsData?.length)
+
+    // Get data for per-user metrics (with pagination if needed)
+    const { data: conversationsData } = await adminClient
+      .from("conversations")
+      .select("id, user_id")
+      .limit(10000)
+    
+    const { data: messagesData } = await adminClient
+      .from("messages")
+      .select("id, user_id")
+      .limit(10000)
 
     const systemMetrics = {
       total_users: profilesData?.length || 0,
-      total_conversations: conversationsData?.length || 0,
-      total_messages: messagesData?.length || 0,
-      total_agents: agentsData?.length || 0,
+      total_conversations: conversationsCount || 0,
+      total_messages: messagesCount || 0,
+      total_agents: agentsCount || 0,
     }
 
     console.log("[v0] [API] System metrics:", systemMetrics)

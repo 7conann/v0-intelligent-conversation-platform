@@ -82,6 +82,13 @@ export default function AdminDashboard() {
   const [sortBy, setSortBy] = useState<"name" | "email" | "messages" | "conversations" | "expiration">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [showFilters, setShowFilters] = useState(false)
+  const [editingUser, setEditingUser] = useState<UserData | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState({ 
+    display_name: "", 
+    phone: "", 
+    account_expiration_date: "" 
+  })
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -102,8 +109,6 @@ export default function AdminDashboard() {
       }
 
       try {
-        console.log("[v0] 📊 Fetching dashboard data...")
-        
         // Fetch system metrics
         const response = await fetch("/api/admin/dashboard")
         if (!response.ok) {
@@ -111,27 +116,17 @@ export default function AdminDashboard() {
         }
 
         const data = await response.json()
-        console.log("[v0] 📊 Dashboard data received:", data)
-        console.log("[v0] 📊 System metrics:", data.systemMetrics)
-        
         setSystemMetrics(data.systemMetrics)
         setUsers(data.users || [])
 
         // Fetch chart data
-        console.log("[v0] 📈 Fetching chart data...")
         const chartResponse = await fetch("/api/admin/dashboard/charts")
         if (chartResponse.ok) {
           const charts = await chartResponse.json()
-          console.log("[v0] 📈 Chart data received:", {
-            messagesCount: charts.messagesPerDay?.length,
-            conversationsCount: charts.conversationsPerDay?.length,
-            agentUsageCount: charts.agentUsage?.length,
-            userActivityCount: charts.userActivity?.length
-          })
           setChartData(charts)
         }
       } catch (error) {
-        console.error("[v0] ❌ Error loading admin data:", error)
+        console.error("[v0] Error loading admin data:", error)
       }
 
       setLoading(false)
@@ -139,6 +134,46 @@ export default function AdminDashboard() {
 
     checkAdminAndLoadData()
   }, [router])
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return
+
+    try {
+      const supabase = createClient()
+      
+      const updateData: any = {
+        display_name: editForm.display_name,
+        phone: editForm.phone || null,
+      }
+
+      if (editForm.account_expiration_date) {
+        updateData.account_expiration_date = new Date(editForm.account_expiration_date).toISOString()
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', editingUser.id)
+
+      if (error) throw error
+
+      // Update local state
+      setUsers(users.map(u => 
+        u.id === editingUser.id 
+          ? { ...u, ...updateData, days_remaining: editForm.account_expiration_date 
+              ? Math.ceil((new Date(editForm.account_expiration_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+              : u.days_remaining 
+            }
+          : u
+      ))
+
+      setShowEditModal(false)
+      setEditingUser(null)
+    } catch (error) {
+      console.error("[v0] Error updating user:", error)
+      alert("Erro ao atualizar usuário")
+    }
+  }
 
   if (loading) {
     return (
@@ -657,6 +692,17 @@ export default function AdminDashboard() {
                             <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
                           </button>
                           <button
+                            onClick={() => {
+                              setEditingUser(user)
+                              setEditForm({
+                                display_name: user.display_name,
+                                phone: user.phone || "",
+                                account_expiration_date: user.account_expiration_date 
+                                  ? new Date(user.account_expiration_date).toISOString().split('T')[0]
+                                  : ""
+                              })
+                              setShowEditModal(true)
+                            }}
                             className="p-2 hover:bg-[var(--sidebar-bg)] rounded-lg transition-colors"
                             title="Editar"
                           >
@@ -726,6 +772,96 @@ export default function AdminDashboard() {
             </div>
           </button>
         </div>
+
+        {/* Edit User Modal */}
+        {showEditModal && editingUser && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-[var(--text-primary)]">Editar Usuário</h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 hover:bg-[var(--app-bg)] rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Display Name */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Nome de Exibição
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.display_name}
+                    onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })}
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)]"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Telefone
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    placeholder="(00) 00000-0000"
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)]"
+                  />
+                </div>
+
+                {/* Account Expiration Date */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Data de Expiração da Conta
+                  </label>
+                  <input
+                    type="date"
+                    value={editForm.account_expiration_date}
+                    onChange={(e) => setEditForm({ ...editForm, account_expiration_date: e.target.value })}
+                    className="w-full px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)]"
+                  />
+                </div>
+
+                {/* User Info */}
+                <div className="pt-4 border-t border-[var(--sidebar-border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    <span className="font-medium">Email:</span> {editingUser.email}
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">
+                    <span className="font-medium">Mensagens:</span> {editingUser.total_messages}
+                  </p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">
+                    <span className="font-medium">Conversas:</span> {editingUser.total_conversations}
+                  </p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveUser}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors font-medium"
+                >
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
