@@ -83,6 +83,8 @@ export default function AdminDashboard() {
       }
 
       try {
+        console.log("[v0] 📊 Fetching dashboard data...")
+        
         // Fetch system metrics
         const response = await fetch("/api/admin/dashboard")
         if (!response.ok) {
@@ -90,16 +92,26 @@ export default function AdminDashboard() {
         }
 
         const data = await response.json()
+        console.log("[v0] 📊 Dashboard data received:", data)
+        console.log("[v0] 📊 System metrics:", data.systemMetrics)
+        
         setSystemMetrics(data.systemMetrics)
 
         // Fetch chart data
+        console.log("[v0] 📈 Fetching chart data...")
         const chartResponse = await fetch("/api/admin/dashboard/charts")
         if (chartResponse.ok) {
           const charts = await chartResponse.json()
+          console.log("[v0] 📈 Chart data received:", {
+            messagesCount: charts.messagesPerDay?.length,
+            conversationsCount: charts.conversationsPerDay?.length,
+            agentUsageCount: charts.agentUsage?.length,
+            userActivityCount: charts.userActivity?.length
+          })
           setChartData(charts)
         }
       } catch (error) {
-        console.error("[v0] Error loading admin data:", error)
+        console.error("[v0] ❌ Error loading admin data:", error)
       }
 
       setLoading(false)
