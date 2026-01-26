@@ -339,8 +339,8 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[var(--app-bg)] p-4 md:p-6 lg:p-8">
+      <div className="w-full">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Dashboard</h1>
           <p className="text-[var(--text-secondary)]">Visão geral do sistema com métricas em tempo real</p>
