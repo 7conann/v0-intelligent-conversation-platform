@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart } from 'lucide-react'
+import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart, Search, Filter, ArrowUpDown, ChevronDown, MoreHorizontal, Trash2, Edit, Mail, Phone } from 'lucide-react'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -41,6 +41,19 @@ interface SystemMetrics {
   total_agents: number
 }
 
+interface UserData {
+  id: string
+  email: string
+  display_name: string
+  phone: string | null
+  created_at: string
+  last_access: string | null
+  account_expiration_date: string | null
+  total_conversations: number
+  total_messages: number
+  days_remaining: number
+}
+
 interface ChartData {
   messagesPerDay: { date: string; count: number }[]
   conversationsPerDay: { date: string; count: number }[]
@@ -63,6 +76,12 @@ export default function AdminDashboard() {
     agentUsage: [],
     userActivity: []
   })
+  const [users, setUsers] = useState<UserData[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired">("all")
+  const [sortBy, setSortBy] = useState<"name" | "email" | "messages" | "conversations" | "expiration">("name")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -96,6 +115,7 @@ export default function AdminDashboard() {
         console.log("[v0] 📊 System metrics:", data.systemMetrics)
         
         setSystemMetrics(data.systemMetrics)
+        setUsers(data.users || [])
 
         // Fetch chart data
         console.log("[v0] 📈 Fetching chart data...")
@@ -127,6 +147,48 @@ export default function AdminDashboard() {
       </div>
     )
   }
+
+  // Filter and sort users
+  const filteredUsers = users
+    .filter(user => {
+      // Search filter
+      const matchesSearch = 
+        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.display_name.toLowerCase().includes(searchQuery.toLowerCase())
+      
+      // Status filter
+      const now = new Date()
+      const expirationDate = user.account_expiration_date ? new Date(user.account_expiration_date) : null
+      const isExpired = expirationDate ? expirationDate < now : false
+      
+      const matchesStatus = 
+        statusFilter === "all" ? true :
+        statusFilter === "active" ? !isExpired :
+        statusFilter === "expired" ? isExpired : true
+
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      let comparison = 0
+      switch (sortBy) {
+        case "name":
+          comparison = a.display_name.localeCompare(b.display_name)
+          break
+        case "email":
+          comparison = a.email.localeCompare(b.email)
+          break
+        case "messages":
+          comparison = a.total_messages - b.total_messages
+          break
+        case "conversations":
+          comparison = a.total_conversations - b.total_conversations
+          break
+        case "expiration":
+          comparison = a.days_remaining - b.days_remaining
+          break
+      }
+      return sortOrder === "asc" ? comparison : -comparison
+    })
 
   // Chart configurations
   const messagesChartData = {
@@ -391,6 +453,245 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Comprehensive Users Table */}
+        <div className="mt-6 bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <Users className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Gerenciamento de Usuários</h3>
+                <p className="text-sm text-[var(--text-secondary)]">{filteredUsers.length} de {users.length} usuários</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg hover:bg-[var(--sidebar-bg)] transition-colors"
+            >
+              <Filter className="w-4 h-4" />
+              Filtros
+              <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {/* Filters */}
+          {showFilters && (
+            <div className="mb-6 p-4 bg-[var(--app-bg)] rounded-lg border border-[var(--sidebar-border)] space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Search */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Buscar
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                    <input
+                      type="text"
+                      placeholder="Nome ou email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]"
+                    />
+                  </div>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "expired")}
+                    className="w-full px-4 py-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)]"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="active">Ativos</option>
+                    <option value="expired">Expirados</option>
+                  </select>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                    Ordenar por
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      className="flex-1 px-4 py-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-lg text-[var(--text-primary)]"
+                    >
+                      <option value="name">Nome</option>
+                      <option value="email">Email</option>
+                      <option value="messages">Mensagens</option>
+                      <option value="conversations">Conversas</option>
+                      <option value="expiration">Expiração</option>
+                    </select>
+                    <button
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      className="px-3 py-2 bg-[var(--sidebar-bg)] border border-[var(--sidebar-border)] rounded-lg hover:bg-[var(--app-bg)] transition-colors"
+                    >
+                      <ArrowUpDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Users Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--sidebar-border)]">
+                  <th className="text-left py-3 px-4 text-[var(--text-secondary)] font-medium">Usuário</th>
+                  <th className="text-left py-3 px-4 text-[var(--text-secondary)] font-medium">Contato</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Mensagens</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Conversas</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Status</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Dias Restantes</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Último Acesso</th>
+                  <th className="text-center py-3 px-4 text-[var(--text-secondary)] font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => {
+                  const isExpired = user.days_remaining <= 0
+                  const isExpiringSoon = user.days_remaining > 0 && user.days_remaining <= 7
+
+                  return (
+                    <tr
+                      key={user.id}
+                      className="border-b border-[var(--sidebar-border)] hover:bg-[var(--app-bg)] transition-colors"
+                    >
+                      {/* User Info */}
+                      <td className="py-3 px-4">
+                        <div>
+                          <p className="font-medium text-[var(--text-primary)]">{user.display_name}</p>
+                          <p className="text-sm text-[var(--text-secondary)]">{user.email}</p>
+                        </div>
+                      </td>
+
+                      {/* Contact */}
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                            <Mail className="w-3 h-3" />
+                            <span className="truncate max-w-[200px]">{user.email}</span>
+                          </div>
+                          {user.phone && (
+                            <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                              <Phone className="w-3 h-3" />
+                              <span>{user.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Messages */}
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm font-medium">
+                          {user.total_messages}
+                        </span>
+                      </td>
+
+                      {/* Conversations */}
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-medium">
+                          {user.total_conversations}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3 px-4 text-center">
+                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium ${
+                          isExpired 
+                            ? 'bg-red-500/20 text-red-400' 
+                            : isExpiringSoon 
+                            ? 'bg-yellow-500/20 text-yellow-400' 
+                            : 'bg-green-500/20 text-green-400'
+                        }`}>
+                          {isExpired ? 'Expirado' : isExpiringSoon ? 'Expirando' : 'Ativo'}
+                        </span>
+                      </td>
+
+                      {/* Days Remaining */}
+                      <td className="py-3 px-4 text-center">
+                        <span className={`font-medium ${
+                          isExpired 
+                            ? 'text-red-400' 
+                            : isExpiringSoon 
+                            ? 'text-yellow-400' 
+                            : 'text-green-400'
+                        }`}>
+                          {user.days_remaining > 0 ? `${user.days_remaining} dias` : 'Expirado'}
+                        </span>
+                      </td>
+
+                      {/* Last Access */}
+                      <td className="py-3 px-4 text-center text-sm text-[var(--text-secondary)]">
+                        {user.last_access 
+                          ? new Date(user.last_access).toLocaleDateString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : 'Nunca'
+                        }
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => router.push(`/admin/users/${user.id}`)}
+                            className="p-2 hover:bg-[var(--sidebar-bg)] rounded-lg transition-colors"
+                            title="Ver detalhes"
+                          >
+                            <Eye className="w-4 h-4 text-[var(--text-secondary)]" />
+                          </button>
+                          <button
+                            className="p-2 hover:bg-[var(--sidebar-bg)] rounded-lg transition-colors"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4 text-[var(--text-secondary)]" />
+                          </button>
+                          <button
+                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                            title="Excluir"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-400" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Empty State */}
+          {filteredUsers.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-50" />
+              <p className="text-[var(--text-secondary)]">Nenhum usuário encontrado</p>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-3 text-purple-400 hover:text-purple-300 text-sm"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
