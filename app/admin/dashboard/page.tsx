@@ -145,34 +145,22 @@ export default function AdminDashboard() {
     checkAdminAndLoadData()
   }, [router])
 
-  const handleGetInsights = async (workspaceId: string, type: 'summary' | 'trending') => {
+  const handleGetInsights = async (workspaceId: string, workspaceName: string, type: 'summary' | 'trending') => {
     setLoadingInsights({ ...loadingInsights, [workspaceId]: type })
 
     try {
-      console.log("[v0] Fetching insights for workspace:", workspaceId, "type:", type)
-      
       const response = await fetch("/api/admin/workspace-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, type })
+        body: JSON.stringify({ workspaceId, workspaceName, type })
       })
-
-      console.log("[v0] Response status:", response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        console.error("[v0] API error:", errorData)
-        
-        // Special handling for rate limits
-        if (response.status === 429 || errorData.error?.includes("Too many requests")) {
-          throw new Error("Muitas requisições. Aguarde alguns segundos e tente novamente.")
-        }
-        
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+        throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("[v0] Received data:", data)
       
       // Update workspace in local state
       setWorkspaces(workspaces.map(w => 
@@ -185,10 +173,9 @@ export default function AdminDashboard() {
           : w
       ))
 
-      alert(type === 'summary' ? 'Resumo atualizado com sucesso!' : 'Tópicos atualizados com sucesso!')
+      alert(type === 'summary' ? 'Assunto atualizado!' : 'Tópicos atualizados!')
     } catch (error) {
-      console.error("[v0] Error fetching insights:", error)
-      alert(`Erro ao buscar insights: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+      alert(`Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       setLoadingInsights({ ...loadingInsights, [workspaceId]: null })
     }
@@ -835,7 +822,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleGetInsights(workspace.id, 'summary')}
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'summary')}
                         disabled={!!loadingInsights[workspace.id]}
                         className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -847,7 +834,7 @@ export default function AdminDashboard() {
                         <span className="text-purple-300">Resumo</span>
                       </button>
                       <button
-                        onClick={() => handleGetInsights(workspace.id, 'trending')}
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'trending')}
                         disabled={!!loadingInsights[workspace.id]}
                         className="flex items-center gap-2 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >

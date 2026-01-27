@@ -1,191 +1,63 @@
 import { NextResponse } from "next/server"
-import { createAdminClient } from "@/lib/supabase/admin"
-import { cookies } from "next/headers"
-import { createServerClient } from "@supabase/ssr"
-import { isAdminUser } from "@/lib/utils/trial"
 
-// Fetch conversation summary for a workspace
+// Simple webhook call - no Supabase queries needed
 export async function POST(request: Request) {
-  console.log("[v0] Workspace insights API called")
-  
   try {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options)
-            })
-          },
-        },
-      },
-    )
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session || !isAdminUser(session.user.email || "")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const body = await request.json()
-    const { workspaceId, type } = body // type: 'summary' or 'trending'
+    const { workspaceId, workspaceName, type } = body
 
     if (!workspaceId || !type) {
       return NextResponse.json({ error: "Missing workspaceId or type" }, { status: 400 })
     }
 
-    const adminClient = createAdminClient()
-
-    console.log("[v0] Fetching workspace with ID:", workspaceId)
-
-    // Get workspace details
-    const { data: workspace, error: workspaceError } = await adminClient
-      .from("workspaces")
-      .select("*")
-      .eq("id", workspaceId)
-      .single()
-
-    if (workspaceError) {
-      console.error("[v0] Workspace query error:", workspaceError)
-      const errorMessage = workspaceError.message || String(workspaceError)
-      
-      // Check if it's a rate limit error
-      if (errorMessage.includes("Too Many Requests") || errorMessage.includes("429")) {
-        return NextResponse.json({ 
-          error: "Too many requests. Please wait a moment and try again.", 
-          details: errorMessage 
-        }, { status: 429 })
-      }
-      
-      return NextResponse.json({ 
-        error: "Workspace not found", 
-        details: errorMessage 
-      }, { status: 404 })
-    }
-
-    if (!workspace) {
-      console.error("[v0] No workspace found with ID:", workspaceId)
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
-    }
-
-    console.log("[v0] Workspace found:", workspace.name)
-
-    // Get all conversations from this workspace
-    console.log("[v0] Fetching conversations for workspace:", workspaceId)
-    
-    const { data: conversations, error: conversationsError } = await adminClient
-      .from("conversations")
-      .select("id, title, created_at")
-      .eq("workspace_id", workspaceId)
-
-    if (conversationsError) {
-      console.error("[v0] Error fetching conversations:", conversationsError)
-      return NextResponse.json({ error: "Error fetching conversations" }, { status: 500 })
-    }
-
-    console.log("[v0] Found", conversations?.length || 0, "conversations")
-
-    // Get messages from these conversations
-    const conversationIds = conversations?.map(c => c.id) || []
-    
-    if (conversationIds.length === 0) {
-      return NextResponse.json({ 
-        message: "No conversations found in this workspace",
-        result: type === 'summary' ? 'Nenhuma conversa encontrada' : 'Nenhum tópico encontrado'
-      })
-    }
-
-    const { data: messages, error: messagesError } = await adminClient
-      .from("messages")
-      .select("content, role, created_at, conversation_id")
-      .in("conversation_id", conversationIds)
-      .order("created_at", { ascending: false })
-      .limit(500) // Limit to recent messages
-
-    if (messagesError) {
-      console.error("[v0] Error fetching messages:", messagesError)
-      return NextResponse.json({ error: "Error fetching messages" }, { status: 500 })
-    }
-
-    // Prepare data for webhook
-    const webhookPayload = {
-      workspaceId: workspace.id,
-      workspaceName: workspace.name,
-      type: type,
-      conversations: conversations?.map(c => ({
-        id: c.id,
-        title: c.title,
-        created_at: c.created_at
-      })),
-      messages: messages?.map(m => ({
-        content: m.content,
-        role: m.role,
-        created_at: m.created_at
-      }))
-    }
-
-    // Call the n8n webhook - different URLs for different types
+    // Different webhook URLs for different types
+    // trending = topicos, summary = assunto
     const webhookUrl = type === 'trending' 
       ? "https://n8n.grupobeely.com.br/webhook/workspace-topico"
       : "https://n8n.grupobeely.com.br/webhook/workspace-assunto"
-    
-    console.log("[v0] Calling webhook:", {
-      url: webhookUrl,
-      workspaceId,
-      type,
-      conversationsCount: conversations?.length,
-      messagesCount: messages?.length
-    })
 
+    // Call the webhook
     const webhookResponse = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(webhookPayload),
+      body: JSON.stringify({
+        workspaceId,
+        workspaceName: workspaceName || "Workspace",
+        type
+      }),
     })
 
     if (!webhookResponse.ok) {
-      console.error("[v0] Webhook error:", await webhookResponse.text())
+      const errorText = await webhookResponse.text()
       return NextResponse.json({ 
         error: "Webhook call failed",
+        details: errorText,
         status: webhookResponse.status 
       }, { status: 500 })
     }
 
-    const webhookResult = await webhookResponse.json()
-    console.log("[v0] Webhook response:", webhookResult)
-
-    // Update workspace with the result
-    const updateField = type === 'summary' ? 'conversation_summary' : 'trending_topics'
-    const resultText = webhookResult.summary || webhookResult.trending || webhookResult.result || JSON.stringify(webhookResult)
-
-    const { error: updateError } = await adminClient
-      .from("workspaces")
-      .update({ [updateField]: resultText })
-      .eq("id", workspaceId)
-
-    if (updateError) {
-      console.error("[v0] Error updating workspace:", updateError)
-      return NextResponse.json({ error: "Error saving result" }, { status: 500 })
+    // Try to parse response as JSON, fallback to text
+    let result
+    const responseText = await webhookResponse.text()
+    try {
+      const jsonResult = JSON.parse(responseText)
+      result = jsonResult.result || jsonResult.summary || jsonResult.trending || jsonResult.message || responseText
+    } catch {
+      result = responseText
     }
 
     return NextResponse.json({ 
       success: true,
-      result: resultText,
+      result: result,
       type: type
     })
 
   } catch (error) {
-    console.error("[v0] Error in workspace insights:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Internal server error",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 }
