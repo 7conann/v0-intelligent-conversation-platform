@@ -113,19 +113,33 @@ export async function POST(request: Request) {
       messagesCount: messages?.length
     })
 
-    const webhookResponse = await fetch(webhookUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(webhookPayload),
-    })
+    let webhookResponse
+    try {
+      console.log("[v0] Calling webhook URL:", webhookUrl)
+      webhookResponse = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(webhookPayload),
+      })
 
-    if (!webhookResponse.ok) {
-      console.error("[v0] Webhook error:", await webhookResponse.text())
+      console.log("[v0] Webhook response status:", webhookResponse.status)
+
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text()
+        console.error("[v0] Webhook error response:", errorText)
+        return NextResponse.json({ 
+          error: "Webhook call failed",
+          status: webhookResponse.status,
+          details: errorText
+        }, { status: 500 })
+      }
+    } catch (fetchError) {
+      console.error("[v0] Fetch error:", fetchError)
       return NextResponse.json({ 
-        error: "Webhook call failed",
-        status: webhookResponse.status 
+        error: "Failed to connect to webhook",
+        details: fetchError instanceof Error ? fetchError.message : String(fetchError)
       }, { status: 500 })
     }
 

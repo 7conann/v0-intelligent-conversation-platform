@@ -92,6 +92,7 @@ export default function AdminDashboard() {
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loadingInsights, setLoadingInsights] = useState<{[key: string]: 'summary' | 'trending' | null}>({})
   const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null)
+  const [topicsChartData, setTopicsChartData] = useState<any>(null)
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -135,6 +136,13 @@ export default function AdminDashboard() {
           const workspacesData = await workspacesResponse.json()
           setWorkspaces(workspacesData.workspaces || [])
         }
+
+        // Fetch topics chart data
+        const topicsResponse = await fetch("/api/admin/workspace-topics-chart")
+        if (topicsResponse.ok) {
+          const topics = await topicsResponse.json()
+          setTopicsChartData(topics)
+        }
       } catch (error) {
         console.error("[v0] Error loading admin data:", error)
       }
@@ -156,10 +164,13 @@ export default function AdminDashboard() {
       })
 
       if (!response.ok) {
-        throw new Error("Erro ao buscar insights")
+        const errorData = await response.json()
+        console.error("[v0] API error response:", errorData)
+        throw new Error(errorData.error || errorData.details || "Erro ao buscar insights")
       }
 
       const data = await response.json()
+      console.log("[v0] Insights received:", data)
       
       // Update workspace in local state
       setWorkspaces(workspaces.map(w => 
@@ -173,9 +184,17 @@ export default function AdminDashboard() {
       ))
 
       alert(type === 'summary' ? 'Resumo atualizado com sucesso!' : 'Tópicos atualizados com sucesso!')
+      
+      // Refresh topics chart
+      const topicsResponse = await fetch("/api/admin/workspace-topics-chart")
+      if (topicsResponse.ok) {
+        const topics = await topicsResponse.json()
+        setTopicsChartData(topics)
+      }
     } catch (error) {
       console.error("[v0] Error fetching insights:", error)
-      alert("Erro ao buscar insights. Tente novamente.")
+      alert(`Erro ao buscar insights: ${error instanceof Error ? error.message : 'Tente novamente'}`)
+    }
     } finally {
       setLoadingInsights({ ...loadingInsights, [workspaceId]: null })
     }
@@ -867,6 +886,123 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+
+        {/* Topics Analytics Charts */}
+        {topicsChartData && topicsChartData.topTopics.length > 0 && (
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Topics Bar Chart */}
+            <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-orange-500/20 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Top 10 Tópicos</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">Assuntos mais mencionados</p>
+                </div>
+              </div>
+              <div className="h-[300px]">
+                <Bar
+                  data={{
+                    labels: topicsChartData.topTopics.map((t: any) => t.topic),
+                    datasets: [
+                      {
+                        label: 'Menções',
+                        data: topicsChartData.topTopics.map((t: any) => t.count),
+                        backgroundColor: 'rgba(251, 146, 60, 0.5)',
+                        borderColor: 'rgb(251, 146, 60)',
+                        borderWidth: 1,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: false,
+                      },
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          color: 'rgba(255, 255, 255, 0.5)',
+                        },
+                        grid: {
+                          color: 'rgba(255, 255, 255, 0.1)',
+                        },
+                      },
+                      x: {
+                        ticks: {
+                          color: 'rgba(255, 255, 255, 0.5)',
+                        },
+                        grid: {
+                          display: false,
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Topics Distribution Doughnut Chart */}
+            <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <PieChart className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Distribuição de Tópicos</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {topicsChartData.workspacesWithInsights} de {topicsChartData.totalWorkspaces} workspaces com insights
+                  </p>
+                </div>
+              </div>
+              <div className="h-[300px] flex items-center justify-center">
+                <Doughnut
+                  data={{
+                    labels: topicsChartData.topicsDistribution.slice(0, 8).map((t: any) => t.name),
+                    datasets: [
+                      {
+                        data: topicsChartData.topicsDistribution.slice(0, 8).map((t: any) => t.value),
+                        backgroundColor: [
+                          'rgba(251, 146, 60, 0.8)',
+                          'rgba(168, 85, 247, 0.8)',
+                          'rgba(59, 130, 246, 0.8)',
+                          'rgba(34, 197, 94, 0.8)',
+                          'rgba(251, 191, 36, 0.8)',
+                          'rgba(236, 72, 153, 0.8)',
+                          'rgba(20, 184, 166, 0.8)',
+                          'rgba(239, 68, 68, 0.8)',
+                        ],
+                        borderColor: 'rgba(0, 0, 0, 0.2)',
+                        borderWidth: 2,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'right',
+                        labels: {
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          padding: 12,
+                          font: {
+                            size: 11,
+                          },
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-6 flex gap-4">
