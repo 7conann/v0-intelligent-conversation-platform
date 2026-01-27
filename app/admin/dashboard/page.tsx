@@ -149,17 +149,24 @@ export default function AdminDashboard() {
     setLoadingInsights({ ...loadingInsights, [workspaceId]: type })
 
     try {
+      console.log("[v0] Fetching insights for workspace:", workspaceId, "type:", type)
+      
       const response = await fetch("/api/admin/workspace-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, type })
       })
 
+      console.log("[v0] Response status:", response.status)
+
       if (!response.ok) {
-        throw new Error("Erro ao buscar insights")
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        console.error("[v0] API error:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Received data:", data)
       
       // Update workspace in local state
       setWorkspaces(workspaces.map(w => 
@@ -175,7 +182,7 @@ export default function AdminDashboard() {
       alert(type === 'summary' ? 'Resumo atualizado com sucesso!' : 'Tópicos atualizados com sucesso!')
     } catch (error) {
       console.error("[v0] Error fetching insights:", error)
-      alert("Erro ao buscar insights. Tente novamente.")
+      alert(`Erro ao buscar insights: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       setLoadingInsights({ ...loadingInsights, [workspaceId]: null })
     }

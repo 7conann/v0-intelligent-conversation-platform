@@ -6,6 +6,8 @@ import { isAdminUser } from "@/lib/utils/trial"
 
 // Fetch conversation summary for a workspace
 export async function POST(request: Request) {
+  console.log("[v0] Workspace insights API called")
+  
   try {
     const cookieStore = await cookies()
     const supabase = createServerClient(
