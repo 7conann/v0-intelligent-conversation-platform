@@ -162,6 +162,12 @@ export default function AdminDashboard() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
         console.error("[v0] API error:", errorData)
+        
+        // Special handling for rate limits
+        if (response.status === 429 || errorData.error?.includes("Too many requests")) {
+          throw new Error("Muitas requisições. Aguarde alguns segundos e tente novamente.")
+        }
+        
         throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 

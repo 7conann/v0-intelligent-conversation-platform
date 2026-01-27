@@ -55,9 +55,19 @@ export async function POST(request: Request) {
 
     if (workspaceError) {
       console.error("[v0] Workspace query error:", workspaceError)
+      const errorMessage = workspaceError.message || String(workspaceError)
+      
+      // Check if it's a rate limit error
+      if (errorMessage.includes("Too Many Requests") || errorMessage.includes("429")) {
+        return NextResponse.json({ 
+          error: "Too many requests. Please wait a moment and try again.", 
+          details: errorMessage 
+        }, { status: 429 })
+      }
+      
       return NextResponse.json({ 
         error: "Workspace not found", 
-        details: workspaceError.message 
+        details: errorMessage 
       }, { status: 404 })
     }
 
