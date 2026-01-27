@@ -104,11 +104,13 @@ export default function AdminDashboard() {
 
       if (!session) {
         router.push("/login/admin")
+        setLoading(false)
         return
       }
 
       if (!isAdminUser(session.user.email || "")) {
         router.push("/chat")
+        setLoading(false)
         return
       }
 
