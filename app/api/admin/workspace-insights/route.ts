@@ -103,43 +103,32 @@ export async function POST(request: Request) {
       }))
     }
 
-    // Call the n8n webhook
-    const webhookUrl = "https://n8n.grupobeely.com.br/webhook/workspace"
+    // Call the n8n webhook - different URLs for different types
+    const webhookUrl = type === 'trending' 
+      ? "https://n8n.grupobeely.com.br/webhook/workspace-topico"
+      : "https://n8n.grupobeely.com.br/webhook/workspace-assunto"
     
-    console.log("[v0] Calling webhook with payload:", {
+    console.log("[v0] Calling webhook:", {
+      url: webhookUrl,
       workspaceId,
       type,
       conversationsCount: conversations?.length,
       messagesCount: messages?.length
     })
 
-    let webhookResponse
-    try {
-      console.log("[v0] Calling webhook URL:", webhookUrl)
-      webhookResponse = await fetch(webhookUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(webhookPayload),
-      })
+    const webhookResponse = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(webhookPayload),
+    })
 
-      console.log("[v0] Webhook response status:", webhookResponse.status)
-
-      if (!webhookResponse.ok) {
-        const errorText = await webhookResponse.text()
-        console.error("[v0] Webhook error response:", errorText)
-        return NextResponse.json({ 
-          error: "Webhook call failed",
-          status: webhookResponse.status,
-          details: errorText
-        }, { status: 500 })
-      }
-    } catch (fetchError) {
-      console.error("[v0] Fetch error:", fetchError)
+    if (!webhookResponse.ok) {
+      console.error("[v0] Webhook error:", await webhookResponse.text())
       return NextResponse.json({ 
-        error: "Failed to connect to webhook",
-        details: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        error: "Webhook call failed",
+        status: webhookResponse.status 
       }, { status: 500 })
     }
 
