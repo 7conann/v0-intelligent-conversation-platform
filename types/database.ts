@@ -15,6 +15,8 @@ export interface Workspace {
   user_id: string
   created_at: string
   updated_at: string
+  conversation_summary?: string | null
+  trending_topics?: string | null
 }
 
 export interface Agent {
