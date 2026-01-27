@@ -43,8 +43,25 @@ export async function POST(request: Request) {
     const responseText = await webhookResponse.text()
     try {
       const jsonResult = JSON.parse(responseText)
-      result = jsonResult.result || jsonResult.summary || jsonResult.trending || jsonResult.message || responseText
+      
+      // Check if response is an error from the webhook
+      if (jsonResult.error) {
+        return NextResponse.json({ 
+          error: "Webhook retornou erro",
+          details: jsonResult.error.message || JSON.stringify(jsonResult.error),
+          code: jsonResult.error.code
+        }, { status: 500 })
+      }
+      
+      result = jsonResult.result || jsonResult.summary || jsonResult.trending || jsonResult.message || jsonResult.data || responseText
     } catch {
+      // If it's plain text that looks like an error, handle it
+      if (responseText.includes("Too Many Requests") || responseText.includes("error")) {
+        return NextResponse.json({ 
+          error: "Webhook retornou erro",
+          details: responseText
+        }, { status: 500 })
+      }
       result = responseText
     }
 
