@@ -153,13 +153,10 @@ export default function AdminDashboard() {
         }
       } catch (error) {
         console.error("[v0] Error loading admin data:", error)
-        setError("Erro ao carregar dados do dashboard")
       } finally {
         console.log("[v0] Dashboard data loading complete")
         setLoading(false)
       }
-
-      setLoading(false)
     }
 
     checkAdminAndLoadData()
