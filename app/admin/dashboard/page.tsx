@@ -138,13 +138,25 @@ export default function AdminDashboard() {
         }
 
         // Fetch topics chart data
-        const topicsResponse = await fetch("/api/admin/workspace-topics-chart")
-        if (topicsResponse.ok) {
-          const topics = await topicsResponse.json()
-          setTopicsChartData(topics)
+        try {
+          const topicsResponse = await fetch("/api/admin/workspace-topics-chart")
+          if (topicsResponse.ok) {
+            const topics = await topicsResponse.json()
+            console.log("[v0] Topics chart data:", topics)
+            setTopicsChartData(topics)
+          } else {
+            console.error("[v0] Topics chart fetch failed:", topicsResponse.status)
+          }
+        } catch (topicsError) {
+          console.error("[v0] Error fetching topics chart:", topicsError)
+          // Don't fail the entire page if topics chart fails
         }
       } catch (error) {
         console.error("[v0] Error loading admin data:", error)
+        setError("Erro ao carregar dados do dashboard")
+      } finally {
+        console.log("[v0] Dashboard data loading complete")
+        setLoading(false)
       }
 
       setLoading(false)
@@ -888,7 +900,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Topics Analytics Charts */}
-        {topicsChartData && topicsChartData.topTopics.length > 0 && (
+        {topicsChartData && topicsChartData.topTopics && Array.isArray(topicsChartData.topTopics) && topicsChartData.topTopics.length > 0 && (
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Top Topics Bar Chart */}
             <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
@@ -963,10 +975,10 @@ export default function AdminDashboard() {
               <div className="h-[300px] flex items-center justify-center">
                 <Doughnut
                   data={{
-                    labels: topicsChartData.topicsDistribution.slice(0, 8).map((t: any) => t.name),
+                    labels: (topicsChartData.topicsDistribution || []).slice(0, 8).map((t: any) => t.name),
                     datasets: [
                       {
-                        data: topicsChartData.topicsDistribution.slice(0, 8).map((t: any) => t.value),
+                        data: (topicsChartData.topicsDistribution || []).slice(0, 8).map((t: any) => t.value),
                         backgroundColor: [
                           'rgba(251, 146, 60, 0.8)',
                           'rgba(168, 85, 247, 0.8)',
