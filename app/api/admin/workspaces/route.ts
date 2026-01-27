@@ -34,16 +34,10 @@ export async function GET(request: Request) {
 
     const adminClient = createAdminClient()
 
-    // Get all workspaces with user info
+    // Get all workspaces
     const { data: workspaces, error: workspacesError } = await adminClient
       .from("workspaces")
-      .select(`
-        *,
-        profiles:user_id (
-          email,
-          display_name
-        )
-      `)
+      .select("*")
       .order("created_at", { ascending: false })
 
     if (workspacesError) {
@@ -51,17 +45,26 @@ export async function GET(request: Request) {
       throw workspacesError
     }
 
-    // Get conversation counts for each workspace
+    // Get conversation counts and user info for each workspace
     const workspacesWithCounts = await Promise.all(
       (workspaces || []).map(async (workspace) => {
+        // Get conversation count
         const { count } = await adminClient
           .from("conversations")
           .select("*", { count: "exact", head: true })
           .eq("workspace_id", workspace.id)
 
+        // Get user profile
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("email, display_name")
+          .eq("id", workspace.user_id)
+          .single()
+
         return {
           ...workspace,
-          conversation_count: count || 0
+          conversation_count: count || 0,
+          profiles: profile
         }
       })
     )
