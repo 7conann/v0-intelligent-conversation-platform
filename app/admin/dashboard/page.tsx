@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart, Search, Filter, ArrowUpDown, ChevronDown, MoreHorizontal, Trash2, Edit, Mail, Phone } from 'lucide-react'
+import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart, Search, Filter, ArrowUpDown, ChevronDown, MoreHorizontal, Trash2, Edit, Mail, Phone, Briefcase, Sparkles, Loader2 } from 'lucide-react'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -89,6 +89,9 @@ export default function AdminDashboard() {
     phone: "", 
     account_expiration_date: "" 
   })
+  const [workspaces, setWorkspaces] = useState<any[]>([])
+  const [loadingInsights, setLoadingInsights] = useState<{[key: string]: 'summary' | 'trending' | null}>({})
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -125,6 +128,13 @@ export default function AdminDashboard() {
           const charts = await chartResponse.json()
           setChartData(charts)
         }
+
+        // Fetch workspaces
+        const workspacesResponse = await fetch("/api/admin/workspaces")
+        if (workspacesResponse.ok) {
+          const workspacesData = await workspacesResponse.json()
+          setWorkspaces(workspacesData.workspaces || [])
+        }
       } catch (error) {
         console.error("[v0] Error loading admin data:", error)
       }
@@ -134,6 +144,42 @@ export default function AdminDashboard() {
 
     checkAdminAndLoadData()
   }, [router])
+
+  const handleGetInsights = async (workspaceId: string, workspaceName: string, type: 'summary' | 'trending') => {
+    setLoadingInsights({ ...loadingInsights, [workspaceId]: type })
+
+    try {
+      const response = await fetch("/api/admin/workspace-insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId, workspaceName, type })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        throw new Error(errorData.error || errorData.details || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      
+      // Update workspace in local state
+      setWorkspaces(workspaces.map(w => 
+        w.id === workspaceId 
+          ? { 
+              ...w, 
+              conversation_summary: type === 'summary' ? data.result : w.conversation_summary,
+              trending_topics: type === 'trending' ? data.result : w.trending_topics
+            }
+          : w
+      ))
+
+      alert(type === 'summary' ? 'Assunto atualizado!' : 'Tópicos atualizados!')
+    } catch (error) {
+      alert(`Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
+    } finally {
+      setLoadingInsights({ ...loadingInsights, [workspaceId]: null })
+    }
+  }
 
   const handleSaveUser = async () => {
     if (!editingUser) return
@@ -736,6 +782,88 @@ export default function AdminDashboard() {
                   Limpar filtros
                 </button>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Workspace Insights */}
+        <div className="mt-6 bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Briefcase className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">Insights de Workspaces</h3>
+              <p className="text-sm text-[var(--text-secondary)]">Análise de conversas e tópicos mais comentados</p>
+            </div>
+          </div>
+
+          {workspaces.length === 0 ? (
+            <div className="text-center py-8">
+              <Briefcase className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-50" />
+              <p className="text-[var(--text-secondary)]">Nenhum workspace encontrado</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {workspaces.map((workspace) => (
+                <div 
+                  key={workspace.id}
+                  className="bg-[var(--app-bg)] rounded-xl p-4 border border-[var(--sidebar-border)]"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h4 className="font-medium text-[var(--text-primary)]">{workspace.name}</h4>
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">
+                        {workspace.conversation_count} conversas
+                        {workspace.profiles && (
+                          <span> • {workspace.profiles.display_name || workspace.profiles.email}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'summary')}
+                        disabled={!!loadingInsights[workspace.id]}
+                        className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingInsights[workspace.id] === 'summary' ? (
+                          <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                        ) : (
+                          <MessageSquare className="w-4 h-4 text-purple-400" />
+                        )}
+                        <span className="text-purple-300">Resumo</span>
+                      </button>
+                      <button
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'trending')}
+                        disabled={!!loadingInsights[workspace.id]}
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingInsights[workspace.id] === 'trending' ? (
+                          <Loader2 className="w-4 h-4 text-orange-400 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-4 h-4 text-orange-400" />
+                        )}
+                        <span className="text-orange-300">Tópicos</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Display results if available */}
+                  {workspace.conversation_summary && (
+                    <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                      <p className="text-xs font-medium text-purple-300 mb-1">Resumo da Conversa:</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{workspace.conversation_summary}</p>
+                    </div>
+                  )}
+
+                  {workspace.trending_topics && (
+                    <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+                      <p className="text-xs font-medium text-orange-300 mb-1">Assuntos Mais Comentados:</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{workspace.trending_topics}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
