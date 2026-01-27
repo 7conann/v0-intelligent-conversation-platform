@@ -44,6 +44,8 @@ export async function POST(request: Request) {
 
     const adminClient = createAdminClient()
 
+    console.log("[v0] Fetching workspace with ID:", workspaceId)
+
     // Get workspace details
     const { data: workspace, error: workspaceError } = await adminClient
       .from("workspaces")
@@ -51,11 +53,24 @@ export async function POST(request: Request) {
       .eq("id", workspaceId)
       .single()
 
-    if (workspaceError || !workspace) {
+    if (workspaceError) {
+      console.error("[v0] Workspace query error:", workspaceError)
+      return NextResponse.json({ 
+        error: "Workspace not found", 
+        details: workspaceError.message 
+      }, { status: 404 })
+    }
+
+    if (!workspace) {
+      console.error("[v0] No workspace found with ID:", workspaceId)
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 })
     }
 
+    console.log("[v0] Workspace found:", workspace.name)
+
     // Get all conversations from this workspace
+    console.log("[v0] Fetching conversations for workspace:", workspaceId)
+    
     const { data: conversations, error: conversationsError } = await adminClient
       .from("conversations")
       .select("id, title, created_at")
@@ -65,6 +80,8 @@ export async function POST(request: Request) {
       console.error("[v0] Error fetching conversations:", conversationsError)
       return NextResponse.json({ error: "Error fetching conversations" }, { status: 500 })
     }
+
+    console.log("[v0] Found", conversations?.length || 0, "conversations")
 
     // Get messages from these conversations
     const conversationIds = conversations?.map(c => c.id) || []
