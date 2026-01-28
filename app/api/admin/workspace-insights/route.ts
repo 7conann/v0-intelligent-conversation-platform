@@ -24,13 +24,20 @@ export async function POST(request: Request) {
     if (conversations && conversations.length > 0) {
       const conversationIds = conversations.map(c => c.id)
       
-      const { data: messages } = await adminClient
+      console.log("[v0] Buscando mensagens para conversationIds:", conversationIds)
+      
+      const { data: messages, error: msgError } = await adminClient
         .from("messages")
         .select("content, role, conversation_id, created_at, agent_name")
         .in("conversation_id", conversationIds)
         .order("created_at", { ascending: true })
 
-      allMessages = messages || []
+      console.log("[v0] Mensagens encontradas:", messages?.length || 0, "Erro:", msgError)
+      
+      if (messages && messages.length > 0) {
+        allMessages = messages
+        console.log("[v0] Primeira mensagem:", messages[0])
+      }
     }
 
     // Montar texto bruto com todas as conversas e mensagens
