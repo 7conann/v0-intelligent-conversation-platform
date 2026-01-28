@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { workspaceId, workspaceName, type } = body
+    const { workspaceId, workspaceName, type, userId } = body
 
     if (!workspaceId) {
       return NextResponse.json({ error: "workspaceId é obrigatório" }, { status: 400 })
@@ -15,14 +15,15 @@ export async function POST(request: Request) {
       ? "https://n8n.grupobeely.com.br/webhook/workspace-topico"
       : "https://n8n.grupobeely.com.br/webhook/workspace-assunto"
 
-    // POST no webhook apenas com o workspaceId - n8n busca as conversas e mensagens
+    // POST no webhook com workspaceId e userId - n8n busca as conversas e mensagens
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         workspaceId,
         workspaceName: workspaceName || "Workspace",
-        type
+        type,
+        userId
       }),
     })
 
