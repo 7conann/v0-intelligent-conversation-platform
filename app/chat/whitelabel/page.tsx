@@ -834,15 +834,8 @@ export default function WhitelabelChatPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-gradient-to-br from-[#0d1f17] via-[#0a1810] to-[#071209]">
         <div className="text-center">
-          <Image 
-            src="/whitelabel-avatar.jpg" 
-            alt="NEXUS AI" 
-            width={80} 
-            height={80} 
-            className="mx-auto mb-4 rounded-2xl shadow-lg shadow-emerald-500/20"
-          />
           <div className="w-16 h-16 border-4 border-emerald-500 border-t-amber-400 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-emerald-300/80 font-medium">Carregando NEXUS AI...</p>
+          <p className="text-emerald-300/80 font-medium">Carregando...</p>
         </div>
       </div>
     )
