@@ -51,6 +51,7 @@ interface ChatAreaProps {
   onToggleAgent?: (agentId: string) => void
   selectedMessagesGlobal?: Array<{ chatId: string; messageIds: string[] }>
   onSelectedMessagesGlobalChange?: (selection: Array<{ chatId: string; messageIds: string[] }>) => void
+  isReadOnly?: boolean
 }
 
 export function ChatArea({
@@ -75,6 +76,7 @@ export function ChatArea({
   className,
   selectedMessagesGlobal,
   onSelectedMessagesGlobalChange,
+  isReadOnly = false,
 }: ChatAreaProps) {
   const [input, setInput] = useState("")
   const [selectedMessages, setSelectedMessages] = useState<string[]>([])
@@ -1748,15 +1750,15 @@ export function ChatArea({
                 })}
               </div>
               <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
+                value={isReadOnly ? "" : input}
+                onChange={(e) => !isReadOnly && setInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey && !isReadOnly) {
                     e.preventDefault()
                     sendMessage()
                   }
                 }}
-                placeholder="Digite sua mensagem..."
+                placeholder={isReadOnly ? "Modo somente leitura - visualizando como outro usuário" : "Digite sua mensagem..."}
                 className="flex-1 bg-[var(--input-bg)] border-[var(--chat-border)] text-[var(--settings-text)] placeholder:text-[var(--settings-text-muted)] focus:border-purple-500 resize-none min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] text-sm md:text-base"
                 style={{
                   paddingTop:
@@ -1764,12 +1766,12 @@ export function ChatArea({
                       ? "2rem"
                       : "0.75rem",
                 }}
-                disabled={selectedAgents.length === 0}
+                disabled={selectedAgents.length === 0 || isReadOnly}
               />
             </div>
             <Button
               onClick={sendMessage}
-              disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading}
+              disabled={(!input.trim() && attachments.length === 0) || selectedAgents.length === 0 || isLoading || isReadOnly}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white h-[50px] md:h-[60px] px-4 md:px-6 cursor-pointer disabled:cursor-not-allowed"
             >
               <Send className="w-4 h-4 md:w-5 md:h-5" />

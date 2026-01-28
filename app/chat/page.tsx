@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useCallback, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ChatSidebar } from "@/components/chat-sidebar"
 import { ChatArea } from "@/components/chat-area"
 import { PhoneModal } from "@/components/phone-modal"
@@ -170,9 +170,18 @@ const resolveAgentIds = (resp: ExternalApiResponse, agents: Agent[], fallbackSel
   return fallbackSelectedIds
 }
 
-export default function ChatPage() {
+function ChatPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { addToast } = useToast()
+  
+  // Impersonation state
+  const [isImpersonating, setIsImpersonating] = useState(false)
+  const [impersonatedUser, setImpersonatedUser] = useState<{
+    id: string
+    email: string
+    name: string
+  } | null>(null)
 
   const [selectedAgentsByChat, setSelectedAgentsByChat] = useState<Record<string, string[]>>({})
   const [usedAgentsPerChat, setUsedAgentsPerChat] = useState<Record<string, string[]>>({})
@@ -215,14 +224,40 @@ export default function ChatPage() {
       } = await supabase.auth.getSession()
 
       if (session) {
-        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", session.user.id).single()
+        // Check for impersonation mode
+        const impersonateUserId = searchParams.get('impersonate')
+        let targetUserId = session.user.id
+        
+        if (impersonateUserId && isAdminUser(session.user.email || '')) {
+          // Admin is impersonating another user
+          const { data: impersonatedProfile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", impersonateUserId)
+            .single()
+          
+          if (impersonatedProfile) {
+            setIsImpersonating(true)
+            setImpersonatedUser({
+              id: impersonatedProfile.id,
+              email: impersonatedProfile.email,
+              name: impersonatedProfile.display_name || impersonatedProfile.email
+            })
+            targetUserId = impersonateUserId
+            console.log("[v0] 👤 Admin impersonating user:", impersonatedProfile.email)
+          }
+        }
+
+        const { data: profileData } = await supabase.from("profiles").select("*").eq("id", targetUserId).single()
 
         if (profileData) {
-          if (!profileData.phone) {
+          // Only show phone modal for non-impersonated users
+          if (!impersonateUserId && !profileData.phone) {
             setShowPhoneModal(true)
           }
 
-          if (!isAdminUser(profileData.email)) {
+          // Skip trial check when impersonating
+          if (!impersonateUserId && !isAdminUser(profileData.email)) {
             if (isTrialExpired(profileData.email, profileData.created_at, profileData.account_expiration_date)) {
               router.push("/trial-expired")
               return
@@ -230,28 +265,32 @@ export default function ChatPage() {
           }
         }
 
-        await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", session.user.id)
-        setUserId(session.user.id)
+        // Only update last_access for non-impersonated sessions
+        if (!impersonateUserId) {
+          await supabase.from("profiles").update({ last_access: new Date().toISOString() }).eq("id", session.user.id)
+        }
+        setUserId(targetUserId)
 
         const preferences = getAgentPreferences(session.user.id)
         setAgentPreferences(preferences)
         console.log("[v0] 👁️ Agent preferences loaded from localStorage:", preferences)
 
-        console.log("[v0] 🔍 Buscando workspace para user_id:", session.user.id)
+        console.log("[v0] 🔍 Buscando workspace para user_id:", targetUserId)
         const { data: workspaces } = await supabase
           .from("workspaces")
           .select("*")
-          .eq("user_id", session.user.id)
+          .eq("user_id", targetUserId)
           .limit(1)
 
         let workspace = workspaces?.[0]
 
-        if (!workspace) {
+        if (!workspace && !impersonateUserId) {
+          // Only create workspace for non-impersonated users
           console.log("[v0] ⚠️ Workspace não encontrado, criando novo...")
           const { data: newWorkspace } = await supabase
             .from("workspaces")
             .insert({
-              user_id: session.user.id,
+              user_id: targetUserId,
               name: "Workspace Padrão",
             })
             .select()
@@ -281,7 +320,7 @@ export default function ChatPage() {
 
           if (workspace) {
             try {
-              customAgentsData = await getCustomAgents(session.user.id, workspace.id)
+              customAgentsData = await getCustomAgents(targetUserId, workspace.id)
               console.log("[v0] 📦 Custom agents retornados do banco:", customAgentsData)
               console.log("[v0] 📊 Quantidade de custom agents:", customAgentsData?.length || 0)
             } catch (err) {
@@ -358,10 +397,15 @@ export default function ChatPage() {
 
         if (workspace) {
           try {
-            const conversations = await getConversations(session.user.id, workspace.id)
+            const conversations = await getConversations(targetUserId, workspace.id)
 
             if (!conversations || conversations.length === 0) {
-              const defaultConversation = await saveConversation(session.user.id, workspace.id, "Conversa 1", [], false)
+              // Only create default conversation for non-impersonated users
+              if (impersonateUserId) {
+                setIsLoadingConversations(false)
+                return
+              }
+              const defaultConversation = await saveConversation(targetUserId, workspace.id, "Conversa 1", [], false)
 
               const newChat: Chat = {
                 id: defaultConversation.id,
@@ -461,7 +505,7 @@ export default function ChatPage() {
     }
 
     loadUserAndConversations()
-  }, [addToast, router])
+  }, [addToast, router, searchParams])
 
   useEffect(() => {
     const reloadAgentsAndPreferences = async () => {
@@ -1011,8 +1055,28 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-dvh md:h-screen bg-[var(--app-bg)] overflow-hidden">
-      <PhoneModal isOpen={showPhoneModal} onClose={() => setShowPhoneModal(false)} onSubmit={handlePhoneSubmit} />
+  <div className="flex flex-col h-dvh md:h-screen bg-[var(--app-bg)] overflow-hidden">
+  {/* Impersonation Banner */}
+  {isImpersonating && impersonatedUser && (
+    <div className="bg-yellow-500 text-black px-4 py-2 flex items-center justify-between shrink-0 z-50">
+      <div className="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+        </svg>
+        <span className="font-medium">
+          Modo Administrador: Visualizando como <strong>{impersonatedUser.name}</strong> ({impersonatedUser.email})
+        </span>
+      </div>
+      <button
+        onClick={() => router.push('/admin/dashboard')}
+        className="bg-black text-white px-4 py-1 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+      >
+        Voltar ao Admin
+      </button>
+    </div>
+  )}
+  <div className="flex flex-1 overflow-hidden">
+  <PhoneModal isOpen={showPhoneModal} onClose={() => setShowPhoneModal(false)} onSubmit={handlePhoneSubmit} />
       <ChatSidebar
         agents={visibleAgents}
         allAgents={agents}
@@ -1035,6 +1099,7 @@ export default function ChatPage() {
         currentChatId={currentChatId}
         chats={chats}
         onCreateNewChat={createNewChat}
+        isReadOnly={isImpersonating}
         onSwitchChat={setCurrentChatId}
         onMarkAgentAsUsed={(agentId) => markAgentAsUsed(currentChatId!, agentId)}
         onCreateChatWithMessages={createChatWithMessages}
@@ -1053,5 +1118,21 @@ export default function ChatPage() {
         onSelectedMessagesGlobalChange={setSelectedMessagesGlobal}
       />
     </div>
+    </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-[var(--app-bg)]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--settings-text)]">Carregando...</p>
+        </div>
+      </div>
+    }>
+      <ChatPageContent />
+    </Suspense>
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { createClient } from "@/lib/supabase/client"
 import { isAdminUser } from "@/lib/utils/trial"
-import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart, Search, Filter, ArrowUpDown, ChevronDown, MoreHorizontal, Trash2, Edit, Mail, Phone, Briefcase, Sparkles, Loader2 } from 'lucide-react'
+import { Users, MessageSquare, Bot, TrendingUp, Eye, Calendar, BarChart3, PieChart, Search, Filter, ArrowUpDown, ChevronDown, MoreHorizontal, Trash2, Edit, Mail, Phone, Briefcase, Sparkles, Loader2, LogIn } from 'lucide-react'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -92,6 +92,7 @@ export default function AdminDashboard() {
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loadingInsights, setLoadingInsights] = useState<{[key: string]: 'summary' | 'trending' | null}>({})
   const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null)
+  const [impersonating, setImpersonating] = useState<string | null>(null)
   
   // Pagination states
   const [usersPage, setUsersPage] = useState(1)
@@ -184,6 +185,39 @@ export default function AdminDashboard() {
       alert(`Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`)
     } finally {
       setLoadingInsights({ ...loadingInsights, [workspaceId]: null })
+    }
+  }
+
+  const handleImpersonateUser = async (userId: string, userEmail: string, userName: string) => {
+    if (!confirm(`Deseja entrar como ${userName} (${userEmail})? Você será redirecionado para o painel do usuário.`)) {
+      return
+    }
+
+    setImpersonating(userId)
+    
+    try {
+      // Store admin info in sessionStorage to allow returning
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session) {
+        sessionStorage.setItem('admin_impersonation', JSON.stringify({
+          adminId: session.user.id,
+          adminEmail: session.user.email,
+          impersonatedUserId: userId,
+          impersonatedUserEmail: userEmail,
+          impersonatedUserName: userName,
+          timestamp: new Date().toISOString()
+        }))
+      }
+
+      // Redirect to chat as impersonated user
+      router.push(`/chat?impersonate=${userId}`)
+    } catch (error) {
+      console.error("[v0] Error impersonating user:", error)
+      alert("Erro ao entrar como usuário")
+    } finally {
+      setImpersonating(null)
     }
   }
 
@@ -845,6 +879,18 @@ export default function AdminDashboard() {
                       {/* Actions */}
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleImpersonateUser(user.id, user.email, user.display_name)}
+                            disabled={impersonating === user.id}
+                            className="p-2 hover:bg-purple-500/20 rounded-lg transition-colors disabled:opacity-50"
+                            title="Entrar como este usuário"
+                          >
+                            {impersonating === user.id ? (
+                              <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                            ) : (
+                              <LogIn className="w-4 h-4 text-purple-400" />
+                            )}
+                          </button>
                           <button
                             onClick={() => router.push(`/admin/users/${user.id}`)}
                             className="p-2 hover:bg-[var(--sidebar-bg)] rounded-lg transition-colors"
