@@ -524,19 +524,20 @@ export default function WhitelabelLoginPage() {
       {/* Right Side - Branding */}
       <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 relative overflow-hidden items-center justify-center">
         {/* Animated background grid */}
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: `linear-gradient(to right, rgba(16, 185, 129, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.3) 1px, transparent 1px)`,
-            backgroundSize: "40px 40px",
+        <div className="absolute inset-0 opacity-20">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `linear-gradient(to right, rgba(16, 185, 129, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.3) 1px, transparent 1px)`,
+              backgroundSize: "40px 40px",
             }}
           />
         </div>
 
         {/* Glowing orbs */}
         <div className="absolute top-20 left-20 w-64 h-64 bg-emerald-500 rounded-full blur-3xl opacity-30 animate-pulse" />
-        <div className="absolute bottom-32 left-16 w-80 h-80 bg-cyan-500 rounded-full blur-3xl opacity-20 animate-pulse delay-500" />
-        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-cyan-300 rounded-full animate-ping delay-1000" />
+        <div className="absolute bottom-32 left-16 w-80 h-80 bg-emerald-600 rounded-full blur-3xl opacity-20 animate-pulse delay-500" />
+        <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-emerald-300 rounded-full animate-ping delay-1000" />
 
         {/* Content */}
         <div className="relative z-10 text-center px-12 max-w-2xl">
@@ -560,7 +561,7 @@ export default function WhitelabelLoginPage() {
               Marca Personalizada
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium flex items-center gap-2">
-              <Brain className="w-4 h-4 text-cyan-300" />
+              <Brain className="w-4 h-4 text-emerald-300" />
               Agentes Exclusivos
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium flex items-center gap-2">
