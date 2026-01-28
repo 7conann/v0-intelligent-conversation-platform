@@ -909,48 +909,56 @@ export default function WhitelabelChatPage() {
       </div>
       
       <style jsx global>{`
-        /* Override CSS Variables for Whitelabel Theme - Blue/Black */
+        /* Override CSS Variables for Whitelabel Theme - Modern Blue */
         .whitelabel-theme {
-          --app-bg: #050510 !important;
-          --sidebar-bg: #0a0a18 !important;
-          --sidebar-border: #1e3a5f !important;
-          --agent-bg: #0d1525 !important;
-          --agent-hover: #152035 !important;
+          --app-bg: #0f172a !important;
+          --sidebar-bg: #1e293b !important;
+          --sidebar-border: #334155 !important;
+          --agent-bg: #334155 !important;
+          --agent-hover: #3b82f6 !important;
           --agent-icon: #60a5fa !important;
-          --tooltip-bg: #0d1525 !important;
+          --tooltip-bg: #1e293b !important;
           --tooltip-text: #ffffff !important;
-          --chat-bg: #050510 !important;
-          --chat-header-bg: #0a0a18 !important;
-          --chat-border: #1e3a5f !important;
-          --message-user-bg: #0d1525 !important;
-          --message-assistant-bg: #0a1628 !important;
-          --input-bg: #0a0a18 !important;
-          --settings-bg: #0a0a18 !important;
-          --settings-border: #1e3a5f !important;
+          --chat-bg: #0f172a !important;
+          --chat-header-bg: #1e293b !important;
+          --chat-border: #334155 !important;
+          --message-user-bg: #1e3a5f !important;
+          --message-assistant-bg: #1e293b !important;
+          --input-bg: #1e293b !important;
+          --settings-bg: #1e293b !important;
+          --settings-border: #334155 !important;
           --settings-text: #ffffff !important;
-          --settings-text-muted: #60a5fa !important;
+          --settings-text-muted: #93c5fd !important;
           --text-primary: #ffffff !important;
-          --text-secondary: #93c5fd !important;
-          --border-color: #1e3a5f !important;
-          --settings-button-bg: #0d1525 !important;
-          --settings-button-hover: #152035 !important;
-          --settings-input-bg: #050510 !important;
-          --card-bg: #0d1525 !important;
+          --text-secondary: #cbd5e1 !important;
+          --border-color: #334155 !important;
+          --settings-button-bg: #334155 !important;
+          --settings-button-hover: #3b82f6 !important;
+          --settings-input-bg: #0f172a !important;
+          --card-bg: #334155 !important;
         }
         
-        /* Force background colors */
+        /* Force background colors - Modern slate/blue theme */
         .whitelabel-theme,
         .whitelabel-theme > div,
         .whitelabel-theme [class*="bg-[var(--app-bg)"] {
-          background-color: #050510 !important;
+          background-color: #0f172a !important;
         }
         
-        /* Sidebar background */
+        /* Sidebar background - Gradient slate to blue */
         .whitelabel-theme aside,
         .whitelabel-theme [class*="sidebar"],
         .whitelabel-theme [class*="bg-[var(--sidebar-bg)"] {
-          background-color: #0a0a18 !important;
-          border-color: #1e3a5f !important;
+          background: linear-gradient(180deg, #1e293b 0%, #1e3a5f 100%) !important;
+          border-color: #334155 !important;
+          box-shadow: 2px 0 10px rgba(0,0,0,0.3) !important;
+        }
+        
+        /* Sidebar header/top section */
+        .whitelabel-theme aside > div:first-child,
+        .whitelabel-theme [class*="sidebar"] > div:first-child {
+          background-color: rgba(59, 130, 246, 0.1) !important;
+          border-bottom: 1px solid #334155 !important;
         }
         
         /* All purple colors to blue */
@@ -998,15 +1006,38 @@ export default function WhitelabelChatPage() {
           background-color: rgba(59, 130, 246, 0.7) !important;
         }
         
-        /* Agent cards */
+        /* Agent cards - Modern card design */
         .whitelabel-theme [class*="agent"] {
-          background-color: #0d1525 !important;
-          border-color: #1e3a5f !important;
+          background-color: #334155 !important;
+          border: 1px solid #475569 !important;
+          border-radius: 12px !important;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+          transition: all 0.3s ease !important;
         }
         
         .whitelabel-theme [class*="agent"]:hover {
-          background-color: #152035 !important;
-          border-color: #2563eb !important;
+          background-color: #3b82f6 !important;
+          border-color: #60a5fa !important;
+          transform: translateX(4px) !important;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        .whitelabel-theme [class*="agent"][class*="active"],
+        .whitelabel-theme [class*="agent"][data-active="true"] {
+          background-color: #2563eb !important;
+          border-color: #60a5fa !important;
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4) !important;
+        }
+        
+        /* Agent icons */
+        .whitelabel-theme [class*="agent"] svg,
+        .whitelabel-theme [class*="agent"] [class*="icon"] {
+          color: #60a5fa !important;
+        }
+        
+        .whitelabel-theme [class*="agent"]:hover svg,
+        .whitelabel-theme [class*="agent"]:hover [class*="icon"] {
+          color: #ffffff !important;
         }
         
         /* Message bubbles - dark background with white text */
@@ -1198,17 +1229,59 @@ export default function WhitelabelChatPage() {
           background-color: #2563eb !important;
         }
         
-        /* Override all specific background colors to dark theme */
-        .whitelabel-theme .bg-white { background-color: #0a0a18 !important; }
-        .whitelabel-theme .bg-gray-50 { background-color: #0d1525 !important; }
-        .whitelabel-theme .bg-gray-100 { background-color: #0d1525 !important; }
-        .whitelabel-theme .bg-gray-200 { background-color: #152035 !important; }
-        .whitelabel-theme .bg-gray-800 { background-color: #0a0a18 !important; }
-        .whitelabel-theme .bg-gray-900 { background-color: #050510 !important; }
-        .whitelabel-theme .bg-slate-50 { background-color: #0d1525 !important; }
-        .whitelabel-theme .bg-slate-100 { background-color: #0d1525 !important; }
-        .whitelabel-theme .bg-slate-800 { background-color: #0a0a18 !important; }
-        .whitelabel-theme .bg-slate-900 { background-color: #050510 !important; }
+        /* Search input in sidebar */
+        .whitelabel-theme aside input[type="text"],
+        .whitelabel-theme aside input[type="search"],
+        .whitelabel-theme [class*="sidebar"] input {
+          background-color: rgba(51, 65, 85, 0.8) !important;
+          border: 1px solid #475569 !important;
+          border-radius: 8px !important;
+          color: #ffffff !important;
+          padding: 8px 12px !important;
+        }
+        
+        .whitelabel-theme aside input:focus,
+        .whitelabel-theme [class*="sidebar"] input:focus {
+          background-color: rgba(59, 130, 246, 0.1) !important;
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        /* Sidebar buttons (tabs, filters, etc) */
+        .whitelabel-theme aside button,
+        .whitelabel-theme [class*="sidebar"] button {
+          background-color: rgba(51, 65, 85, 0.6) !important;
+          border: 1px solid transparent !important;
+          border-radius: 8px !important;
+          color: #cbd5e1 !important;
+          transition: all 0.2s ease !important;
+        }
+        
+        .whitelabel-theme aside button:hover,
+        .whitelabel-theme [class*="sidebar"] button:hover {
+          background-color: #3b82f6 !important;
+          color: #ffffff !important;
+          border-color: #60a5fa !important;
+        }
+        
+        .whitelabel-theme aside button[class*="active"],
+        .whitelabel-theme [class*="sidebar"] button[data-active="true"] {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+          border-color: #60a5fa !important;
+        }
+        
+        /* Override all specific background colors to modern slate theme */
+        .whitelabel-theme .bg-white { background-color: #1e293b !important; }
+        .whitelabel-theme .bg-gray-50 { background-color: #334155 !important; }
+        .whitelabel-theme .bg-gray-100 { background-color: #334155 !important; }
+        .whitelabel-theme .bg-gray-200 { background-color: #475569 !important; }
+        .whitelabel-theme .bg-gray-800 { background-color: #1e293b !important; }
+        .whitelabel-theme .bg-gray-900 { background-color: #0f172a !important; }
+        .whitelabel-theme .bg-slate-50 { background-color: #334155 !important; }
+        .whitelabel-theme .bg-slate-100 { background-color: #334155 !important; }
+        .whitelabel-theme .bg-slate-800 { background-color: #1e293b !important; }
+        .whitelabel-theme .bg-slate-900 { background-color: #0f172a !important; }
         
         /* Force all text to be white/light */
         .whitelabel-theme .text-gray-900,
