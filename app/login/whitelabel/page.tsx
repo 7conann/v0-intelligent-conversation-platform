@@ -315,7 +315,7 @@ export default function WhitelabelLoginPage() {
               <Sparkles className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <h3 className="text-emerald-400 font-semibold mb-1">Versao Whitelabel</h3>
-                <p className="text-blue-200/80 text-sm">
+                <p className="text-emerald-200/80 text-sm">
                   Esta e uma demonstracao de como sua empresa pode ter uma plataforma de IA totalmente personalizada com sua marca, cores e logo.
                 </p>
               </div>
@@ -522,14 +522,13 @@ export default function WhitelabelLoginPage() {
       </div>
 
       {/* Right Side - Branding */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-900 via-cyan-900 to-blue-950 relative overflow-hidden items-center justify-center">
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 relative overflow-hidden items-center justify-center">
         {/* Animated background grid */}
-        <div className="absolute inset-0 opacity-20">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `linear-gradient(to right, rgba(20, 184, 166, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(20, 184, 166, 0.3) 1px, transparent 1px)`,
-              backgroundSize: "40px 40px",
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(16, 185, 129, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(16, 185, 129, 0.3) 1px, transparent 1px)`,
+            backgroundSize: "40px 40px",
             }}
           />
         </div>
