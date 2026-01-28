@@ -288,15 +288,16 @@ export default function AdminDashboard() {
       return sortOrder === "asc" ? comparison : -comparison
     })
 
-  // Pagination calculations
-  const totalUsersPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
-  const paginatedUsers = filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE)
+  // Pagination calculations with null checks
+  const totalUsersPages = Math.ceil((filteredUsers?.length || 0) / ITEMS_PER_PAGE) || 1
+  const paginatedUsers = filteredUsers?.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE) || []
   
-  const totalTopUsersPages = Math.ceil(chartData.userActivity.length / ITEMS_PER_PAGE)
-  const paginatedTopUsers = chartData.userActivity.slice((topUsersPage - 1) * ITEMS_PER_PAGE, topUsersPage * ITEMS_PER_PAGE)
+  const userActivityData = chartData?.userActivity || []
+  const totalTopUsersPages = Math.ceil(userActivityData.length / ITEMS_PER_PAGE) || 1
+  const paginatedTopUsers = userActivityData.slice((topUsersPage - 1) * ITEMS_PER_PAGE, topUsersPage * ITEMS_PER_PAGE)
   
-  const totalWorkspacesPages = Math.ceil(workspaces.length / ITEMS_PER_PAGE)
-  const paginatedWorkspaces = workspaces.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE)
+  const totalWorkspacesPages = Math.ceil((workspaces?.length || 0) / ITEMS_PER_PAGE) || 1
+  const paginatedWorkspaces = workspaces?.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE) || []
 
   // Chart configurations
   const messagesChartData = {
