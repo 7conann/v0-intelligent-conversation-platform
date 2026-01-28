@@ -873,6 +873,7 @@ export default function WhitelabelChatPage() {
             secondary: "cyan",
             brandName: "SUA MARCA AI",
             logoUrl: "/whitelabel-logo.jpg",
+            profileUrl: "/whitelabel-profile.jpg",
           }}
         />
         <ChatArea
@@ -901,6 +902,8 @@ export default function WhitelabelChatPage() {
             primary: "blue",
             secondary: "cyan",
             brandName: "SUA MARCA AI",
+            logoUrl: "/whitelabel-logo.jpg",
+            profileUrl: "/whitelabel-profile.jpg",
           }}
         />
       </div>
@@ -908,43 +911,85 @@ export default function WhitelabelChatPage() {
       <style jsx global>{`
         .whitelabel-theme {
           --whitelabel-primary: #3b82f6;
-          --whitelabel-secondary: #06b6d4;
+          --whitelabel-secondary: #1e3a5f;
+          --whitelabel-accent: #60a5fa;
+          --whitelabel-dark: #0a0a12;
         }
-        .whitelabel-theme .bg-purple-600 {
-          background-color: #3b82f6 !important;
-        }
+        /* Override purple to blue */
+        .whitelabel-theme .bg-purple-600,
         .whitelabel-theme .bg-purple-500 {
           background-color: #3b82f6 !important;
         }
-        .whitelabel-theme .bg-purple-400 {
+        .whitelabel-theme .bg-purple-400,
+        .whitelabel-theme .bg-purple-300 {
           background-color: #60a5fa !important;
         }
-        .whitelabel-theme .text-purple-600 {
-          color: #3b82f6 !important;
+        .whitelabel-theme .bg-purple-600\\/20,
+        .whitelabel-theme .bg-purple-500\\/20 {
+          background-color: rgba(59, 130, 246, 0.2) !important;
         }
+        .whitelabel-theme .text-purple-600,
         .whitelabel-theme .text-purple-500 {
           color: #3b82f6 !important;
         }
-        .whitelabel-theme .text-purple-400 {
+        .whitelabel-theme .text-purple-400,
+        .whitelabel-theme .text-purple-300 {
           color: #60a5fa !important;
         }
-        .whitelabel-theme .border-purple-600 {
-          border-color: #3b82f6 !important;
-        }
+        .whitelabel-theme .border-purple-600,
         .whitelabel-theme .border-purple-500 {
           border-color: #3b82f6 !important;
+        }
+        .whitelabel-theme .border-purple-400,
+        .whitelabel-theme .border-purple-500\\/30 {
+          border-color: rgba(59, 130, 246, 0.3) !important;
         }
         .whitelabel-theme .from-purple-600 {
           --tw-gradient-from: #3b82f6 !important;
         }
         .whitelabel-theme .to-blue-600 {
-          --tw-gradient-to: #06b6d4 !important;
+          --tw-gradient-to: #1e40af !important;
         }
-        .whitelabel-theme .hover\\:bg-purple-700:hover {
+        .whitelabel-theme .hover\\:bg-purple-700:hover,
+        .whitelabel-theme .hover\\:bg-purple-600:hover {
           background-color: #2563eb !important;
         }
         .whitelabel-theme .focus\\:ring-purple-500:focus {
           --tw-ring-color: #3b82f6 !important;
+        }
+        .whitelabel-theme .ring-purple-500 {
+          --tw-ring-color: #3b82f6 !important;
+        }
+        /* Sidebar and backgrounds - make darker/black tones */
+        .whitelabel-theme [class*="sidebar"] {
+          background-color: #0d0d14 !important;
+          border-color: #1e293b !important;
+        }
+        .whitelabel-theme .bg-\\[\\#0f0f1a\\],
+        .whitelabel-theme .bg-\\[var\\(--sidebar-bg\\)\\] {
+          background-color: #0d0d14 !important;
+        }
+        .whitelabel-theme .bg-\\[\\#1a1a2e\\] {
+          background-color: #111827 !important;
+        }
+        /* Buttons and interactive elements */
+        .whitelabel-theme button[class*="purple"] {
+          background-color: #3b82f6 !important;
+        }
+        .whitelabel-theme button[class*="purple"]:hover {
+          background-color: #2563eb !important;
+        }
+        /* Input focus states */
+        .whitelabel-theme input:focus,
+        .whitelabel-theme textarea:focus {
+          border-color: #3b82f6 !important;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+        }
+        /* Agent cards and selections */
+        .whitelabel-theme [class*="agent"][class*="selected"],
+        .whitelabel-theme [class*="agent"][class*="active"] {
+          border-color: #3b82f6 !important;
+          background-color: rgba(59, 130, 246, 0.1) !important;
         }
       `}</style>
     </div>
