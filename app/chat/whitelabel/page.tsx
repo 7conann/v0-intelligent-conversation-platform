@@ -160,12 +160,14 @@ const resolveAgentIds = (resp: ExternalApiResponse, agents: Agent[], fallbackSel
   return fallbackSelectedIds
 }
 
-// Whitelabel theme configuration
+// Whitelabel theme configuration - NOVA IDENTIDADE VERDE/DOURADO
 const WHITELABEL_THEME = {
-  primary: "blue",
-  secondary: "cyan",
-  brandName: "SUA MARCA AI",
-  tagline: "Sua marca, sua inteligencia.",
+  primary: "emerald",
+  secondary: "amber", 
+  brandName: "NEXUS AI",
+  tagline: "Inteligencia que transforma negocios.",
+  logoUrl: "/whitelabel-logo-new.jpg",
+  avatarUrl: "/whitelabel-avatar.jpg",
 }
 
 export default function WhitelabelChatPage() {
@@ -830,25 +832,41 @@ export default function WhitelabelChatPage() {
 
   if (isLoadingConversations || !currentChatId) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0a0a12]">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-[#0d1f17] via-[#0a1810] to-[#071209]">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Carregando conversas...</p>
+          <Image 
+            src="/whitelabel-avatar.jpg" 
+            alt="NEXUS AI" 
+            width={80} 
+            height={80} 
+            className="mx-auto mb-4 rounded-2xl shadow-lg shadow-emerald-500/20"
+          />
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-amber-400 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-emerald-300/80 font-medium">Carregando NEXUS AI...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex h-dvh md:h-screen bg-[#0a0a12] overflow-hidden whitelabel-theme">
-      {/* Whitelabel Banner */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600/90 to-cyan-600/90 backdrop-blur-sm py-2 px-4">
-        <div className="flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4 text-white" />
-          <span className="text-white text-sm font-medium">
-            Versao Whitelabel - Sua empresa pode ter uma plataforma personalizada como esta!
+    <div className="flex h-dvh md:h-screen overflow-hidden nexus-theme">
+      {/* NEXUS AI Banner */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-700 via-emerald-600 to-amber-600 py-2.5 px-4 shadow-lg">
+        <div className="flex items-center justify-center gap-3">
+          <Image 
+            src="/whitelabel-avatar.jpg" 
+            alt="NEXUS" 
+            width={24} 
+            height={24} 
+            className="rounded-md"
+          />
+          <span className="text-white text-sm font-semibold tracking-wide">
+            NEXUS AI - Plataforma White Label Demonstracao
           </span>
-          <Sparkles className="w-4 h-4 text-white" />
+          <div className="h-4 w-px bg-white/30" />
+          <span className="text-amber-200 text-xs">
+            Personalize com sua marca
+          </span>
         </div>
       </div>
       
@@ -869,11 +887,11 @@ export default function WhitelabelChatPage() {
           onMobileClose={() => setIsMobileSidebarOpen(false)}
           onAgentOrderChange={(agentIds) => {}}
           whitelabelTheme={{
-            primary: "blue",
-            secondary: "cyan",
-            brandName: "SUA MARCA AI",
-            logoUrl: "/whitelabel-logo.jpg",
-            profileUrl: "/whitelabel-profile.jpg",
+            primary: "emerald",
+            secondary: "amber",
+            brandName: "NEXUS AI",
+            logoUrl: "/whitelabel-logo-new.jpg",
+            profileUrl: "/whitelabel-avatar.jpg",
           }}
         />
         <ChatArea
@@ -899,469 +917,477 @@ export default function WhitelabelChatPage() {
           selectedMessagesGlobal={selectedMessagesGlobal}
           onSelectedMessagesGlobalChange={setSelectedMessagesGlobal}
           whitelabelTheme={{
-            primary: "blue",
-            secondary: "cyan",
-            brandName: "SUA MARCA AI",
-            logoUrl: "/whitelabel-logo.jpg",
-            profileUrl: "/whitelabel-profile.jpg",
+            primary: "emerald",
+            secondary: "amber",
+            brandName: "NEXUS AI",
+            logoUrl: "/whitelabel-logo-new.jpg",
+            profileUrl: "/whitelabel-avatar.jpg",
           }}
         />
       </div>
       
       <style jsx global>{`
-        /* Override CSS Variables for Whitelabel Theme - Modern Blue */
-        .whitelabel-theme {
-          --app-bg: #0f172a !important;
-          --sidebar-bg: #1e293b !important;
-          --sidebar-border: #334155 !important;
-          --agent-bg: #334155 !important;
-          --agent-hover: #3b82f6 !important;
-          --agent-icon: #60a5fa !important;
-          --tooltip-bg: #1e293b !important;
-          --tooltip-text: #ffffff !important;
-          --chat-bg: #0f172a !important;
-          --chat-header-bg: #1e293b !important;
-          --chat-border: #334155 !important;
-          --message-user-bg: #1e3a5f !important;
-          --message-assistant-bg: #1e293b !important;
-          --input-bg: #1e293b !important;
-          --settings-bg: #1e293b !important;
-          --settings-border: #334155 !important;
-          --settings-text: #ffffff !important;
-          --settings-text-muted: #93c5fd !important;
-          --text-primary: #ffffff !important;
-          --text-secondary: #cbd5e1 !important;
-          --border-color: #334155 !important;
-          --settings-button-bg: #334155 !important;
-          --settings-button-hover: #3b82f6 !important;
-          --settings-input-bg: #0f172a !important;
-          --card-bg: #334155 !important;
+        /* ============================================
+           NEXUS AI THEME - Verde Esmeralda & Dourado
+           Um design completamente novo e premium
+           ============================================ */
+        
+        .nexus-theme {
+          --app-bg: #071209 !important;
+          --sidebar-bg: #0d1f17 !important;
+          --sidebar-border: #1a3d2e !important;
+          --agent-bg: #143326 !important;
+          --agent-hover: #10b981 !important;
+          --agent-icon: #34d399 !important;
+          --tooltip-bg: #143326 !important;
+          --tooltip-text: #ecfdf5 !important;
+          --chat-bg: #071209 !important;
+          --chat-header-bg: #0d1f17 !important;
+          --chat-border: #1a3d2e !important;
+          --message-user-bg: #1a3d2e !important;
+          --message-assistant-bg: #143326 !important;
+          --input-bg: #0d1f17 !important;
+          --settings-bg: #0d1f17 !important;
+          --settings-border: #1a3d2e !important;
+          --settings-text: #ecfdf5 !important;
+          --settings-text-muted: #6ee7b7 !important;
+          --text-primary: #ecfdf5 !important;
+          --text-secondary: #a7f3d0 !important;
+          --border-color: #1a3d2e !important;
+          --settings-button-bg: #143326 !important;
+          --settings-button-hover: #10b981 !important;
+          --settings-input-bg: #071209 !important;
+          --card-bg: #143326 !important;
         }
         
-        /* Force background colors - Modern slate/blue theme */
-        .whitelabel-theme,
-        .whitelabel-theme > div,
-        .whitelabel-theme [class*="bg-[var(--app-bg)"] {
-          background-color: #0f172a !important;
+        /* ============================================
+           NEXUS - BACKGROUNDS & ESTRUTURA
+           ============================================ */
+        
+        .nexus-theme,
+        .nexus-theme > div {
+          background: linear-gradient(135deg, #071209 0%, #0a1810 50%, #071209 100%) !important;
         }
         
-        /* Sidebar background - Gradient slate to blue */
-        .whitelabel-theme aside,
-        .whitelabel-theme [class*="sidebar"],
-        .whitelabel-theme [class*="bg-[var(--sidebar-bg)"] {
-          background: linear-gradient(180deg, #1e293b 0%, #1e3a5f 100%) !important;
-          border-color: #334155 !important;
-          box-shadow: 2px 0 10px rgba(0,0,0,0.3) !important;
+        /* Sidebar - Gradient verde escuro elegante */
+        .nexus-theme aside,
+        .nexus-theme [class*="sidebar"] {
+          background: linear-gradient(180deg, #0d1f17 0%, #143326 50%, #0d1f17 100%) !important;
+          border-right: 1px solid #1a3d2e !important;
+          box-shadow: 4px 0 20px rgba(16, 185, 129, 0.1) !important;
         }
         
-        /* Sidebar header/top section */
-        .whitelabel-theme aside > div:first-child,
-        .whitelabel-theme [class*="sidebar"] > div:first-child {
-          background-color: rgba(59, 130, 246, 0.1) !important;
-          border-bottom: 1px solid #334155 !important;
+        /* Sidebar header com destaque dourado */
+        .nexus-theme aside > div:first-child {
+          background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%) !important;
+          border-bottom: 1px solid rgba(245, 158, 11, 0.3) !important;
         }
         
-        /* All purple colors to blue */
-        .whitelabel-theme [class*="purple-600"],
-        .whitelabel-theme [class*="purple-500"],
-        .whitelabel-theme [class*="bg-purple"] {
-          background-color: #2563eb !important;
+        /* ============================================
+           NEXUS - CORES PURPLE -> EMERALD/AMBER
+           ============================================ */
+        
+        .nexus-theme [class*="purple-600"],
+        .nexus-theme [class*="purple-500"],
+        .nexus-theme [class*="bg-purple"] {
+          background-color: #059669 !important;
         }
         
-        .whitelabel-theme [class*="text-purple"] {
-          color: #3b82f6 !important;
+        .nexus-theme [class*="text-purple"] {
+          color: #10b981 !important;
         }
         
-        .whitelabel-theme [class*="border-purple"] {
-          border-color: #3b82f6 !important;
+        .nexus-theme [class*="border-purple"] {
+          border-color: #10b981 !important;
         }
         
-        /* Gradient overrides */
-        .whitelabel-theme [class*="from-purple"] {
-          --tw-gradient-from: #2563eb !important;
+        .nexus-theme [class*="from-purple"] {
+          --tw-gradient-from: #059669 !important;
         }
         
-        .whitelabel-theme [class*="to-blue"],
-        .whitelabel-theme [class*="to-purple"] {
-          --tw-gradient-to: #1e40af !important;
+        .nexus-theme [class*="to-blue"],
+        .nexus-theme [class*="to-purple"] {
+          --tw-gradient-to: #f59e0b !important;
         }
         
-        /* Hover states */
-        .whitelabel-theme [class*="hover:bg-purple"]:hover {
-          background-color: #1d4ed8 !important;
+        .nexus-theme [class*="hover:bg-purple"]:hover {
+          background-color: #047857 !important;
         }
         
-        /* Focus rings */
-        .whitelabel-theme [class*="ring-purple"],
-        .whitelabel-theme [class*="focus:ring-purple"]:focus {
-          --tw-ring-color: #3b82f6 !important;
+        .nexus-theme [class*="ring-purple"],
+        .nexus-theme [class*="focus:ring-purple"]:focus {
+          --tw-ring-color: #10b981 !important;
         }
         
-        /* Scrollbar - blue theme */
-        .whitelabel-theme ::-webkit-scrollbar-thumb {
-          background-color: rgba(59, 130, 246, 0.5) !important;
+        /* ============================================
+           NEXUS - SCROLLBAR DOURADA
+           ============================================ */
+        
+        .nexus-theme ::-webkit-scrollbar {
+          width: 8px !important;
+          height: 8px !important;
         }
         
-        .whitelabel-theme ::-webkit-scrollbar-thumb:hover {
-          background-color: rgba(59, 130, 246, 0.7) !important;
+        .nexus-theme ::-webkit-scrollbar-track {
+          background: #071209 !important;
         }
         
-        /* Agent cards - Modern card design */
-        .whitelabel-theme [class*="agent"] {
-          background-color: #334155 !important;
-          border: 1px solid #475569 !important;
+        .nexus-theme ::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, #f59e0b 0%, #10b981 100%) !important;
+          border-radius: 4px !important;
+        }
+        
+        .nexus-theme ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, #fbbf24 0%, #34d399 100%) !important;
+        }
+        
+        /* ============================================
+           NEXUS - AGENT CARDS PREMIUM
+           ============================================ */
+        
+        .nexus-theme [class*="agent"] {
+          background: linear-gradient(135deg, #143326 0%, #1a3d2e 100%) !important;
+          border: 1px solid #2d5a47 !important;
+          border-radius: 16px !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .nexus-theme [class*="agent"]:hover {
+          background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+          border-color: #34d399 !important;
+          transform: translateY(-2px) scale(1.02) !important;
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3), 0 0 0 1px rgba(52, 211, 153, 0.3) !important;
+        }
+        
+        .nexus-theme [class*="agent"][class*="active"],
+        .nexus-theme [class*="agent"][data-active="true"] {
+          background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+          border-color: #f59e0b !important;
+          box-shadow: 0 0 20px rgba(245, 158, 11, 0.3), inset 0 0 20px rgba(16, 185, 129, 0.1) !important;
+        }
+        
+        .nexus-theme [class*="agent"] svg {
+          color: #34d399 !important;
+          filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.5)) !important;
+        }
+        
+        .nexus-theme [class*="agent"]:hover svg {
+          color: #fbbf24 !important;
+          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.7)) !important;
+        }
+        
+        /* ============================================
+           NEXUS - MESSAGE BUBBLES
+           ============================================ */
+        
+        .nexus-theme [class*="message"] {
+          background: linear-gradient(135deg, #143326 0%, #1a3d2e 100%) !important;
+          border: 1px solid #2d5a47 !important;
+          border-radius: 16px !important;
+          color: #ecfdf5 !important;
+        }
+        
+        .nexus-theme [class*="message"] p,
+        .nexus-theme [class*="message"] span,
+        .nexus-theme [class*="message"] div {
+          color: #ecfdf5 !important;
+        }
+        
+        /* ============================================
+           NEXUS - TYPOGRAPHY
+           ============================================ */
+        
+        .nexus-theme p,
+        .nexus-theme span,
+        .nexus-theme div {
+          color: #ecfdf5 !important;
+        }
+        
+        .nexus-theme [class*="text-gray"],
+        .nexus-theme [class*="text-slate"],
+        .nexus-theme [class*="text-muted"] {
+          color: #a7f3d0 !important;
+        }
+        
+        .nexus-theme time,
+        .nexus-theme small {
+          color: #6ee7b7 !important;
+        }
+        
+        .nexus-theme h1, .nexus-theme h2, .nexus-theme h3,
+        .nexus-theme h4, .nexus-theme h5, .nexus-theme h6 {
+          color: #ecfdf5 !important;
+          text-shadow: 0 0 20px rgba(16, 185, 129, 0.3) !important;
+        }
+        
+        /* ============================================
+           NEXUS - INPUT FIELDS
+           ============================================ */
+        
+        .nexus-theme input,
+        .nexus-theme textarea {
+          background: linear-gradient(135deg, #071209 0%, #0d1f17 100%) !important;
+          border: 1px solid #1a3d2e !important;
           border-radius: 12px !important;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+          color: #ecfdf5 !important;
           transition: all 0.3s ease !important;
         }
         
-        .whitelabel-theme [class*="agent"]:hover {
-          background-color: #3b82f6 !important;
-          border-color: #60a5fa !important;
-          transform: translateX(4px) !important;
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+        .nexus-theme input:focus,
+        .nexus-theme textarea:focus {
+          border-color: #10b981 !important;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.1) !important;
+          background: linear-gradient(135deg, #0d1f17 0%, #143326 100%) !important;
         }
         
-        .whitelabel-theme [class*="agent"][class*="active"],
-        .whitelabel-theme [class*="agent"][data-active="true"] {
-          background-color: #2563eb !important;
-          border-color: #60a5fa !important;
-          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4) !important;
+        .nexus-theme input::placeholder,
+        .nexus-theme textarea::placeholder {
+          color: #6ee7b7 !important;
+          opacity: 0.6 !important;
         }
         
-        /* Agent icons */
-        .whitelabel-theme [class*="agent"] svg,
-        .whitelabel-theme [class*="agent"] [class*="icon"] {
-          color: #60a5fa !important;
+        /* ============================================
+           NEXUS - BUTTONS PREMIUM
+           ============================================ */
+        
+        .nexus-theme button[class*="purple"],
+        .nexus-theme button[class*="bg-gradient"] {
+          background: linear-gradient(135deg, #059669 0%, #047857 50%, #f59e0b 100%) !important;
+          border: none !important;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+          transition: all 0.3s ease !important;
         }
         
-        .whitelabel-theme [class*="agent"]:hover svg,
-        .whitelabel-theme [class*="agent"]:hover [class*="icon"] {
-          color: #ffffff !important;
+        .nexus-theme button[class*="purple"]:hover,
+        .nexus-theme button[class*="bg-gradient"]:hover {
+          background: linear-gradient(135deg, #10b981 0%, #059669 50%, #fbbf24 100%) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4) !important;
         }
         
-        /* Message bubbles - dark background with white text */
-        .whitelabel-theme [class*="message"] {
-          background-color: #0d1525 !important;
-          color: #ffffff !important;
-        }
+        /* ============================================
+           NEXUS - LINKS & CODE
+           ============================================ */
         
-        .whitelabel-theme [class*="message"] p,
-        .whitelabel-theme [class*="message"] span,
-        .whitelabel-theme [class*="message"] div {
-          color: #ffffff !important;
-        }
-        
-        /* Force all text inside chat area to be white */
-        .whitelabel-theme .text-\\[var\\(--text-primary\\)\\],
-        .whitelabel-theme .text-\\[var\\(--text-secondary\\)\\] {
-          color: #ffffff !important;
-        }
-        
-        /* Message content text */
-        .whitelabel-theme [class*="prose"],
-        .whitelabel-theme [class*="prose"] p,
-        .whitelabel-theme [class*="prose"] span,
-        .whitelabel-theme [class*="prose"] li,
-        .whitelabel-theme [class*="prose"] strong {
-          color: #ffffff !important;
-        }
-        
-        /* Chat area text */
-        .whitelabel-theme main p,
-        .whitelabel-theme main span:not([class*="badge"]),
-        .whitelabel-theme main div:not([class*="bg-"]) {
-          color: #ffffff !important;
-        }
-        
-        /* Secondary text - slightly dimmer white */
-        .whitelabel-theme [class*="text-gray"],
-        .whitelabel-theme [class*="text-slate"],
-        .whitelabel-theme [class*="text-muted"] {
-          color: #cbd5e1 !important;
-        }
-        
-        /* Timestamps and metadata */
-        .whitelabel-theme time,
-        .whitelabel-theme [class*="timestamp"],
-        .whitelabel-theme small {
-          color: #94a3b8 !important;
-        }
-        
-        /* Input fields */
-        .whitelabel-theme input,
-        .whitelabel-theme textarea {
-          background-color: #0a0a18 !important;
-          border-color: #1e3a5f !important;
-        }
-        
-        .whitelabel-theme input:focus,
-        .whitelabel-theme textarea:focus {
-          border-color: #3b82f6 !important;
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
-        }
-        
-        /* Buttons */
-        .whitelabel-theme button[class*="purple"],
-        .whitelabel-theme button[class*="bg-gradient"] {
-          background: linear-gradient(to right, #2563eb, #1e40af) !important;
-        }
-        
-        .whitelabel-theme button[class*="purple"]:hover,
-        .whitelabel-theme button[class*="bg-gradient"]:hover {
-          background: linear-gradient(to right, #1d4ed8, #1e3a8a) !important;
-        }
-        
-        /* Header/banner specific */
-        .whitelabel-theme .bg-gradient-to-r {
-          background: linear-gradient(to right, #2563eb, #1e40af) !important;
-        }
-        
-        /* Fix any remaining backgrounds */
-        .whitelabel-theme div[class*="0f0f"],
-        .whitelabel-theme div[class*="1a1a"],
-        .whitelabel-theme div[class*="111827"] {
-          background-color: #0a0a18 !important;
-        }
-        
-        /* Force white text on all paragraphs in chat */
-        .whitelabel-theme p {
-          color: #ffffff !important;
-        }
-        
-        /* Badge/tags should stay colored */
-        .whitelabel-theme [class*="badge"],
-        .whitelabel-theme [class*="Badge"] {
-          color: inherit !important;
-        }
-        
-        /* Links - blue color */
-        .whitelabel-theme a {
-          color: #60a5fa !important;
-        }
-        
-        .whitelabel-theme a:hover {
-          color: #93c5fd !important;
-        }
-        
-        /* Code blocks - darker background */
-        .whitelabel-theme pre,
-        .whitelabel-theme code {
-          background-color: #020617 !important;
-          color: #e2e8f0 !important;
-        }
-        
-        /* Headers */
-        .whitelabel-theme h1,
-        .whitelabel-theme h2,
-        .whitelabel-theme h3,
-        .whitelabel-theme h4,
-        .whitelabel-theme h5,
-        .whitelabel-theme h6 {
-          color: #ffffff !important;
-        }
-        
-        /* Lists */
-        .whitelabel-theme ul,
-        .whitelabel-theme ol,
-        .whitelabel-theme li {
-          color: #ffffff !important;
-        }
-        
-        /* Ensure sidebar text is white */
-        .whitelabel-theme aside p,
-        .whitelabel-theme aside span,
-        .whitelabel-theme aside div {
-          color: #ffffff !important;
-        }
-        
-        /* Input placeholder */
-        .whitelabel-theme input::placeholder,
-        .whitelabel-theme textarea::placeholder {
-          color: #64748b !important;
-        }
-        
-        /* Input text */
-        .whitelabel-theme input,
-        .whitelabel-theme textarea {
-          color: #ffffff !important;
-        }
-        
-        /* AGGRESSIVE OVERRIDES - Force all purple variations to blue */
-        .whitelabel-theme .bg-purple-50 { background-color: #eff6ff !important; }
-        .whitelabel-theme .bg-purple-100 { background-color: #dbeafe !important; }
-        .whitelabel-theme .bg-purple-200 { background-color: #bfdbfe !important; }
-        .whitelabel-theme .bg-purple-300 { background-color: #93c5fd !important; }
-        .whitelabel-theme .bg-purple-400 { background-color: #60a5fa !important; }
-        .whitelabel-theme .bg-purple-500 { background-color: #3b82f6 !important; }
-        .whitelabel-theme .bg-purple-600 { background-color: #2563eb !important; }
-        .whitelabel-theme .bg-purple-700 { background-color: #1d4ed8 !important; }
-        .whitelabel-theme .bg-purple-800 { background-color: #1e40af !important; }
-        .whitelabel-theme .bg-purple-900 { background-color: #1e3a8a !important; }
-        
-        .whitelabel-theme .text-purple-50 { color: #eff6ff !important; }
-        .whitelabel-theme .text-purple-100 { color: #dbeafe !important; }
-        .whitelabel-theme .text-purple-200 { color: #bfdbfe !important; }
-        .whitelabel-theme .text-purple-300 { color: #93c5fd !important; }
-        .whitelabel-theme .text-purple-400 { color: #60a5fa !important; }
-        .whitelabel-theme .text-purple-500 { color: #3b82f6 !important; }
-        .whitelabel-theme .text-purple-600 { color: #2563eb !important; }
-        .whitelabel-theme .text-purple-700 { color: #1d4ed8 !important; }
-        .whitelabel-theme .text-purple-800 { color: #1e40af !important; }
-        .whitelabel-theme .text-purple-900 { color: #1e3a8a !important; }
-        
-        .whitelabel-theme .border-purple-50 { border-color: #eff6ff !important; }
-        .whitelabel-theme .border-purple-100 { border-color: #dbeafe !important; }
-        .whitelabel-theme .border-purple-200 { border-color: #bfdbfe !important; }
-        .whitelabel-theme .border-purple-300 { border-color: #93c5fd !important; }
-        .whitelabel-theme .border-purple-400 { border-color: #60a5fa !important; }
-        .whitelabel-theme .border-purple-500 { border-color: #3b82f6 !important; }
-        .whitelabel-theme .border-purple-600 { border-color: #2563eb !important; }
-        .whitelabel-theme .border-purple-700 { border-color: #1d4ed8 !important; }
-        .whitelabel-theme .border-purple-800 { border-color: #1e40af !important; }
-        .whitelabel-theme .border-purple-900 { border-color: #1e3a8a !important; }
-        
-        /* Override all hex color classes that might be purple */
-        .whitelabel-theme .bg-\\[\\#a855f7\\],
-        .whitelabel-theme .bg-\\[\\#9333ea\\],
-        .whitelabel-theme .bg-\\[\\#7c3aed\\],
-        .whitelabel-theme .bg-\\[\\#6d28d9\\] {
-          background-color: #2563eb !important;
-        }
-        
-        /* Search input in sidebar */
-        .whitelabel-theme aside input[type="text"],
-        .whitelabel-theme aside input[type="search"],
-        .whitelabel-theme [class*="sidebar"] input {
-          background-color: rgba(51, 65, 85, 0.8) !important;
-          border: 1px solid #475569 !important;
-          border-radius: 8px !important;
-          color: #ffffff !important;
-          padding: 8px 12px !important;
-        }
-        
-        .whitelabel-theme aside input:focus,
-        .whitelabel-theme [class*="sidebar"] input:focus {
-          background-color: rgba(59, 130, 246, 0.1) !important;
-          border-color: #3b82f6 !important;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
-        }
-        
-        /* Sidebar buttons (tabs, filters, etc) */
-        .whitelabel-theme aside button,
-        .whitelabel-theme [class*="sidebar"] button {
-          background-color: rgba(51, 65, 85, 0.6) !important;
-          border: 1px solid transparent !important;
-          border-radius: 8px !important;
-          color: #cbd5e1 !important;
+        .nexus-theme a {
+          color: #34d399 !important;
+          text-decoration: none !important;
           transition: all 0.2s ease !important;
         }
         
-        .whitelabel-theme aside button:hover,
-        .whitelabel-theme [class*="sidebar"] button:hover {
-          background-color: #3b82f6 !important;
+        .nexus-theme a:hover {
+          color: #fbbf24 !important;
+          text-shadow: 0 0 8px rgba(251, 191, 36, 0.5) !important;
+        }
+        
+        .nexus-theme pre,
+        .nexus-theme code {
+          background: #071209 !important;
+          border: 1px solid #1a3d2e !important;
+          border-radius: 8px !important;
+          color: #a7f3d0 !important;
+        }
+        
+        /* ============================================
+           NEXUS - BADGES & TAGS
+           ============================================ */
+        
+        .nexus-theme [class*="badge"],
+        .nexus-theme [class*="Badge"] {
+          background: linear-gradient(135deg, #059669 0%, #f59e0b 100%) !important;
           color: #ffffff !important;
-          border-color: #60a5fa !important;
+          border: none !important;
+          font-weight: 600 !important;
         }
         
-        .whitelabel-theme aside button[class*="active"],
-        .whitelabel-theme [class*="sidebar"] button[data-active="true"] {
-          background-color: #2563eb !important;
+        /* ============================================
+           NEXUS - PURPLE TO EMERALD CONVERSIONS
+           ============================================ */
+        
+        .nexus-theme .bg-purple-50 { background-color: #ecfdf5 !important; }
+        .nexus-theme .bg-purple-100 { background-color: #d1fae5 !important; }
+        .nexus-theme .bg-purple-200 { background-color: #a7f3d0 !important; }
+        .nexus-theme .bg-purple-300 { background-color: #6ee7b7 !important; }
+        .nexus-theme .bg-purple-400 { background-color: #34d399 !important; }
+        .nexus-theme .bg-purple-500 { background-color: #10b981 !important; }
+        .nexus-theme .bg-purple-600 { background-color: #059669 !important; }
+        .nexus-theme .bg-purple-700 { background-color: #047857 !important; }
+        .nexus-theme .bg-purple-800 { background-color: #065f46 !important; }
+        .nexus-theme .bg-purple-900 { background-color: #064e3b !important; }
+        
+        .nexus-theme .text-purple-50 { color: #ecfdf5 !important; }
+        .nexus-theme .text-purple-100 { color: #d1fae5 !important; }
+        .nexus-theme .text-purple-200 { color: #a7f3d0 !important; }
+        .nexus-theme .text-purple-300 { color: #6ee7b7 !important; }
+        .nexus-theme .text-purple-400 { color: #34d399 !important; }
+        .nexus-theme .text-purple-500 { color: #10b981 !important; }
+        .nexus-theme .text-purple-600 { color: #059669 !important; }
+        .nexus-theme .text-purple-700 { color: #047857 !important; }
+        .nexus-theme .text-purple-800 { color: #065f46 !important; }
+        .nexus-theme .text-purple-900 { color: #064e3b !important; }
+        
+        .nexus-theme .border-purple-50 { border-color: #ecfdf5 !important; }
+        .nexus-theme .border-purple-100 { border-color: #d1fae5 !important; }
+        .nexus-theme .border-purple-200 { border-color: #a7f3d0 !important; }
+        .nexus-theme .border-purple-300 { border-color: #6ee7b7 !important; }
+        .nexus-theme .border-purple-400 { border-color: #34d399 !important; }
+        .nexus-theme .border-purple-500 { border-color: #10b981 !important; }
+        .nexus-theme .border-purple-600 { border-color: #059669 !important; }
+        .nexus-theme .border-purple-700 { border-color: #047857 !important; }
+        .nexus-theme .border-purple-800 { border-color: #065f46 !important; }
+        .nexus-theme .border-purple-900 { border-color: #064e3b !important; }
+        
+        /* ============================================
+           NEXUS - HEX OVERRIDES
+           ============================================ */
+        
+        .nexus-theme .bg-\\[\\#a855f7\\],
+        .nexus-theme .bg-\\[\\#9333ea\\],
+        .nexus-theme .bg-\\[\\#7c3aed\\],
+        .nexus-theme .bg-\\[\\#6d28d9\\],
+        .nexus-theme .bg-\\[\\#0f0f1a\\],
+        .nexus-theme .bg-\\[\\#1a1a2e\\],
+        .nexus-theme .bg-\\[\\#0a0a12\\] {
+          background-color: #0d1f17 !important;
+        }
+        
+        /* ============================================
+           NEXUS - SIDEBAR INPUTS & BUTTONS
+           ============================================ */
+        
+        .nexus-theme aside input,
+        .nexus-theme [class*="sidebar"] input {
+          background: linear-gradient(135deg, #071209 0%, #0d1f17 100%) !important;
+          border: 1px solid #1a3d2e !important;
+          border-radius: 12px !important;
+          color: #ecfdf5 !important;
+        }
+        
+        .nexus-theme aside input:focus,
+        .nexus-theme [class*="sidebar"] input:focus {
+          background: linear-gradient(135deg, #0d1f17 0%, #143326 100%) !important;
+          border-color: #10b981 !important;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+        }
+        
+        .nexus-theme aside button,
+        .nexus-theme [class*="sidebar"] button {
+          background: linear-gradient(135deg, #143326 0%, #1a3d2e 100%) !important;
+          border: 1px solid #2d5a47 !important;
+          border-radius: 10px !important;
+          color: #a7f3d0 !important;
+          transition: all 0.3s ease !important;
+        }
+        
+        .nexus-theme aside button:hover,
+        .nexus-theme [class*="sidebar"] button:hover {
+          background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+          border-color: #34d399 !important;
+          color: #ecfdf5 !important;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+        }
+        
+        /* ============================================
+           NEXUS - BACKGROUNDS OVERRIDE
+           ============================================ */
+        
+        .nexus-theme .bg-white { background-color: #143326 !important; }
+        .nexus-theme .bg-gray-50,
+        .nexus-theme .bg-gray-100 { background-color: #1a3d2e !important; }
+        .nexus-theme .bg-gray-200 { background-color: #2d5a47 !important; }
+        .nexus-theme .bg-gray-800 { background-color: #0d1f17 !important; }
+        .nexus-theme .bg-gray-900 { background-color: #071209 !important; }
+        .nexus-theme .bg-slate-50,
+        .nexus-theme .bg-slate-100 { background-color: #1a3d2e !important; }
+        .nexus-theme .bg-slate-800 { background-color: #0d1f17 !important; }
+        .nexus-theme .bg-slate-900 { background-color: #071209 !important; }
+        
+        /* ============================================
+           NEXUS - TEXT COLORS
+           ============================================ */
+        
+        .nexus-theme .text-gray-900,
+        .nexus-theme .text-gray-800,
+        .nexus-theme .text-gray-700,
+        .nexus-theme .text-black {
+          color: #ecfdf5 !important;
+        }
+        
+        .nexus-theme .text-gray-600,
+        .nexus-theme .text-gray-500,
+        .nexus-theme .text-gray-400 {
+          color: #a7f3d0 !important;
+        }
+        
+        /* ============================================
+           NEXUS - ACTIVE STATES & TABS
+           ============================================ */
+        
+        .nexus-theme [role="tab"][data-state="active"],
+        .nexus-theme [data-selected="true"],
+        .nexus-theme [aria-selected="true"] {
+          background: linear-gradient(135deg, #059669 0%, #f59e0b 100%) !important;
           color: #ffffff !important;
-          border-color: #60a5fa !important;
+          border-color: #34d399 !important;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
         }
         
-        /* Override all specific background colors to modern slate theme */
-        .whitelabel-theme .bg-white { background-color: #1e293b !important; }
-        .whitelabel-theme .bg-gray-50 { background-color: #334155 !important; }
-        .whitelabel-theme .bg-gray-100 { background-color: #334155 !important; }
-        .whitelabel-theme .bg-gray-200 { background-color: #475569 !important; }
-        .whitelabel-theme .bg-gray-800 { background-color: #1e293b !important; }
-        .whitelabel-theme .bg-gray-900 { background-color: #0f172a !important; }
-        .whitelabel-theme .bg-slate-50 { background-color: #334155 !important; }
-        .whitelabel-theme .bg-slate-100 { background-color: #334155 !important; }
-        .whitelabel-theme .bg-slate-800 { background-color: #1e293b !important; }
-        .whitelabel-theme .bg-slate-900 { background-color: #0f172a !important; }
+        /* ============================================
+           NEXUS - CONVERSATION ITEMS
+           ============================================ */
         
-        /* Force all text to be white/light */
-        .whitelabel-theme .text-gray-900,
-        .whitelabel-theme .text-gray-800,
-        .whitelabel-theme .text-gray-700,
-        .whitelabel-theme .text-slate-900,
-        .whitelabel-theme .text-slate-800,
-        .whitelabel-theme .text-slate-700,
-        .whitelabel-theme .text-black {
-          color: #ffffff !important;
+        .nexus-theme [class*="conversation"] {
+          background: linear-gradient(135deg, #143326 0%, #1a3d2e 100%) !important;
+          border: 1px solid #2d5a47 !important;
+          border-radius: 12px !important;
         }
         
-        .whitelabel-theme .text-gray-600,
-        .whitelabel-theme .text-gray-500,
-        .whitelabel-theme .text-gray-400,
-        .whitelabel-theme .text-slate-600,
-        .whitelabel-theme .text-slate-500,
-        .whitelabel-theme .text-slate-400 {
-          color: #cbd5e1 !important;
+        .nexus-theme [class*="conversation"]:hover {
+          background: linear-gradient(135deg, #1a3d2e 0%, #2d5a47 100%) !important;
+          border-color: #34d399 !important;
         }
         
-        /* Buttons - all variations */
-        .whitelabel-theme button {
-          border-color: #1e3a5f !important;
+        .nexus-theme [class*="conversation"][class*="active"] {
+          background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+          border-color: #f59e0b !important;
+          box-shadow: 0 0 15px rgba(245, 158, 11, 0.2) !important;
         }
         
-        .whitelabel-theme button:not([class*="ghost"]):not([class*="outline"]) {
-          background-color: #2563eb !important;
-          color: #ffffff !important;
+        /* ============================================
+           NEXUS - UNIVERSAL OVERRIDES
+           ============================================ */
+        
+        .nexus-theme * {
+          scrollbar-color: rgba(16, 185, 129, 0.5) #071209 !important;
         }
         
-        .whitelabel-theme button:not([class*="ghost"]):not([class*="outline"]):hover {
-          background-color: #1d4ed8 !important;
+        .nexus-theme div {
+          border-color: #1a3d2e;
         }
         
-        /* Specific component overrides */
-        .whitelabel-theme [role="tab"][data-state="active"],
-        .whitelabel-theme [data-selected="true"],
-        .whitelabel-theme [aria-selected="true"] {
-          background-color: #2563eb !important;
-          color: #ffffff !important;
-          border-color: #2563eb !important;
+        .nexus-theme body,
+        .nexus-theme main,
+        .nexus-theme section,
+        .nexus-theme article {
+          color: #ecfdf5;
+          background-color: #071209;
         }
         
-        /* Conversation list items */
-        .whitelabel-theme [class*="conversation"] {
-          background-color: #0d1525 !important;
-          border-color: #1e3a5f !important;
+        /* Send button especial */
+        .nexus-theme button[type="submit"],
+        .nexus-theme button[class*="send"] {
+          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+          color: #071209 !important;
+          font-weight: 600 !important;
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4) !important;
         }
         
-        .whitelabel-theme [class*="conversation"]:hover {
-          background-color: #152035 !important;
-        }
-        
-        .whitelabel-theme [class*="conversation"][class*="active"],
-        .whitelabel-theme [class*="conversation"][data-active="true"] {
-          background-color: #152035 !important;
-          border-color: #2563eb !important;
-        }
-        
-        /* Override any remaining specific hex values */
-        .whitelabel-theme * {
-          scrollbar-color: rgba(59, 130, 246, 0.5) #0a0a18 !important;
-        }
-        
-        /* Make sure all divs use the theme colors */
-        .whitelabel-theme div {
-          border-color: #1e3a5f;
-        }
-        
-        /* Universal text color enforcement */
-        .whitelabel-theme * {
-          color: inherit;
-        }
-        
-        .whitelabel-theme body,
-        .whitelabel-theme main,
-        .whitelabel-theme section,
-        .whitelabel-theme article {
-          color: #ffffff;
+        .nexus-theme button[type="submit"]:hover,
+        .nexus-theme button[class*="send"]:hover {
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 24px rgba(245, 158, 11, 0.5) !important;
         }
       `}</style>
     </div>
