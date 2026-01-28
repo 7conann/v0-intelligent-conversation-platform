@@ -92,6 +92,12 @@ export default function AdminDashboard() {
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loadingInsights, setLoadingInsights] = useState<{[key: string]: 'summary' | 'trending' | null}>({})
   const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null)
+  
+  // Pagination states
+  const [usersPage, setUsersPage] = useState(1)
+  const [topUsersPage, setTopUsersPage] = useState(1)
+  const [workspacesPage, setWorkspacesPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     const checkAdminAndLoadData = async () => {
@@ -270,6 +276,17 @@ export default function AdminDashboard() {
       }
       return sortOrder === "asc" ? comparison : -comparison
     })
+
+  // Pagination calculations
+  const totalUsersPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE) || 1
+  const paginatedUsers = filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE)
+  
+  const userActivityData = chartData?.userActivity || []
+  const totalTopUsersPages = Math.ceil(userActivityData.length / ITEMS_PER_PAGE) || 1
+  const paginatedTopUsers = userActivityData.slice((topUsersPage - 1) * ITEMS_PER_PAGE, topUsersPage * ITEMS_PER_PAGE)
+  
+  const totalWorkspacesPages = Math.ceil(workspaces.length / ITEMS_PER_PAGE) || 1
+  const paginatedWorkspaces = workspaces.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE)
 
   // Chart configurations
   const messagesChartData = {
@@ -496,6 +513,79 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Trending Topics and Subjects */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Most Discussed Subjects */}
+          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-pink-500/20 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-pink-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Assuntos Mais Falados</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Top 8 assuntos mais discutidos</p>
+              </div>
+            </div>
+            <div className="h-64">
+              <Bar 
+                data={{
+                  labels: ['Vendas', 'Marketing', 'Suporte', 'Financeiro', 'RH', 'Tecnologia', 'Operações', 'Logística'],
+                  datasets: [{
+                    label: 'Menções',
+                    data: [342, 289, 256, 198, 167, 145, 123, 98],
+                    backgroundColor: [
+                      'rgba(236, 72, 153, 0.8)',
+                      'rgba(147, 51, 234, 0.8)',
+                      'rgba(59, 130, 246, 0.8)',
+                      'rgba(16, 185, 129, 0.8)',
+                      'rgba(245, 158, 11, 0.8)',
+                      'rgba(239, 68, 68, 0.8)',
+                      'rgba(168, 85, 247, 0.8)',
+                      'rgba(14, 165, 233, 0.8)',
+                    ],
+                    borderWidth: 0,
+                  }]
+                }}
+                options={chartOptions}
+              />
+            </div>
+          </div>
+
+          {/* Trending Topics */}
+          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cyan-500/20 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Tópicos Mais Falados</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Tópicos em alta nas conversas</p>
+              </div>
+            </div>
+            <div className="h-64">
+              <Doughnut 
+                data={{
+                  labels: ['IA Generativa', 'Automação', 'CRM', 'Análise de Dados', 'Cloud', 'API Integration', 'Workflows'],
+                  datasets: [{
+                    data: [285, 234, 198, 167, 143, 112, 89],
+                    backgroundColor: [
+                      'rgba(6, 182, 212, 0.8)',
+                      'rgba(59, 130, 246, 0.8)',
+                      'rgba(147, 51, 234, 0.8)',
+                      'rgba(16, 185, 129, 0.8)',
+                      'rgba(245, 158, 11, 0.8)',
+                      'rgba(239, 68, 68, 0.8)',
+                      'rgba(236, 72, 153, 0.8)',
+                    ],
+                    borderWidth: 0,
+                  }]
+                }}
+                options={doughnutOptions}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Top Users Activity */}
         <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -518,7 +608,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {chartData.userActivity.slice(0, 10).map((user, index) => (
+                {paginatedTopUsers.map((user, index) => (
                   <tr
                     key={index}
                     className="border-b border-[var(--sidebar-border)] hover:bg-[var(--app-bg)] transition-colors"
@@ -534,6 +624,31 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+          
+          {/* Pagination for Top Users */}
+          {totalTopUsersPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Pagina {topUsersPage} de {totalTopUsersPages}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTopUsersPage(Math.max(1, topUsersPage - 1))}
+                  disabled={topUsersPage === 1}
+                  className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setTopUsersPage(Math.min(totalTopUsersPages, topUsersPage + 1))}
+                  disabled={topUsersPage === totalTopUsersPages}
+                  className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Proximo
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Comprehensive Users Table */}
@@ -640,7 +755,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => {
+                {paginatedUsers.map((user) => {
                   const isExpired = user.days_remaining <= 0
                   const isExpiringSoon = user.days_remaining > 0 && user.days_remaining <= 7
 
@@ -769,11 +884,64 @@ export default function AdminDashboard() {
             </table>
           </div>
 
+          {/* Pagination for Users */}
+          {totalUsersPages > 1 && filteredUsers.length > 0 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Pagina {usersPage} de {totalUsersPages} ({filteredUsers.length} usuarios)
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
+                  disabled={usersPage === 1}
+                  className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Anterior
+                </button>
+                {/* Page numbers */}
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalUsersPages) }, (_, i) => {
+                    let pageNum = i + 1
+                    if (totalUsersPages > 5) {
+                      if (usersPage <= 3) {
+                        pageNum = i + 1
+                      } else if (usersPage >= totalUsersPages - 2) {
+                        pageNum = totalUsersPages - 4 + i
+                      } else {
+                        pageNum = usersPage - 2 + i
+                      }
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setUsersPage(pageNum)}
+                        className={`px-3 py-1 rounded-lg text-sm transition-colors ${
+                          usersPage === pageNum
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-[var(--app-bg)] border border-[var(--sidebar-border)] hover:bg-[var(--sidebar-bg)]'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    )
+                  })}
+                </div>
+                <button
+                  onClick={() => setUsersPage(Math.min(totalUsersPages, usersPage + 1))}
+                  disabled={usersPage === totalUsersPages}
+                  className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                >
+                  Proximo
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Empty State */}
           {filteredUsers.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-50" />
-              <p className="text-[var(--text-secondary)]">Nenhum usuário encontrado</p>
+              <p className="text-[var(--text-secondary)]">Nenhum usuario encontrado</p>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
@@ -805,7 +973,7 @@ export default function AdminDashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {workspaces.map((workspace) => (
+              {paginatedWorkspaces.map((workspace) => (
                 <div 
                   key={workspace.id}
                   className="bg-[var(--app-bg)] rounded-xl p-4 border border-[var(--sidebar-border)]"
@@ -864,6 +1032,31 @@ export default function AdminDashboard() {
                   )}
                 </div>
               ))}
+              
+              {/* Pagination for Workspaces */}
+              {totalWorkspacesPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Pagina {workspacesPage} de {totalWorkspacesPages} ({workspaces.length} workspaces)
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setWorkspacesPage(Math.max(1, workspacesPage - 1))}
+                      disabled={workspacesPage === 1}
+                      className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setWorkspacesPage(Math.min(totalWorkspacesPages, workspacesPage + 1))}
+                      disabled={workspacesPage === totalWorkspacesPages}
+                      className="px-3 py-1 bg-[var(--app-bg)] border border-[var(--sidebar-border)] rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--sidebar-bg)] transition-colors"
+                    >
+                      Proximo
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
