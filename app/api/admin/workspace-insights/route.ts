@@ -33,24 +33,21 @@ export async function POST(request: Request) {
       allMessages = messages || []
     }
 
-    // JSON bruto com tudo junto
-    const rawData = {
-      workspaceId,
-      workspaceName: workspaceName || "Workspace",
-      type,
-      data: (conversations || []).map(conv => ({
-        conversation_id: conv.id,
-        title: conv.title,
-        created_at: conv.created_at,
-        messages: allMessages
-          .filter(m => m.conversation_id === conv.id)
-          .map(m => ({
-            content: m.content,
-            role: m.role,
-            agent_name: m.agent_name,
-            created_at: m.created_at
-          }))
-      }))
+    // Montar texto bruto com todas as conversas e mensagens
+    let rawText = `Workspace: ${workspaceName || "Workspace"}\nTipo: ${type}\n\n`
+    
+    for (const conv of (conversations || [])) {
+      rawText += `=== CONVERSA: ${conv.title} ===\n`
+      rawText += `Data: ${conv.created_at}\n\n`
+      
+      const convMessages = allMessages.filter(m => m.conversation_id === conv.id)
+      
+      for (const msg of convMessages) {
+        const sender = msg.role === 'user' ? 'USUÁRIO' : (msg.agent_name || 'ASSISTENTE')
+        rawText += `[${sender}]: ${msg.content}\n`
+      }
+      
+      rawText += `\n---\n\n`
     }
 
     // URL do webhook baseado no tipo
@@ -58,11 +55,16 @@ export async function POST(request: Request) {
       ? "https://n8n.grupobeely.com.br/webhook/workspace-topico"
       : "https://n8n.grupobeely.com.br/webhook/workspace-assunto"
 
-    // POST no webhook
+    // POST no webhook com texto bruto
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(rawData),
+      body: JSON.stringify({ 
+        workspaceId,
+        workspaceName: workspaceName || "Workspace",
+        type,
+        content: rawText 
+      }),
     })
 
     const responseText = await response.text()
