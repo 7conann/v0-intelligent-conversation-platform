@@ -850,29 +850,9 @@ export default function WhitelabelChatPage() {
 
   return (
     <div className="flex h-dvh md:h-screen overflow-hidden nexus-theme">
-      {/* NEXUS AI Banner */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-700 via-emerald-600 to-amber-600 py-2.5 px-4 shadow-lg">
-        <div className="flex items-center justify-center gap-3">
-          <Image 
-            src="/whitelabel-avatar.jpg" 
-            alt="NEXUS" 
-            width={24} 
-            height={24} 
-            className="rounded-md"
-          />
-          <span className="text-white text-sm font-semibold tracking-wide">
-            NEXUS AI - Plataforma White Label Demonstracao
-          </span>
-          <div className="h-4 w-px bg-white/30" />
-          <span className="text-amber-200 text-xs">
-            Personalize com sua marca
-          </span>
-        </div>
-      </div>
-      
       <PhoneModal isOpen={showPhoneModal} onClose={() => setShowPhoneModal(false)} onSubmit={handlePhoneSubmit} />
       
-      <div className="flex w-full pt-10">
+      <div className="flex w-full">
         <ChatSidebar
           agents={visibleAgents}
           allAgents={agents}

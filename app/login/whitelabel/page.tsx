@@ -67,12 +67,12 @@ export default function WhitelabelLoginPage() {
 
   if (isCheckingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0f0f]">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#071209] via-[#0a1810] to-[#071209]">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Brain className="w-10 h-10 text-white" />
           </div>
-          <p className="text-gray-400">Verificando sessao...</p>
+          <p className="text-emerald-300">Verificando sessao...</p>
         </div>
       </div>
     )
@@ -289,32 +289,32 @@ export default function WhitelabelLoginPage() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Login Form */}
-      <div className="w-full md:w-1/2 bg-[#0a0f0f] flex items-center justify-center p-6 md:p-12">
+      <div className="w-full md:w-1/2 bg-[#071209] flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="flex justify-center mb-6 md:mb-8">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center overflow-hidden">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center overflow-hidden">
               <Brain className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
           </div>
 
           {/* Title */}
-          <h1 className="text-2xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl md:text-4xl font-bold text-center mb-2 bg-gradient-to-r from-emerald-400 via-emerald-400 to-emerald-500 bg-clip-text text-transparent">
             SUA MARCA AI
           </h1>
           <p className="text-center text-gray-400 mb-2 text-xs md:text-sm">
             Plataforma de IA personalizada para sua empresa
           </p>
-          <p className="text-center text-blue-400 mb-8 md:mb-12 text-xs md:text-sm font-semibold">
+          <p className="text-center text-emerald-400 mb-8 md:mb-12 text-xs md:text-sm font-semibold">
             Sua marca, sua inteligencia.
           </p>
 
           {/* Whitelabel Notice */}
-          <div className="mb-6 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+          <div className="mb-6 bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+              <Sparkles className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <h3 className="text-blue-400 font-semibold mb-1">Versao Whitelabel</h3>
+                <h3 className="text-emerald-400 font-semibold mb-1">Versao Whitelabel</h3>
                 <p className="text-blue-200/80 text-sm">
                   Esta e uma demonstracao de como sua empresa pode ter uma plataforma de IA totalmente personalizada com sua marca, cores e logo.
                 </p>
@@ -348,7 +348,7 @@ export default function WhitelabelLoginPage() {
               onClick={() => setActiveTab("login")}
               className={`flex-1 py-2 md:py-2.5 rounded-md font-medium transition-all cursor-pointer text-xs md:text-sm ${
                 activeTab === "login"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg"
+                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg"
                   : "text-gray-400 hover:text-gray-300"
               }`}
             >
@@ -358,7 +358,7 @@ export default function WhitelabelLoginPage() {
               onClick={() => setActiveTab("cadastro")}
               className={`flex-1 py-2 md:py-2.5 rounded-md font-medium transition-all cursor-pointer text-xs md:text-sm ${
                 activeTab === "cadastro"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-600 text-white shadow-lg"
+                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg"
                   : "text-gray-400 hover:text-gray-300"
               }`}
             >
@@ -376,7 +376,7 @@ export default function WhitelabelLoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
@@ -390,7 +390,7 @@ export default function WhitelabelLoginPage() {
                     placeholder="********"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base pr-10"
                     required
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors">
@@ -404,7 +404,7 @@ export default function WhitelabelLoginPage() {
                   id="remember"
                   checked={rememberMe}
                   onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                  className="border-gray-700 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+                  className="border-gray-700 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                 />
                 <Label htmlFor="remember" className="text-xs md:text-sm text-gray-300 cursor-pointer select-none">Manter conectado</Label>
               </div>
@@ -418,7 +418,7 @@ export default function WhitelabelLoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-blue-500/20"
+                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-emerald-500/20"
               >
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
@@ -433,7 +433,7 @@ export default function WhitelabelLoginPage() {
                   placeholder="seu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
@@ -446,7 +446,7 @@ export default function WhitelabelLoginPage() {
                   placeholder="Seu nome"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base"
                 />
               </div>
 
@@ -458,7 +458,7 @@ export default function WhitelabelLoginPage() {
                   placeholder="(11) 99999-9999"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base"
                   required
                 />
               </div>
@@ -472,7 +472,7 @@ export default function WhitelabelLoginPage() {
                     placeholder="********"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base pr-10"
                     required
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors">
@@ -490,7 +490,7 @@ export default function WhitelabelLoginPage() {
                     placeholder="********"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-10 md:h-11 text-sm md:text-base pr-10"
+                    className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-10 md:h-11 text-sm md:text-base pr-10"
                     required
                   />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors">
@@ -508,14 +508,14 @@ export default function WhitelabelLoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-blue-500/20"
+                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white h-10 md:h-11 text-sm md:text-base font-medium cursor-pointer shadow-lg shadow-emerald-500/20"
               >
                 {isLoading ? "Criando conta..." : "Criar Conta"}
               </Button>
             </form>
           )}
 
-          <button onClick={() => setShowForgotPassword(true)} type="button" className="w-full text-center text-blue-400 hover:text-blue-300 mt-4 md:mt-6 text-xs md:text-sm cursor-pointer">
+          <button onClick={() => setShowForgotPassword(true)} type="button" className="w-full text-center text-emerald-400 hover:text-emerald-300 mt-4 md:mt-6 text-xs md:text-sm cursor-pointer">
             Esqueci minha senha
           </button>
         </div>
@@ -535,7 +535,7 @@ export default function WhitelabelLoginPage() {
         </div>
 
         {/* Glowing orbs */}
-        <div className="absolute top-20 left-20 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-30 animate-pulse" />
+        <div className="absolute top-20 left-20 w-64 h-64 bg-emerald-500 rounded-full blur-3xl opacity-30 animate-pulse" />
         <div className="absolute bottom-32 left-16 w-80 h-80 bg-cyan-500 rounded-full blur-3xl opacity-20 animate-pulse delay-500" />
         <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-cyan-300 rounded-full animate-ping delay-1000" />
 
@@ -557,7 +557,7 @@ export default function WhitelabelLoginPage() {
 
           <div className="flex flex-wrap gap-3 justify-center">
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-300" />
+              <Sparkles className="w-4 h-4 text-emerald-300" />
               Marca Personalizada
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium flex items-center gap-2">
@@ -565,7 +565,7 @@ export default function WhitelabelLoginPage() {
               Agentes Exclusivos
             </div>
             <div className="px-6 py-3 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white text-sm font-medium flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-300" />
+              <Zap className="w-4 h-4 text-emerald-300" />
               Dominio Proprio
             </div>
           </div>
@@ -574,7 +574,7 @@ export default function WhitelabelLoginPage() {
 
       {showForgotPassword && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0a0f0f] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-md">
+          <div className="bg-[#071209] border border-gray-800 rounded-2xl p-6 md:p-8 w-full max-w-md">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl md:text-2xl font-bold text-white">Recuperar Senha</h2>
               <button onClick={() => { setShowForgotPassword(false); setForgotPasswordEmail("") }} className="text-gray-400 hover:text-gray-300 transition-colors">
@@ -595,7 +595,7 @@ export default function WhitelabelLoginPage() {
                   placeholder="seu@email.com"
                   value={forgotPasswordEmail}
                   onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-blue-500 h-11"
+                  className="bg-gray-900/50 border-gray-800 text-white placeholder:text-gray-600 focus:border-emerald-500 h-11"
                   required
                   autoFocus
                 />
@@ -605,7 +605,7 @@ export default function WhitelabelLoginPage() {
                 <Button type="button" onClick={() => { setShowForgotPassword(false); setForgotPasswordEmail("") }} className="flex-1 bg-gray-800 hover:bg-gray-700 text-white h-11 cursor-pointer">
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSendingResetEmail} className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white h-11 cursor-pointer shadow-lg shadow-blue-500/20">
+                <Button type="submit" disabled={isSendingResetEmail} className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white h-11 cursor-pointer shadow-lg shadow-emerald-500/20">
                   {isSendingResetEmail ? "Enviando..." : "Enviar Link"}
                 </Button>
               </div>
