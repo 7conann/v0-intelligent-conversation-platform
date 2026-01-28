@@ -1009,9 +1009,52 @@ export default function WhitelabelChatPage() {
           border-color: #2563eb !important;
         }
         
-        /* Message bubbles */
+        /* Message bubbles - dark background with white text */
         .whitelabel-theme [class*="message"] {
           background-color: #0d1525 !important;
+          color: #ffffff !important;
+        }
+        
+        .whitelabel-theme [class*="message"] p,
+        .whitelabel-theme [class*="message"] span,
+        .whitelabel-theme [class*="message"] div {
+          color: #ffffff !important;
+        }
+        
+        /* Force all text inside chat area to be white */
+        .whitelabel-theme .text-\\[var\\(--text-primary\\)\\],
+        .whitelabel-theme .text-\\[var\\(--text-secondary\\)\\] {
+          color: #ffffff !important;
+        }
+        
+        /* Message content text */
+        .whitelabel-theme [class*="prose"],
+        .whitelabel-theme [class*="prose"] p,
+        .whitelabel-theme [class*="prose"] span,
+        .whitelabel-theme [class*="prose"] li,
+        .whitelabel-theme [class*="prose"] strong {
+          color: #ffffff !important;
+        }
+        
+        /* Chat area text */
+        .whitelabel-theme main p,
+        .whitelabel-theme main span:not([class*="badge"]),
+        .whitelabel-theme main div:not([class*="bg-"]) {
+          color: #ffffff !important;
+        }
+        
+        /* Secondary text - slightly dimmer white */
+        .whitelabel-theme [class*="text-gray"],
+        .whitelabel-theme [class*="text-slate"],
+        .whitelabel-theme [class*="text-muted"] {
+          color: #cbd5e1 !important;
+        }
+        
+        /* Timestamps and metadata */
+        .whitelabel-theme time,
+        .whitelabel-theme [class*="timestamp"],
+        .whitelabel-theme small {
+          color: #94a3b8 !important;
         }
         
         /* Input fields */
@@ -1048,6 +1091,69 @@ export default function WhitelabelChatPage() {
         .whitelabel-theme div[class*="1a1a"],
         .whitelabel-theme div[class*="111827"] {
           background-color: #0a0a18 !important;
+        }
+        
+        /* Force white text on all paragraphs in chat */
+        .whitelabel-theme p {
+          color: #ffffff !important;
+        }
+        
+        /* Badge/tags should stay colored */
+        .whitelabel-theme [class*="badge"],
+        .whitelabel-theme [class*="Badge"] {
+          color: inherit !important;
+        }
+        
+        /* Links - blue color */
+        .whitelabel-theme a {
+          color: #60a5fa !important;
+        }
+        
+        .whitelabel-theme a:hover {
+          color: #93c5fd !important;
+        }
+        
+        /* Code blocks - darker background */
+        .whitelabel-theme pre,
+        .whitelabel-theme code {
+          background-color: #020617 !important;
+          color: #e2e8f0 !important;
+        }
+        
+        /* Headers */
+        .whitelabel-theme h1,
+        .whitelabel-theme h2,
+        .whitelabel-theme h3,
+        .whitelabel-theme h4,
+        .whitelabel-theme h5,
+        .whitelabel-theme h6 {
+          color: #ffffff !important;
+        }
+        
+        /* Lists */
+        .whitelabel-theme ul,
+        .whitelabel-theme ol,
+        .whitelabel-theme li {
+          color: #ffffff !important;
+        }
+        
+        /* Ensure sidebar text is white */
+        .whitelabel-theme aside p,
+        .whitelabel-theme aside span,
+        .whitelabel-theme aside div {
+          color: #ffffff !important;
+        }
+        
+        /* Input placeholder */
+        .whitelabel-theme input::placeholder,
+        .whitelabel-theme textarea::placeholder {
+          color: #64748b !important;
+        }
+        
+        /* Input text */
+        .whitelabel-theme input,
+        .whitelabel-theme textarea {
+          color: #ffffff !important;
         }
       `}</style>
     </div>
