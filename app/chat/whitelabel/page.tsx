@@ -1294,14 +1294,13 @@ export default function WhitelabelChatPage() {
         }
         
         .whitelabel-blue-theme [class*="conversation"]:hover {
-          background: #1e293b !important;
-          border-color: #3b82f6 !important;
+          background: #0f172a !important;
+          border-color: #1e293b !important;
         }
         
         .whitelabel-blue-theme [class*="conversation"][class*="active"] {
           background: #1e293b !important;
           border-color: #3b82f6 !important;
-          box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3) !important;
         }
         
         /* ============================================
