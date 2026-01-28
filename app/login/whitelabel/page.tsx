@@ -550,7 +550,7 @@ export default function WhitelabelLoginPage() {
           <h2 className="text-5xl font-bold text-white mb-6 leading-tight">
             Sua plataforma de IA com a identidade da sua empresa
           </h2>
-          <p className="text-xl text-blue-200 leading-relaxed mb-12">
+          <p className="text-xl text-emerald-200 leading-relaxed mb-12">
             Tenha sua propria versao da plataforma com cores, logos e dominio personalizados. Oferea uma experiencia unica aos seus colaboradores.
           </p>
 
