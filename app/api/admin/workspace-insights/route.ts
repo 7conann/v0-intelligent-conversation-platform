@@ -4,50 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin"
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { workspaceId, workspaceName, type } = body
+    const { workspaceId, workspaceName, type, userId } = body
 
     if (!workspaceId) {
       return NextResponse.json({ error: "workspaceId é obrigatório" }, { status: 400 })
-    }
-
-    const adminClient = createAdminClient()
-    
-    // Buscar todas as conversas do workspace
-    const { data: conversations } = await adminClient
-      .from("conversations")
-      .select("id, title, created_at")
-      .eq("workspace_id", workspaceId)
-      .order("created_at", { ascending: false })
-
-    // Buscar todas as mensagens das conversas
-    let allMessages: any[] = []
-    if (conversations && conversations.length > 0) {
-      const conversationIds = conversations.map(c => c.id)
-      
-      const { data: messages } = await adminClient
-        .from("messages")
-        .select("content, role, conversation_id, created_at, agent_name")
-        .in("conversation_id", conversationIds)
-        .order("created_at", { ascending: true })
-
-      allMessages = messages || []
-    }
-
-    // Montar texto bruto com todas as conversas e mensagens
-    let rawText = `Workspace: ${workspaceName || "Workspace"}\nTipo: ${type}\n\n`
-    
-    for (const conv of (conversations || [])) {
-      rawText += `=== CONVERSA: ${conv.title} ===\n`
-      rawText += `Data: ${conv.created_at}\n\n`
-      
-      const convMessages = allMessages.filter(m => m.conversation_id === conv.id)
-      
-      for (const msg of convMessages) {
-        const sender = msg.role === 'user' ? 'USUÁRIO' : (msg.agent_name || 'ASSISTENTE')
-        rawText += `[${sender}]: ${msg.content}\n`
-      }
-      
-      rawText += `\n---\n\n`
     }
 
     // URL do webhook baseado no tipo
@@ -55,7 +15,7 @@ export async function POST(request: Request) {
       ? "https://n8n.grupobeely.com.br/webhook/workspace-topico"
       : "https://n8n.grupobeely.com.br/webhook/workspace-assunto"
 
-    // POST no webhook com texto bruto
+    // POST no webhook com workspaceId e userId - n8n busca as conversas e mensagens
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,9 +23,11 @@ export async function POST(request: Request) {
         workspaceId,
         workspaceName: workspaceName || "Workspace",
         type,
-        content: rawText 
+        userId
       }),
     })
+
+    const adminClient = createAdminClient()
 
     const responseText = await response.text()
 

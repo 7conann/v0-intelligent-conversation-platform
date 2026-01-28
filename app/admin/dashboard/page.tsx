@@ -145,14 +145,14 @@ export default function AdminDashboard() {
     checkAdminAndLoadData()
   }, [router])
 
-  const handleGetInsights = async (workspaceId: string, workspaceName: string, type: 'summary' | 'trending') => {
+  const handleGetInsights = async (workspaceId: string, workspaceName: string, type: 'summary' | 'trending', userId: string) => {
     setLoadingInsights({ ...loadingInsights, [workspaceId]: type })
 
     try {
       const response = await fetch("/api/admin/workspace-insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, workspaceName, type })
+        body: JSON.stringify({ workspaceId, workspaceName, type, userId })
       })
 
       if (!response.ok) {
@@ -822,7 +822,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'summary')}
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'summary', workspace.user_id)}
                         disabled={!!loadingInsights[workspace.id]}
                         className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -834,7 +834,7 @@ export default function AdminDashboard() {
                         <span className="text-purple-300">Resumo</span>
                       </button>
                       <button
-                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'trending')}
+                        onClick={() => handleGetInsights(workspace.id, workspace.name, 'trending', workspace.user_id)}
                         disabled={!!loadingInsights[workspace.id]}
                         className="flex items-center gap-2 px-3 py-2 bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       >
