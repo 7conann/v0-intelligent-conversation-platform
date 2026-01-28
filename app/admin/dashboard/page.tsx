@@ -300,12 +300,15 @@ export default function AdminDashboard() {
   const paginatedWorkspaces = workspaces?.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE) || []
 
   // Chart configurations
+  const messagesPerDay = chartData?.messagesPerDay || []
+  const conversationsPerDay = chartData?.conversationsPerDay || []
+  
   const messagesChartData = {
-    labels: chartData.messagesPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
+    labels: messagesPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
     datasets: [
       {
         label: 'Mensagens',
-        data: chartData.messagesPerDay.slice(-30).map(d => d.count),
+        data: messagesPerDay.slice(-30).map(d => d.count),
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
         fill: true,
@@ -315,23 +318,24 @@ export default function AdminDashboard() {
   }
 
   const conversationsChartData = {
-    labels: chartData.conversationsPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
+    labels: conversationsPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
     datasets: [
       {
         label: 'Conversas',
-        data: chartData.conversationsPerDay.slice(-30).map(d => d.count),
+        data: conversationsPerDay.slice(-30).map(d => d.count),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
         borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 1,
+        borderWidth: 2,
       },
     ],
   }
 
+  const agentUsage = chartData?.agentUsage || []
   const agentUsageData = {
-    labels: chartData.agentUsage.slice(0, 10).map(a => a.agent_name),
+    labels: agentUsage.slice(0, 10).map(a => a.agent_name),
     datasets: [
       {
-        data: chartData.agentUsage.slice(0, 10).map(a => a.count),
+        data: agentUsage.slice(0, 10).map(a => a.count),
         backgroundColor: [
           'rgba(147, 51, 234, 0.8)',
           'rgba(59, 130, 246, 0.8)',
