@@ -92,8 +92,6 @@ export default function AdminDashboard() {
   const [workspaces, setWorkspaces] = useState<any[]>([])
   const [loadingInsights, setLoadingInsights] = useState<{[key: string]: 'summary' | 'trending' | null}>({})
   const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null)
-  const [graphData, setGraphData] = useState<{ assuntos: { name: string; count: number }[]; topicos: { name: string; count: number }[] }>({ assuntos: [], topicos: [] })
-  const [loadingGraph, setLoadingGraph] = useState(false)
   
   // Pagination states
   const [usersPage, setUsersPage] = useState(1)
@@ -143,15 +141,6 @@ export default function AdminDashboard() {
           const workspacesData = await workspacesResponse.json()
           setWorkspaces(workspacesData.workspaces || [])
         }
-
-        // Fetch graph data
-        setLoadingGraph(true)
-        const graphResponse = await fetch("/api/admin/workspace-graph", { method: "POST" })
-        if (graphResponse.ok) {
-          const graphResult = await graphResponse.json()
-          setGraphData(graphResult.data || { assuntos: [], topicos: [] })
-        }
-        setLoadingGraph(false)
       } catch (error) {
         console.error("[v0] Error loading admin data:", error)
       }
@@ -288,27 +277,24 @@ export default function AdminDashboard() {
       return sortOrder === "asc" ? comparison : -comparison
     })
 
-  // Pagination calculations with null checks
-  const totalUsersPages = Math.ceil((filteredUsers?.length || 0) / ITEMS_PER_PAGE) || 1
-  const paginatedUsers = filteredUsers?.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE) || []
+  // Pagination calculations
+  const totalUsersPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE) || 1
+  const paginatedUsers = filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE)
   
   const userActivityData = chartData?.userActivity || []
   const totalTopUsersPages = Math.ceil(userActivityData.length / ITEMS_PER_PAGE) || 1
   const paginatedTopUsers = userActivityData.slice((topUsersPage - 1) * ITEMS_PER_PAGE, topUsersPage * ITEMS_PER_PAGE)
   
-  const totalWorkspacesPages = Math.ceil((workspaces?.length || 0) / ITEMS_PER_PAGE) || 1
-  const paginatedWorkspaces = workspaces?.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE) || []
+  const totalWorkspacesPages = Math.ceil(workspaces.length / ITEMS_PER_PAGE) || 1
+  const paginatedWorkspaces = workspaces.slice((workspacesPage - 1) * ITEMS_PER_PAGE, workspacesPage * ITEMS_PER_PAGE)
 
   // Chart configurations
-  const messagesPerDay = chartData?.messagesPerDay || []
-  const conversationsPerDay = chartData?.conversationsPerDay || []
-  
   const messagesChartData = {
-    labels: messagesPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
+    labels: chartData.messagesPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
     datasets: [
       {
         label: 'Mensagens',
-        data: messagesPerDay.slice(-30).map(d => d.count),
+        data: chartData.messagesPerDay.slice(-30).map(d => d.count),
         borderColor: 'rgb(147, 51, 234)',
         backgroundColor: 'rgba(147, 51, 234, 0.1)',
         fill: true,
@@ -318,24 +304,23 @@ export default function AdminDashboard() {
   }
 
   const conversationsChartData = {
-    labels: conversationsPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
+    labels: chartData.conversationsPerDay.slice(-30).map(d => new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })),
     datasets: [
       {
         label: 'Conversas',
-        data: conversationsPerDay.slice(-30).map(d => d.count),
+        data: chartData.conversationsPerDay.slice(-30).map(d => d.count),
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
         borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 2,
+        borderWidth: 1,
       },
     ],
   }
 
-  const agentUsage = chartData?.agentUsage || []
   const agentUsageData = {
-    labels: agentUsage.slice(0, 10).map(a => a.agent_name),
+    labels: chartData.agentUsage.slice(0, 10).map(a => a.agent_name),
     datasets: [
       {
-        data: agentUsage.slice(0, 10).map(a => a.count),
+        data: chartData.agentUsage.slice(0, 10).map(a => a.count),
         backgroundColor: [
           'rgba(147, 51, 234, 0.8)',
           'rgba(59, 130, 246, 0.8)',
@@ -528,93 +513,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Subject and Topic Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Assuntos mais falados */}
-          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/20 rounded-lg">
-                  <MessageSquare className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Assuntos Mais Falados</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Analise das conversas</p>
-                </div>
-              </div>
-              {loadingGraph && <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />}
-            </div>
-            <div className="h-64">
-              {graphData.assuntos.length > 0 ? (
-                <Bar 
-                  data={{
-                    labels: graphData.assuntos.slice(0, 10).map(a => a.name),
-                    datasets: [{
-                      label: 'Menções',
-                      data: graphData.assuntos.slice(0, 10).map(a => a.count),
-                      backgroundColor: 'rgba(147, 51, 234, 0.8)',
-                      borderColor: 'rgb(147, 51, 234)',
-                      borderWidth: 1,
-                    }]
-                  }} 
-                  options={{
-                    ...chartOptions,
-                    indexAxis: 'y' as const,
-                  }} 
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center text-[var(--text-secondary)]">
-                  {loadingGraph ? 'Carregando...' : 'Nenhum dado disponivel'}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Topicos mais falados */}
-          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-orange-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)]">Topicos Mais Falados</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Temas mais discutidos</p>
-                </div>
-              </div>
-              {loadingGraph && <Loader2 className="w-5 h-5 text-orange-400 animate-spin" />}
-            </div>
-            <div className="h-64">
-              {graphData.topicos.length > 0 ? (
-                <Doughnut 
-                  data={{
-                    labels: graphData.topicos.slice(0, 8).map(t => t.name),
-                    datasets: [{
-                      data: graphData.topicos.slice(0, 8).map(t => t.count),
-                      backgroundColor: [
-                        'rgba(251, 146, 60, 0.8)',
-                        'rgba(147, 51, 234, 0.8)',
-                        'rgba(59, 130, 246, 0.8)',
-                        'rgba(16, 185, 129, 0.8)',
-                        'rgba(245, 158, 11, 0.8)',
-                        'rgba(239, 68, 68, 0.8)',
-                        'rgba(236, 72, 153, 0.8)',
-                        'rgba(14, 165, 233, 0.8)',
-                      ],
-                      borderWidth: 0,
-                    }]
-                  }} 
-                  options={doughnutOptions} 
-                />
-              ) : (
-                <div className="h-full flex items-center justify-center text-[var(--text-secondary)]">
-                  {loadingGraph ? 'Carregando...' : 'Nenhum dado disponivel'}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Top Users Activity */}
         <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
           <div className="flex items-center gap-3 mb-4">
@@ -654,7 +552,7 @@ export default function AdminDashboard() {
             </table>
           </div>
           
-          {/* Pagination */}
+          {/* Pagination for Top Users */}
           {totalTopUsersPages > 1 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
               <p className="text-sm text-[var(--text-secondary)]">
@@ -913,8 +811,8 @@ export default function AdminDashboard() {
             </table>
           </div>
 
-          {/* Pagination */}
-          {totalUsersPages > 1 && (
+          {/* Pagination for Users */}
+          {totalUsersPages > 1 && filteredUsers.length > 0 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
               <p className="text-sm text-[var(--text-secondary)]">
                 Pagina {usersPage} de {totalUsersPages} ({filteredUsers.length} usuarios)
@@ -970,7 +868,7 @@ export default function AdminDashboard() {
           {filteredUsers.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3 opacity-50" />
-              <p className="text-[var(--text-secondary)]">Nenhum usuário encontrado</p>
+              <p className="text-[var(--text-secondary)]">Nenhum usuario encontrado</p>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
@@ -1062,7 +960,7 @@ export default function AdminDashboard() {
                 </div>
               ))}
               
-              {/* Pagination */}
+              {/* Pagination for Workspaces */}
               {totalWorkspacesPages > 1 && (
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--sidebar-border)]">
                   <p className="text-sm text-[var(--text-secondary)]">
