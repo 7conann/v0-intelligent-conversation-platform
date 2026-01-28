@@ -513,6 +513,79 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* Trending Topics and Subjects */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Most Discussed Subjects */}
+          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-pink-500/20 rounded-lg">
+                <MessageSquare className="w-5 h-5 text-pink-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Assuntos Mais Falados</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Top 8 assuntos mais discutidos</p>
+              </div>
+            </div>
+            <div className="h-64">
+              <Bar 
+                data={{
+                  labels: ['Vendas', 'Marketing', 'Suporte', 'Financeiro', 'RH', 'Tecnologia', 'Operações', 'Logística'],
+                  datasets: [{
+                    label: 'Menções',
+                    data: [342, 289, 256, 198, 167, 145, 123, 98],
+                    backgroundColor: [
+                      'rgba(236, 72, 153, 0.8)',
+                      'rgba(147, 51, 234, 0.8)',
+                      'rgba(59, 130, 246, 0.8)',
+                      'rgba(16, 185, 129, 0.8)',
+                      'rgba(245, 158, 11, 0.8)',
+                      'rgba(239, 68, 68, 0.8)',
+                      'rgba(168, 85, 247, 0.8)',
+                      'rgba(14, 165, 233, 0.8)',
+                    ],
+                    borderWidth: 0,
+                  }]
+                }}
+                options={chartOptions}
+              />
+            </div>
+          </div>
+
+          {/* Trending Topics */}
+          <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-cyan-500/20 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Tópicos Mais Falados</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Tópicos em alta nas conversas</p>
+              </div>
+            </div>
+            <div className="h-64">
+              <Doughnut 
+                data={{
+                  labels: ['IA Generativa', 'Automação', 'CRM', 'Análise de Dados', 'Cloud', 'API Integration', 'Workflows'],
+                  datasets: [{
+                    data: [285, 234, 198, 167, 143, 112, 89],
+                    backgroundColor: [
+                      'rgba(6, 182, 212, 0.8)',
+                      'rgba(59, 130, 246, 0.8)',
+                      'rgba(147, 51, 234, 0.8)',
+                      'rgba(16, 185, 129, 0.8)',
+                      'rgba(245, 158, 11, 0.8)',
+                      'rgba(239, 68, 68, 0.8)',
+                      'rgba(236, 72, 153, 0.8)',
+                    ],
+                    borderWidth: 0,
+                  }]
+                }}
+                options={doughnutOptions}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Top Users Activity */}
         <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--sidebar-border)] p-6">
           <div className="flex items-center gap-3 mb-4">
