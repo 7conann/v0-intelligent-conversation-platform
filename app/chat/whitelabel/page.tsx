@@ -987,11 +987,7 @@ export default function WhitelabelChatPage() {
            NEXUS - CORES PURPLE -> EMERALD/AMBER
            ============================================ */
         
-        .nexus-theme [class*="purple-600"],
-        .nexus-theme [class*="purple-500"],
-        .nexus-theme [class*="bg-purple"] {
-          background-color: #059669 !important;
-        }
+        /* Colors to emerald - removed */
         
         .nexus-theme [class*="text-purple"] {
           color: #10b981 !important;
