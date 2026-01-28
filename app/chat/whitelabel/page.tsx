@@ -1155,6 +1155,141 @@ export default function WhitelabelChatPage() {
         .whitelabel-theme textarea {
           color: #ffffff !important;
         }
+        
+        /* AGGRESSIVE OVERRIDES - Force all purple variations to blue */
+        .whitelabel-theme .bg-purple-50 { background-color: #eff6ff !important; }
+        .whitelabel-theme .bg-purple-100 { background-color: #dbeafe !important; }
+        .whitelabel-theme .bg-purple-200 { background-color: #bfdbfe !important; }
+        .whitelabel-theme .bg-purple-300 { background-color: #93c5fd !important; }
+        .whitelabel-theme .bg-purple-400 { background-color: #60a5fa !important; }
+        .whitelabel-theme .bg-purple-500 { background-color: #3b82f6 !important; }
+        .whitelabel-theme .bg-purple-600 { background-color: #2563eb !important; }
+        .whitelabel-theme .bg-purple-700 { background-color: #1d4ed8 !important; }
+        .whitelabel-theme .bg-purple-800 { background-color: #1e40af !important; }
+        .whitelabel-theme .bg-purple-900 { background-color: #1e3a8a !important; }
+        
+        .whitelabel-theme .text-purple-50 { color: #eff6ff !important; }
+        .whitelabel-theme .text-purple-100 { color: #dbeafe !important; }
+        .whitelabel-theme .text-purple-200 { color: #bfdbfe !important; }
+        .whitelabel-theme .text-purple-300 { color: #93c5fd !important; }
+        .whitelabel-theme .text-purple-400 { color: #60a5fa !important; }
+        .whitelabel-theme .text-purple-500 { color: #3b82f6 !important; }
+        .whitelabel-theme .text-purple-600 { color: #2563eb !important; }
+        .whitelabel-theme .text-purple-700 { color: #1d4ed8 !important; }
+        .whitelabel-theme .text-purple-800 { color: #1e40af !important; }
+        .whitelabel-theme .text-purple-900 { color: #1e3a8a !important; }
+        
+        .whitelabel-theme .border-purple-50 { border-color: #eff6ff !important; }
+        .whitelabel-theme .border-purple-100 { border-color: #dbeafe !important; }
+        .whitelabel-theme .border-purple-200 { border-color: #bfdbfe !important; }
+        .whitelabel-theme .border-purple-300 { border-color: #93c5fd !important; }
+        .whitelabel-theme .border-purple-400 { border-color: #60a5fa !important; }
+        .whitelabel-theme .border-purple-500 { border-color: #3b82f6 !important; }
+        .whitelabel-theme .border-purple-600 { border-color: #2563eb !important; }
+        .whitelabel-theme .border-purple-700 { border-color: #1d4ed8 !important; }
+        .whitelabel-theme .border-purple-800 { border-color: #1e40af !important; }
+        .whitelabel-theme .border-purple-900 { border-color: #1e3a8a !important; }
+        
+        /* Override all hex color classes that might be purple */
+        .whitelabel-theme .bg-\\[\\#a855f7\\],
+        .whitelabel-theme .bg-\\[\\#9333ea\\],
+        .whitelabel-theme .bg-\\[\\#7c3aed\\],
+        .whitelabel-theme .bg-\\[\\#6d28d9\\] {
+          background-color: #2563eb !important;
+        }
+        
+        /* Override all specific background colors to dark theme */
+        .whitelabel-theme .bg-white { background-color: #0a0a18 !important; }
+        .whitelabel-theme .bg-gray-50 { background-color: #0d1525 !important; }
+        .whitelabel-theme .bg-gray-100 { background-color: #0d1525 !important; }
+        .whitelabel-theme .bg-gray-200 { background-color: #152035 !important; }
+        .whitelabel-theme .bg-gray-800 { background-color: #0a0a18 !important; }
+        .whitelabel-theme .bg-gray-900 { background-color: #050510 !important; }
+        .whitelabel-theme .bg-slate-50 { background-color: #0d1525 !important; }
+        .whitelabel-theme .bg-slate-100 { background-color: #0d1525 !important; }
+        .whitelabel-theme .bg-slate-800 { background-color: #0a0a18 !important; }
+        .whitelabel-theme .bg-slate-900 { background-color: #050510 !important; }
+        
+        /* Force all text to be white/light */
+        .whitelabel-theme .text-gray-900,
+        .whitelabel-theme .text-gray-800,
+        .whitelabel-theme .text-gray-700,
+        .whitelabel-theme .text-slate-900,
+        .whitelabel-theme .text-slate-800,
+        .whitelabel-theme .text-slate-700,
+        .whitelabel-theme .text-black {
+          color: #ffffff !important;
+        }
+        
+        .whitelabel-theme .text-gray-600,
+        .whitelabel-theme .text-gray-500,
+        .whitelabel-theme .text-gray-400,
+        .whitelabel-theme .text-slate-600,
+        .whitelabel-theme .text-slate-500,
+        .whitelabel-theme .text-slate-400 {
+          color: #cbd5e1 !important;
+        }
+        
+        /* Buttons - all variations */
+        .whitelabel-theme button {
+          border-color: #1e3a5f !important;
+        }
+        
+        .whitelabel-theme button:not([class*="ghost"]):not([class*="outline"]) {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+        }
+        
+        .whitelabel-theme button:not([class*="ghost"]):not([class*="outline"]):hover {
+          background-color: #1d4ed8 !important;
+        }
+        
+        /* Specific component overrides */
+        .whitelabel-theme [role="tab"][data-state="active"],
+        .whitelabel-theme [data-selected="true"],
+        .whitelabel-theme [aria-selected="true"] {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+          border-color: #2563eb !important;
+        }
+        
+        /* Conversation list items */
+        .whitelabel-theme [class*="conversation"] {
+          background-color: #0d1525 !important;
+          border-color: #1e3a5f !important;
+        }
+        
+        .whitelabel-theme [class*="conversation"]:hover {
+          background-color: #152035 !important;
+        }
+        
+        .whitelabel-theme [class*="conversation"][class*="active"],
+        .whitelabel-theme [class*="conversation"][data-active="true"] {
+          background-color: #152035 !important;
+          border-color: #2563eb !important;
+        }
+        
+        /* Override any remaining specific hex values */
+        .whitelabel-theme * {
+          scrollbar-color: rgba(59, 130, 246, 0.5) #0a0a18 !important;
+        }
+        
+        /* Make sure all divs use the theme colors */
+        .whitelabel-theme div {
+          border-color: #1e3a5f;
+        }
+        
+        /* Universal text color enforcement */
+        .whitelabel-theme * {
+          color: inherit;
+        }
+        
+        .whitelabel-theme body,
+        .whitelabel-theme main,
+        .whitelabel-theme section,
+        .whitelabel-theme article {
+          color: #ffffff;
+        }
       `}</style>
     </div>
   )
