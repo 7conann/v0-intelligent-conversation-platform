@@ -53,7 +53,7 @@ export default function WhitelabelLoginPage() {
             description: "Redirecionando para o painel...",
             variant: "success",
           })
-          window.location.href = "/chat"
+          window.location.href = "/chat/whitelabel"
         }
       } catch (error) {
         console.error("[v0] Error checking session:", error)
@@ -147,7 +147,7 @@ export default function WhitelabelLoginPage() {
       })
 
       sessionStorage.setItem("just_logged_out", "false")
-      setTimeout(() => { window.location.href = "/chat" }, 500)
+      setTimeout(() => { window.location.href = "/chat/whitelabel" }, 500)
     } catch (err: any) {
       addToast({
         title: "Erro inesperado",
@@ -192,8 +192,8 @@ export default function WhitelabelLoginPage() {
       const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost"
       const productionUrl = "https://www.workspaceai.digital"
       const redirectUrl = isLocalhost
-        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat`
-        : `${productionUrl}/chat`
+        ? process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/chat/whitelabel`
+        : `${productionUrl}/chat/whitelabel`
 
       const { data, error } = await supabase.auth.signUp({
         email,
