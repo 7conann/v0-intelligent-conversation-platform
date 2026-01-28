@@ -909,87 +909,145 @@ export default function WhitelabelChatPage() {
       </div>
       
       <style jsx global>{`
+        /* Override CSS Variables for Whitelabel Theme - Blue/Black */
         .whitelabel-theme {
-          --whitelabel-primary: #3b82f6;
-          --whitelabel-secondary: #1e3a5f;
-          --whitelabel-accent: #60a5fa;
-          --whitelabel-dark: #0a0a12;
+          --app-bg: #050510 !important;
+          --sidebar-bg: #0a0a18 !important;
+          --sidebar-border: #1e3a5f !important;
+          --agent-bg: #0d1525 !important;
+          --agent-hover: #152035 !important;
+          --agent-icon: #60a5fa !important;
+          --tooltip-bg: #0d1525 !important;
+          --tooltip-text: #ffffff !important;
+          --chat-bg: #050510 !important;
+          --chat-header-bg: #0a0a18 !important;
+          --chat-border: #1e3a5f !important;
+          --message-user-bg: #0d1525 !important;
+          --message-assistant-bg: #0a1628 !important;
+          --input-bg: #0a0a18 !important;
+          --settings-bg: #0a0a18 !important;
+          --settings-border: #1e3a5f !important;
+          --settings-text: #ffffff !important;
+          --settings-text-muted: #60a5fa !important;
+          --text-primary: #ffffff !important;
+          --text-secondary: #93c5fd !important;
+          --border-color: #1e3a5f !important;
+          --settings-button-bg: #0d1525 !important;
+          --settings-button-hover: #152035 !important;
+          --settings-input-bg: #050510 !important;
+          --card-bg: #0d1525 !important;
         }
-        /* Override purple to blue */
-        .whitelabel-theme .bg-purple-600,
-        .whitelabel-theme .bg-purple-500 {
-          background-color: #3b82f6 !important;
+        
+        /* Force background colors */
+        .whitelabel-theme,
+        .whitelabel-theme > div,
+        .whitelabel-theme [class*="bg-[var(--app-bg)"] {
+          background-color: #050510 !important;
         }
-        .whitelabel-theme .bg-purple-400,
-        .whitelabel-theme .bg-purple-300 {
-          background-color: #60a5fa !important;
+        
+        /* Sidebar background */
+        .whitelabel-theme aside,
+        .whitelabel-theme [class*="sidebar"],
+        .whitelabel-theme [class*="bg-[var(--sidebar-bg)"] {
+          background-color: #0a0a18 !important;
+          border-color: #1e3a5f !important;
         }
-        .whitelabel-theme .bg-purple-600\\/20,
-        .whitelabel-theme .bg-purple-500\\/20 {
-          background-color: rgba(59, 130, 246, 0.2) !important;
+        
+        /* All purple colors to blue */
+        .whitelabel-theme [class*="purple-600"],
+        .whitelabel-theme [class*="purple-500"],
+        .whitelabel-theme [class*="bg-purple"] {
+          background-color: #2563eb !important;
         }
-        .whitelabel-theme .text-purple-600,
-        .whitelabel-theme .text-purple-500 {
+        
+        .whitelabel-theme [class*="text-purple"] {
           color: #3b82f6 !important;
         }
-        .whitelabel-theme .text-purple-400,
-        .whitelabel-theme .text-purple-300 {
-          color: #60a5fa !important;
-        }
-        .whitelabel-theme .border-purple-600,
-        .whitelabel-theme .border-purple-500 {
+        
+        .whitelabel-theme [class*="border-purple"] {
           border-color: #3b82f6 !important;
         }
-        .whitelabel-theme .border-purple-400,
-        .whitelabel-theme .border-purple-500\\/30 {
-          border-color: rgba(59, 130, 246, 0.3) !important;
+        
+        /* Gradient overrides */
+        .whitelabel-theme [class*="from-purple"] {
+          --tw-gradient-from: #2563eb !important;
         }
-        .whitelabel-theme .from-purple-600 {
-          --tw-gradient-from: #3b82f6 !important;
-        }
-        .whitelabel-theme .to-blue-600 {
+        
+        .whitelabel-theme [class*="to-blue"],
+        .whitelabel-theme [class*="to-purple"] {
           --tw-gradient-to: #1e40af !important;
         }
-        .whitelabel-theme .hover\\:bg-purple-700:hover,
-        .whitelabel-theme .hover\\:bg-purple-600:hover {
-          background-color: #2563eb !important;
+        
+        /* Hover states */
+        .whitelabel-theme [class*="hover:bg-purple"]:hover {
+          background-color: #1d4ed8 !important;
         }
-        .whitelabel-theme .focus\\:ring-purple-500:focus {
+        
+        /* Focus rings */
+        .whitelabel-theme [class*="ring-purple"],
+        .whitelabel-theme [class*="focus:ring-purple"]:focus {
           --tw-ring-color: #3b82f6 !important;
         }
-        .whitelabel-theme .ring-purple-500 {
-          --tw-ring-color: #3b82f6 !important;
+        
+        /* Scrollbar - blue theme */
+        .whitelabel-theme ::-webkit-scrollbar-thumb {
+          background-color: rgba(59, 130, 246, 0.5) !important;
         }
-        /* Sidebar and backgrounds - make darker/black tones */
-        .whitelabel-theme [class*="sidebar"] {
-          background-color: #0d0d14 !important;
-          border-color: #1e293b !important;
+        
+        .whitelabel-theme ::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(59, 130, 246, 0.7) !important;
         }
-        .whitelabel-theme .bg-\\[\\#0f0f1a\\],
-        .whitelabel-theme .bg-\\[var\\(--sidebar-bg\\)\\] {
-          background-color: #0d0d14 !important;
+        
+        /* Agent cards */
+        .whitelabel-theme [class*="agent"] {
+          background-color: #0d1525 !important;
+          border-color: #1e3a5f !important;
         }
-        .whitelabel-theme .bg-\\[\\#1a1a2e\\] {
-          background-color: #111827 !important;
+        
+        .whitelabel-theme [class*="agent"]:hover {
+          background-color: #152035 !important;
+          border-color: #2563eb !important;
         }
-        /* Buttons and interactive elements */
-        .whitelabel-theme button[class*="purple"] {
-          background-color: #3b82f6 !important;
+        
+        /* Message bubbles */
+        .whitelabel-theme [class*="message"] {
+          background-color: #0d1525 !important;
         }
-        .whitelabel-theme button[class*="purple"]:hover {
-          background-color: #2563eb !important;
+        
+        /* Input fields */
+        .whitelabel-theme input,
+        .whitelabel-theme textarea {
+          background-color: #0a0a18 !important;
+          border-color: #1e3a5f !important;
         }
-        /* Input focus states */
+        
         .whitelabel-theme input:focus,
         .whitelabel-theme textarea:focus {
           border-color: #3b82f6 !important;
           box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
         }
-        /* Agent cards and selections */
-        .whitelabel-theme [class*="agent"][class*="selected"],
-        .whitelabel-theme [class*="agent"][class*="active"] {
-          border-color: #3b82f6 !important;
-          background-color: rgba(59, 130, 246, 0.1) !important;
+        
+        /* Buttons */
+        .whitelabel-theme button[class*="purple"],
+        .whitelabel-theme button[class*="bg-gradient"] {
+          background: linear-gradient(to right, #2563eb, #1e40af) !important;
+        }
+        
+        .whitelabel-theme button[class*="purple"]:hover,
+        .whitelabel-theme button[class*="bg-gradient"]:hover {
+          background: linear-gradient(to right, #1d4ed8, #1e3a8a) !important;
+        }
+        
+        /* Header/banner specific */
+        .whitelabel-theme .bg-gradient-to-r {
+          background: linear-gradient(to right, #2563eb, #1e40af) !important;
+        }
+        
+        /* Fix any remaining backgrounds */
+        .whitelabel-theme div[class*="0f0f"],
+        .whitelabel-theme div[class*="1a1a"],
+        .whitelabel-theme div[class*="111827"] {
+          background-color: #0a0a18 !important;
         }
       `}</style>
     </div>
